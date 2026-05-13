@@ -516,6 +516,13 @@ export default function TerminalScreen() {
               />
               <View style={styles.headerTextBlock}>
                 <Text style={styles.heroTitle}>MIRRORS 96</Text>
+                <TouchableOpacity onPress={() => router.push('/chirpconnect')} activeOpacity={0.7} style={styles.codesIdBadge}>
+                  <Image
+                    source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/x7wgp9g9_MIRRORS%20ID.jpeg' }}
+                    style={styles.codesIdImage}
+                    resizeMode="contain"
+                  />
+                </TouchableOpacity>
                 <View style={styles.bubbleRow}>
                   <TouchableOpacity
                     style={styles.bubble}
@@ -1160,7 +1167,23 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontFamily: 'TerminatorRealNFI',
     letterSpacing: 6,
+    marginBottom: 6,
+  },
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 8,
+  },
+  codesIdBadge: {
+    width: '100%',
+    height: 48,
+    marginBottom: 8,
+  },
+  codesIdImage: {
+    width: '100%',
+    height: 48,
+    borderRadius: 3,
   },
   heroH2: {
     color: '#ffffff88',
