@@ -4,6 +4,7 @@ import {
   TextInput, Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { AudioEngine } from '../src/AudioEngine';
 import { FREQUENCY_ARCHIVE, FrequencyEntry } from '../src/FrequencyArchiveData';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
@@ -48,6 +49,7 @@ export default function LibraryScreen() {
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [activeAlpha, setActiveAlpha] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   useEffect(() => {
     return () => { AudioEngine.stopMulti(); AudioEngine.stopAll(); };
@@ -126,19 +128,34 @@ export default function LibraryScreen() {
     });
   };
 
+  const handleLoadToTerminal = (entry: FrequencyEntry) => {
+    AudioEngine.stopMulti();
+    AudioEngine.stopAll();
+    setPlayingItem(null);
+    router.push({
+      pathname: '/',
+      params: {
+        freqs: entry.frequencies.join(','),
+        fname: entry.name,
+      },
+    });
+  };
+
   // ═══ RENDER HELPERS ═══
   const renderEntry = (entry: FrequencyEntry, idx: number) => {
     const key = `${entry.category}-${entry.name}-${idx}`;
     const isActive = playingItem === key;
     const codex = CATEGORY_CODEX[entry.category];
     return (
-      <TouchableOpacity
+      <View
         key={key}
         style={[s.entryCard, isActive && s.entryCardActive]}
-        onPress={() => handlePlayStack(key, entry.frequencies)}
-        activeOpacity={0.8}
       >
-        <View style={s.entryTop}>
+        <TouchableOpacity
+          style={s.entryTop}
+          onPress={() => handlePlayStack(key, entry.frequencies)}
+          activeOpacity={0.8}
+        >
           <View style={s.entryNumCol}>
             <Text style={s.entryNum}>{String(idx + 1).padStart(3, '0')}</Text>
           </View>
@@ -160,8 +177,15 @@ export default function LibraryScreen() {
               {isActive ? '◼' : '▶'}
             </Text>
           </View>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={s.loadBtn}
+          onPress={() => handleLoadToTerminal(entry)}
+          activeOpacity={0.7}
+        >
+          <Text style={s.loadBtnText}>LOAD → TERMINAL</Text>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -524,6 +548,21 @@ const s = StyleSheet.create({
   entryLiveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#ff0a0a' },
   entryPlay: { color: '#5a1a1a', fontSize: 12 },
   entryPlayActive: { color: '#ff0a0a' },
+  loadBtn: {
+    marginTop: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#ffffff0a',
+    alignItems: 'center',
+  },
+  loadBtnText: {
+    color: '#ff0a0a88',
+    fontSize: 8,
+    fontWeight: '700',
+    fontFamily: 'TerminatorRealNFI',
+    letterSpacing: 2,
+  },
 
   // ═══ ALPHA VIEW ═══
   alphaSidebar: {

@@ -14,7 +14,7 @@ import {
   FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import GodmodeSlider from '../src/GodmodeSlider';
 import Svg, { Path, Circle as SvgCircle, Text as SvgText, G, Line } from 'react-native-svg';
 import { AudioEngine } from '../src/AudioEngine';
@@ -27,7 +27,6 @@ import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
-import MirrorOfTheDay from '../src/MirrorOfTheDay';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const API_URL =
@@ -110,6 +109,7 @@ const dialStyles = StyleSheet.create({
 
 export default function TerminalScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ freqs?: string; fname?: string }>();
   const [layers, setLayers] = useState<ToneLayer[]>([
     { id: 1, frequency: 432, gain: 0.5, isPlaying: false },
   ]);
@@ -123,6 +123,26 @@ export default function TerminalScreen() {
   const [archiveSearch, setArchiveSearch] = useState('');
   const [archiveCategory, setArchiveCategory] = useState('all');
   const [archivePlayingItem, setArchivePlayingItem] = useState<string | null>(null);
+  const [loadedArchiveName, setLoadedArchiveName] = useState<string | null>(null);
+
+  // ═══ LOAD FREQUENCIES FROM ARCHIVE (via route params) ═══
+  useEffect(() => {
+    if (params.freqs) {
+      try {
+        const freqArr = params.freqs.split(',').map(f => parseFloat(f)).filter(f => !isNaN(f) && f > 0);
+        if (freqArr.length > 0) {
+          const newLayers: ToneLayer[] = freqArr.slice(0, 8).map((f, i) => ({
+            id: i + 1,
+            frequency: f,
+            gain: 0.4,
+            isPlaying: false,
+          }));
+          setLayers(newLayers);
+          setLoadedArchiveName(params.fname ? decodeURIComponent(params.fname as string) : null);
+        }
+      } catch {}
+    }
+  }, [params.freqs]);
 
   // ═══ Particle Lab Music Player ═══
   const [plSelectedAlbum, setPlSelectedAlbum] = useState<Album>(PLAYABLE_ALBUMS[0]);
@@ -486,7 +506,7 @@ export default function TerminalScreen() {
     <View style={styles.container}>
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
-          {/* ══════ HERO — Artist-Led Functional Audio ══════ */}
+          {/* ══════ HERO — MIRRORS 96 ══════ */}
           <View style={styles.header}>
             <View style={styles.headerRow}>
               <Image
@@ -495,18 +515,7 @@ export default function TerminalScreen() {
                 resizeMode="cover"
               />
               <View style={styles.headerTextBlock}>
-                <TouchableOpacity onPress={() => router.push('/chirpconnect')} activeOpacity={0.7}>
-                  <Image
-                    source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/x7wgp9g9_MIRRORS%20ID.jpeg' }}
-                    style={styles.mirrorsIdBanner}
-                    resizeMode="contain"
-                  />
-                </TouchableOpacity>
-                <Text style={styles.heroH2}>Functional sound, composed by Vince Sinnott</Text>
-                <Text style={styles.heroSubhead}>96 calibrated sessions for focus, calm, and deep presence.{'\n'}Built on a 432Hz foundation by an electronic music artist, not an algorithm.</Text>
-                <TouchableOpacity onPress={() => Linking.openURL('https://music.apple.com/us/artist/codes/1491858588')} style={styles.artistLink} activeOpacity={0.7}>
-                  <Text style={styles.artistLinkText}>{'▶'} Vince Sinnott on Apple Music — Codes (2025) · In Memory Of (2018)</Text>
-                </TouchableOpacity>
+                <Text style={styles.heroTitle}>MIRRORS 96</Text>
                 <View style={styles.bubbleRow}>
                   <TouchableOpacity
                     style={styles.bubble}
@@ -554,17 +563,6 @@ export default function TerminalScreen() {
               </View>
             </View>
           </View>
-
-          {/* ══════ MIRROR OF THE DAY ══════ */}
-          <MirrorOfTheDay onLoadFrequency={(freq) => {
-            setLayers(prev => {
-              const updated = [...prev];
-              if (updated.length > 0) {
-                updated[0] = { ...updated[0], frequency: freq };
-              }
-              return updated;
-            });
-          }} />
 
           {/* ══════ SOUND LAB — Albums with Buy & Preview ══════ */}
           <View style={styles.section}>
@@ -662,6 +660,15 @@ export default function TerminalScreen() {
                 <Text style={styles.archiveBubbleText}>FREQ ARCHIVE</Text>
               </TouchableOpacity>
             </View>
+            {loadedArchiveName && (
+              <View style={styles.loadedBanner}>
+                <View style={styles.loadedDot} />
+                <Text style={styles.loadedText}>LOADED: {loadedArchiveName}</Text>
+                <TouchableOpacity onPress={() => { setLoadedArchiveName(null); setLayers([{ id: 1, frequency: 432, gain: 0.5, isPlaying: false }]); }}>
+                  <Text style={styles.loadedClear}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {layers.map((layer, index) => (
               <View key={layer.id} style={styles.layerCard}>
@@ -1147,6 +1154,14 @@ const styles = StyleSheet.create({
     fontFamily: 'TerminatorRealNFI',
   },
   section: { marginTop: 18 },
+  heroTitle: {
+    color: '#ff0a0a',
+    fontSize: 32,
+    fontWeight: '900',
+    fontFamily: 'TerminatorRealNFI',
+    letterSpacing: 6,
+    marginBottom: 8,
+  },
   heroH2: {
     color: '#ffffff88',
     fontSize: 9,
@@ -1192,6 +1207,38 @@ const styles = StyleSheet.create({
   footerSep: {
     color: '#ffffff15',
     fontSize: 8,
+  },
+  loadedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#ff0a0a10',
+    borderWidth: 1,
+    borderColor: '#ff0a0a33',
+    borderRadius: 4,
+    marginTop: 6,
+    marginHorizontal: 4,
+  },
+  loadedDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#ff0a0a',
+  },
+  loadedText: {
+    color: '#ff0a0a',
+    fontSize: 9,
+    fontWeight: '700',
+    fontFamily: 'TerminatorRealNFI',
+    letterSpacing: 1,
+    flex: 1,
+  },
+  loadedClear: {
+    color: '#ff0a0a66',
+    fontSize: 12,
+    padding: 4,
   },
   sectionTitle: {
     color: '#ff0a0a',
