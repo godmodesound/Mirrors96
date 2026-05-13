@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioEngine } from '../src/AudioEngine';
 import { FREQUENCY_ARCHIVE, FrequencyEntry } from '../src/FrequencyArchiveData';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
+import DisclaimerFooter from '../src/DisclaimerFooter';
 
 // ═══════════════════════════════════════════════
 // VATICAN ARCHIVE — CATEGORY CODEX
@@ -27,7 +28,7 @@ const CATEGORY_CODEX: Record<string, { latin: string; glyph: string; order: numb
   ear:            { latin: 'AUDITUS',          glyph: '◑', order: 10 },
   eye:            { latin: 'VISIO',            glyph: '◔', order: 11 },
   glands:         { latin: 'GLANDULAE',        glyph: '◍', order: 12 },
-  health:         { latin: 'SALUS GENERALIS',  glyph: '✦', order: 13 },
+  body:         { latin: 'CORPUS GENERALIS',  glyph: '✦', order: 13 },
   immune:         { latin: 'IMMUNITAS',        glyph: '⊛', order: 14 },
   kidney:         { latin: 'RENES',            glyph: '◈', order: 15 },
   mental:         { latin: 'ANIMUS',           glyph: '◬', order: 16 },
@@ -58,7 +59,7 @@ export default function LibraryScreen() {
   const categorized = useMemo(() => {
     const map = new Map<string, FrequencyEntry[]>();
     FREQUENCY_ARCHIVE.forEach(entry => {
-      const cat = entry.category || 'health';
+      const cat = entry.category || 'body';
       if (!map.has(cat)) map.set(cat, []);
       map.get(cat)!.push(entry);
     });
@@ -415,6 +416,7 @@ export default function LibraryScreen() {
                 </View>
               </View>
             )}
+            <DisclaimerFooter />
           </ScrollView>
         </View>
       </View>

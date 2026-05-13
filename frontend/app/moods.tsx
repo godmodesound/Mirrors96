@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
+import DisclaimerFooter from '../src/DisclaimerFooter';
 import { AudioEngine } from '../src/AudioEngine';
 
 const { width } = Dimensions.get('window');
@@ -29,12 +30,12 @@ const MOOD_STATES: MoodState[] = [
   { name: 'OVERDRIVE', description: 'Max energy', frequencies: [417, 639, 963, 40], effect: 'Dopamine' },
   { name: 'GENESIS', description: 'Creative flow', frequencies: [528, 741, 6, 396], effect: 'Theta' },
   { name: 'EUPHORIA', description: 'Bliss', frequencies: [528, 639, 963, 432, 285], effect: 'Serotonin' },
-  { name: 'REGENERATE', description: 'Cellular heal', frequencies: [174, 285, 396, 528, 7.83], effect: 'DNA repair' },
+  { name: 'REGENERATE', description: 'Cellular renewal', frequencies: [174, 285, 396, 528, 7.83], effect: 'Deep renewal' },
   { name: 'VOID', description: 'Deep sleep', frequencies: [2, 174, 396, 4], effect: 'Delta' },
   { name: 'TITAN', description: 'Power', frequencies: [396, 417, 741, 40, 20], effect: 'Adrenaline' },
 ];
 
-// 8 cortex-layer brain entrainment states based on the 6-layer cerebral cortex model
+// 8 cortex-layer brain states based on the 6-layer cerebral cortex model
 const BRAIN_STATES: MoodState[] = [
   {
     name: 'MOLECULAR',
@@ -215,6 +216,7 @@ export default function MoodsScreen() {
             })}
           </View>
           <View style={{ height: 20 }} />
+          <DisclaimerFooter />
         </ScrollView>
       </View>
     </View>

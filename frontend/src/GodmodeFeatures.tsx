@@ -328,7 +328,7 @@ let activeCymaticFreq=0;
 
 // ═══ EMF BIOFIELD PROTOCOL @ 802.15.6 ═══
 // Frequencies to negate harmful EMF / dirty electricity
-// Based on Schumann resonance, solfeggio, and biofield harmonics
+// Based on Schumann resonance, solfeggio, and resonance harmonics
 let emfAudioCtx=null;let emfOscs=[];let emfActive=false;
 const EMF_STACK=[
   7.83,    // Schumann fundamental — Earth grounding
@@ -340,7 +340,7 @@ const EMF_STACK=[
   174,     // Solfeggio — pain relief, organ safety
   285,     // Solfeggio — tissue regeneration
   963,     // Solfeggio — pineal activation
-  1550,    // Rife EMF detox
+  1550,    // EMF detox
   8025.6,  // 802.15.6 WBAN counter-resonance (÷10)
 ];
 // ═══ LOCATION HARMONIZER — #13 ═══
@@ -953,7 +953,7 @@ function flyTo(lat,lng,name){
   if(name){
     marker.bindPopup('<b>'+name+'</b><br><span style="color:#5a1a1a;font-size:10px">Tap to send frequency</span>').openPopup();
   }
-  // Show healing frequency pulse
+  // Show frequency pulse
   showFreqPulse(name||'Location');
 }
 
@@ -1062,7 +1062,7 @@ export function GodmodeEarth({ height = 450 }: GodmodeEarthProps) {
         </View>
       </View>
 
-      <Text style={styles.hint}>Search any city, landmark, or address — Drag to rotate globe — Pinch to zoom — Send healing frequencies</Text>
+      <Text style={styles.hint}>Search any city, landmark, or address — Drag to rotate globe — Pinch to zoom — Send frequencies</Text>
     </View>
   );
 }

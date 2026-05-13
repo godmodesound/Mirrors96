@@ -237,8 +237,8 @@ export default function MirrorsIdScreen() {
           <View style={styles.capList}>
             {[
               'Save custom frequency configurations',
-              'Send healing frequencies to locations',
-              'Save binaural entrainment presets',
+              'Send frequencies to locations',
+              'Save binaural presets',
               'Create mood stack combinations',
               'Push to Talk frequency transmission',
               'Access exclusive 432Hz content',
@@ -408,7 +408,7 @@ export default function MirrorsIdScreen() {
 
         <Text style={styles.footerNote}>
           Your Mirrors ID is your key to the GODMODE frequency network.
-          Save custom setups, send healing frequencies to any location,
+          Save custom setups, send frequencies to any location,
           and receive updates about new events, music releases & platform upgrades.
         </Text>
 

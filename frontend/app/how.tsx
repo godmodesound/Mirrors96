@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Linking, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
+import DisclaimerFooter from '../src/DisclaimerFooter';
 
 // Chakra Colors
 const C = {
@@ -31,7 +32,7 @@ export default function HowScreen() {
               Every illness, emotion, and state of being has its own harmonic resonance.
             </Text>
             <Text style={styles.heroSub}>
-              MIRRORS uses cymatics tuned to 432 Hz to resonate specific frequencies that cancel out disharmony — helping you restore balance without medicine or surgery.
+              MIRRORS uses cymatics tuned to 432 Hz to resonate specific frequencies that promote focus, calm, and deep presence.
             </Text>
           </View>
 
@@ -46,7 +47,7 @@ export default function HowScreen() {
               <View style={styles.divider} />
               <Text style={[styles.highlightText, { color: C.root }]}>THE SOLUTION: FREQUENCY CANCELLATION</Text>
               <Text style={[styles.contentText, { color: C.root + 'CC' }]}>
-                By introducing the exact counter-frequency, you can cancel out the disharmony and restore your body to its natural, healthy state.
+                By introducing a precisely calibrated counter-frequency, you can shift the listening experience and bring the session into resonance.
               </Text>
               <Text style={[styles.contentText, { color: C.root + 'CC' }]}>
                 Just like noise-canceling headphones eliminate unwanted sound, MIRRORS eliminates unwanted frequencies in your body.
@@ -67,13 +68,13 @@ export default function HowScreen() {
               <View style={[styles.stepCard, { borderColor: C.sacral + '40' }]}>
                 <View style={[styles.stepNumBox, { borderColor: C.sacral }]}><Text style={[styles.stepNum, { color: C.sacral }]}>02</Text></View>
                 <Text style={[styles.stepTitle, { color: C.sacral }]}>RESONATE</Text>
-                <Text style={[styles.stepDesc, { color: C.sacral + 'AA' }]}>MIRRORS plays the exact healing counter-frequency needed to cancel out the disharmony in your cellular structure.</Text>
+                <Text style={[styles.stepDesc, { color: C.sacral + 'AA' }]}>MIRRORS plays a precisely calibrated counter-frequency designed to bring you into a state of deep focus and presence.</Text>
               </View>
               <View style={styles.stepConnector}><Text style={[styles.stepArrow, { color: C.sacral }]}>|</Text></View>
               <View style={[styles.stepCard, { borderColor: C.sacral + '40' }]}>
                 <View style={[styles.stepNumBox, { borderColor: C.sacral }]}><Text style={[styles.stepNum, { color: C.sacral }]}>03</Text></View>
                 <Text style={[styles.stepTitle, { color: C.sacral }]}>ELIMINATE</Text>
-                <Text style={[styles.stepDesc, { color: C.sacral + 'AA' }]}>As the disharmonic frequency is canceled, your body returns to its natural state of health at the vibrational level.</Text>
+                <Text style={[styles.stepDesc, { color: C.sacral + 'AA' }]}>As the frequencies align, you enter a state of deep listening and focused awareness at the vibrational level.</Text>
               </View>
             </View>
           </View>
@@ -132,7 +133,7 @@ export default function HowScreen() {
                 <View style={[styles.comparisonCell, { borderColor: C.heart }]}>
                   <Text style={[styles.compGoodIcon, { color: C.heart }]}>+</Text>
                   <Text style={[styles.compTitle, { color: C.heart }]}>HARMONIC</Text>
-                  <Text style={[styles.compDesc, { color: C.heart + 'AA' }]}>Perfect geometric patterns — health, balance, peace</Text>
+                  <Text style={[styles.compDesc, { color: C.heart + 'AA' }]}>Perfect geometric patterns — focus, balance, calm</Text>
                 </View>
               </View>
             </View>
@@ -149,7 +150,7 @@ export default function HowScreen() {
                 <View style={styles.tableRow}>
                   <Text style={[styles.tableLabel, { color: C.throat }]}>DELTA</Text>
                   <Text style={[styles.tableValue, { color: C.throat }]}>0.5-4 Hz</Text>
-                  <Text style={[styles.tableDesc, { color: C.throat + '88' }]}>Deep sleep, healing</Text>
+                  <Text style={[styles.tableDesc, { color: C.throat + '88' }]}>Deep sleep, rest</Text>
                 </View>
                 <View style={styles.tableRow}>
                   <Text style={[styles.tableLabel, { color: C.throat }]}>THETA</Text>
@@ -244,7 +245,7 @@ export default function HowScreen() {
             <Text style={[styles.sectionTitle, { color: C.heart }]}>&gt; HEALING WITHOUT MEDICINE</Text>
             <View style={[styles.contentBox, { borderColor: C.heart + '40' }]}>
               <Text style={[styles.contentText, { color: C.heart + 'CC' }]}>
-                For thousands of years, humans have known that sound heals. Modern medicine forgot this truth. MIRRORS brings it back.
+                For thousands of years, humans have known that sound shapes experience. MIRRORS is a return to intentional listening.
               </Text>
               <View style={styles.benefitsRow}>
                 <View style={[styles.benefitCell, { borderColor: '#5a1a1a' }]}>
@@ -322,7 +323,7 @@ export default function HowScreen() {
                 <Text style={[styles.practiceIcon, { color: C.throat }]}>&gt;</Text>
                 <View style={styles.practiceTextWrap}>
                   <Text style={[styles.practiceTitle, { color: C.throat }]}>STAY HYDRATED</Text>
-                  <Text style={[styles.practiceDesc, { color: C.throat + '88' }]}>Sound therapy can be dehydrating.</Text>
+                  <Text style={[styles.practiceDesc, { color: C.throat + '88' }]}>Sound sessions can be dehydrating.</Text>
                 </View>
               </View>
             </View>
@@ -352,13 +353,13 @@ export default function HowScreen() {
             <Text style={styles.sectionTitle}>&gt; LEGAL DISCLAIMER</Text>
             <View style={styles.disclaimerBox}>
               <Text style={styles.disclaimerText}>
-                MIRRORS is a frequency resonance tool for personal wellness exploration. It is not a medical device and these statements have not been evaluated by the FDA.
+                MIRRORS is a sound experience for focus, calm, and presence. It is not a medical device and makes no therapeutic claims. Not intended to diagnose, treat, cure, or prevent any condition.
               </Text>
               <Text style={styles.disclaimerText}>
                 This tool is intended for educational and experimental purposes. Do not use while driving, operating machinery, or if you have a history of seizures or epilepsy.
               </Text>
               <Text style={styles.disclaimerText}>
-                Results vary by individual. Frequency healing is based on vibrational science and ancient wisdom. Use MIRRORS as part of your personal wellness practice. Consult healthcare professionals for serious medical conditions.
+                Results vary by individual. Frequency exploration is based on acoustic science and artistic practice. Use MIRRORS as part of your personal listening practice. Consult healthcare professionals for any medical conditions.
               </Text>
             </View>
           </View>
@@ -426,6 +427,7 @@ export default function HowScreen() {
           </View>
 
           <View style={{ height: 20 }} />
+          <DisclaimerFooter />
         </ScrollView>
       </View>
     </View>

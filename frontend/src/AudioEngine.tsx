@@ -11,16 +11,64 @@ const AUDIO_BRIDGE_HTML = `
 let ctx = null;
 const oscs = {};
 let masterGain = null;
+let audioUnlocked = false;
+let sessionTimerState = null;
 
 function ensureCtx() {
   if (!ctx) {
-    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    try {
+      ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+    } catch(e) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
     masterGain = ctx.createGain();
     masterGain.connect(ctx.destination);
     masterGain.gain.value = 0.5;
   }
   if (ctx.state === 'suspended') ctx.resume();
   return true;
+}
+
+// iOS Safari: suspend on background, resume on foreground (preserves timer)
+document.addEventListener('visibilitychange', function() {
+  if (!ctx) return;
+  if (document.hidden) {
+    sessionTimerState = { suspended: true, time: Date.now() };
+    try { ctx.suspend(); } catch(e) {}
+    window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'visibility', visible: false }));
+  } else {
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(function() {
+        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'visibility', visible: true, resumedAfter: sessionTimerState ? Date.now() - sessionTimerState.time : 0 }));
+        sessionTimerState = null;
+      }).catch(function() {});
+    }
+  }
+});
+
+// iOS silent switch detection via audio probe
+function detectSilentSwitch() {
+  if (!ctx) return;
+  try {
+    var osc = ctx.createOscillator();
+    var analyser = ctx.createAnalyser();
+    var gain = ctx.createGain();
+    gain.gain.value = 0.001;
+    osc.connect(gain);
+    gain.connect(analyser);
+    analyser.connect(ctx.destination);
+    osc.start();
+    setTimeout(function() {
+      var data = new Uint8Array(analyser.fftSize);
+      analyser.getByteTimeDomainData(data);
+      var silent = data.every(function(v) { return v === 128; });
+      osc.stop();
+      osc.disconnect();
+      if (silent && ctx.state === 'running') {
+        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'silentSwitch', silent: true }));
+      }
+    }, 200);
+  } catch(e) {}
 }
 
 function startTone(id, freq, gain) {
@@ -221,6 +269,8 @@ function handleMsg(raw) {
       case 'updateVolume': updateVolume(msg.volume); break;
       case 'playCamelot': playCamelot(msg.freq); break;
       case 'stopCamelot': stopCamelot(); break;
+      case 'unlockAudio': ensureCtx(); audioUnlocked = true; break;
+      case 'detectSilentSwitch': detectSilentSwitch(); break;
     }
     window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ ok: true, type: msg.type }));
   } catch(err) {
@@ -384,6 +434,20 @@ export const AudioEngine = {
       sendToWebView({ type: 'stopCamelot' });
     }
   },
+  // iOS hardening: unlock audio explicitly from user gesture
+  unlockAudio: () => {
+    if (Platform.OS === 'web') {
+      ensureWebCtx();
+    } else {
+      sendToWebView({ type: 'unlockAudio' });
+    }
+  },
+  // iOS: detect if silent switch is on
+  detectSilentSwitch: () => {
+    if (Platform.OS !== 'web') {
+      sendToWebView({ type: 'detectSilentSwitch' });
+    }
+  },
 };
 
 // ===== Web-only direct implementations =====
@@ -394,10 +458,26 @@ let webMasterGain: GainNode | null = null;
 const ensureWebCtx = () => {
   if (Platform.OS !== 'web') return false;
   if (!audioCtx) {
-    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    try {
+      audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 44100 } as any);
+    } catch(e) {
+      audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
     webMasterGain = audioCtx.createGain();
     webMasterGain.connect(audioCtx.destination);
     webMasterGain.gain.value = 0.5;
+
+    // iOS Safari: suspend/resume on visibility change
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (!audioCtx) return;
+        if (document.hidden) {
+          audioCtx.suspend().catch(() => {});
+        } else {
+          audioCtx.resume().catch(() => {});
+        }
+      });
+    }
   }
   if (audioCtx.state === 'suspended') audioCtx.resume();
   return true;
@@ -601,6 +681,14 @@ export const AudioBridgeProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       if (data.error) {
         console.warn('[AudioEngine] Error:', data.error);
+      }
+      // iOS visibility change — audio context suspended/resumed
+      if (data.type === 'visibility') {
+        console.log('[AudioEngine] Visibility:', data.visible ? 'foreground' : 'background');
+      }
+      // iOS silent switch detected
+      if (data.type === 'silentSwitch' && data.silent) {
+        console.warn('[AudioEngine] Silent switch may be ON — sessions will be inaudible');
       }
     } catch (e) {}
   }, []);

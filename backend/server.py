@@ -172,7 +172,7 @@ SEED_ALBUMS = [
         "_id": "mirrors",
         "name": "MIRRORS",
         "artist": "VINCE SINNOTT",
-        "description": "96 Mirrors — the flagship album. A sonic architecture of 432Hz-tuned frequencies, infrared textures, and hypnotic rhythms. 11 tracks of pure frequency medicine.",
+        "description": "96 Mirrors — the flagship album. A sonic architecture of 432Hz-tuned frequencies, infrared textures, and hypnotic rhythms. 11 tracks of pure frequency exploration.",
         "price_cents": 1299,
         "cover_url": "https://customer-assets.emergentagent.com/job_ed6a0deb-be55-415b-8702-764f1299165b/artifacts/enhrt4um_96%20Mirros%20Album%20Cover.PNG",
         "tracklist": ["96 MIRRORS","WENOTDONE","13th St","Here 2day Gone 2morrow","Musical Chairs 2026","Poor Man Style","$hango","Spun The Block","Grateful","UNCLE MAJIC","RED Magick"],

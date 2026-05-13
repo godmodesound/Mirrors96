@@ -26,6 +26,8 @@ import { Audio } from 'expo-av';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
+import DisclaimerFooter from '../src/DisclaimerFooter';
+import MirrorOfTheDay from '../src/MirrorOfTheDay';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const API_URL =
@@ -484,7 +486,7 @@ export default function TerminalScreen() {
     <View style={styles.container}>
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
-          {/* Header with minimal logo */}
+          {/* ══════ HERO — Artist-Led Functional Audio ══════ */}
           <View style={styles.header}>
             <View style={styles.headerRow}>
               <Image
@@ -499,6 +501,11 @@ export default function TerminalScreen() {
                     style={styles.mirrorsIdBanner}
                     resizeMode="contain"
                   />
+                </TouchableOpacity>
+                <Text style={styles.heroH2}>Functional sound, composed by Vince Sinnott</Text>
+                <Text style={styles.heroSubhead}>96 calibrated sessions for focus, calm, and deep presence.{'\n'}Built on a 432Hz foundation by an electronic music artist, not an algorithm.</Text>
+                <TouchableOpacity onPress={() => Linking.openURL('https://music.apple.com/us/artist/codes/1491858588')} style={styles.artistLink} activeOpacity={0.7}>
+                  <Text style={styles.artistLinkText}>{'▶'} Vince Sinnott on Apple Music — Codes (2025) · In Memory Of (2018)</Text>
                 </TouchableOpacity>
                 <View style={styles.bubbleRow}>
                   <TouchableOpacity
@@ -547,6 +554,17 @@ export default function TerminalScreen() {
               </View>
             </View>
           </View>
+
+          {/* ══════ MIRROR OF THE DAY ══════ */}
+          <MirrorOfTheDay onLoadFrequency={(freq) => {
+            setLayers(prev => {
+              const updated = [...prev];
+              if (updated.length > 0) {
+                updated[0] = { ...updated[0], frequency: freq };
+              }
+              return updated;
+            });
+          }} />
 
           {/* ══════ SOUND LAB — Albums with Buy & Preview ══════ */}
           <View style={styles.section}>
@@ -887,6 +905,18 @@ export default function TerminalScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* ══════ FOOTER — Disclaimer + Legal Links ══════ */}
+          <View style={styles.footerLinks}>
+            <View style={styles.footerLinksRow}>
+              <TouchableOpacity onPress={() => router.push('/about')}><Text style={styles.footerLinkText}>About</Text></TouchableOpacity>
+              <Text style={styles.footerSep}>·</Text>
+              <TouchableOpacity onPress={() => router.push('/privacy')}><Text style={styles.footerLinkText}>Privacy</Text></TouchableOpacity>
+              <Text style={styles.footerSep}>·</Text>
+              <TouchableOpacity onPress={() => router.push('/terms')}><Text style={styles.footerLinkText}>Terms</Text></TouchableOpacity>
+            </View>
+          </View>
+          <DisclaimerFooter />
+
           <View style={{ height: 20 }} />
         </ScrollView>
       </View>
@@ -1117,6 +1147,52 @@ const styles = StyleSheet.create({
     fontFamily: 'TerminatorRealNFI',
   },
   section: { marginTop: 18 },
+  heroH2: {
+    color: '#ffffff88',
+    fontSize: 9,
+    fontFamily: 'TerminatorRealNFI',
+    letterSpacing: 1,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  heroSubhead: {
+    color: '#ffffff44',
+    fontSize: 8,
+    fontFamily: 'TerminatorRealNFI',
+    lineHeight: 13,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  artistLink: {
+    paddingVertical: 4,
+    marginBottom: 4,
+  },
+  artistLinkText: {
+    color: '#ff0a0a88',
+    fontSize: 7.5,
+    fontFamily: 'TerminatorRealNFI',
+    letterSpacing: 0.5,
+  },
+  footerLinks: {
+    marginTop: 16,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  footerLinksRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  footerLinkText: {
+    color: '#ff0a0a55',
+    fontSize: 8,
+    fontFamily: 'TerminatorRealNFI',
+    letterSpacing: 1,
+  },
+  footerSep: {
+    color: '#ffffff15',
+    fontSize: 8,
+  },
   sectionTitle: {
     color: '#ff0a0a',
     fontSize: 11,

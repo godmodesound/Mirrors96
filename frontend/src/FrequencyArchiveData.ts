@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════
 // GODMODE SOUND — FREQUENCY ARCHIVE (290 Conditions)
-// CAFL-verified Rife frequencies · 432Hz calibrated
+// Archive Frequencies · 432Hz calibrated
 // ═══════════════════════════════════════════════════════════════════════
 
 export interface FrequencyEntry {
@@ -164,21 +164,21 @@ export const FREQUENCY_ARCHIVE: FrequencyEntry[] = [
   { name: 'Thyroid Stimulation', category: 'glands', frequencies: [160, 727] },
 
   // ═══════════ HEALTH (General) ═══════════
-  { name: 'Chronic Fatigue Syndrome', category: 'health', frequencies: [10000, 660, 2127, 787, 465, 424, 664, 120, 880, 1550] },
-  { name: 'Diabetes', category: 'health', frequencies: [35, 465, 6220, 727, 787] },
-  { name: 'Edema', category: 'health', frequencies: [522, 146, 6.3, 148, 444, 440, 880, 787, 727, 20, 10000] },
-  { name: 'Hernia', category: 'health', frequencies: [727, 787, 880, 10000] },
-  { name: 'Inflammation General', category: 'health', frequencies: [160, 727, 787, 880, 10000] },
-  { name: 'Motion Sickness', category: 'health', frequencies: [10, 20, 727, 787] },
-  { name: 'Obesity', category: 'health', frequencies: [10000] },
-  { name: 'Pancreas', category: 'health', frequencies: [727, 787, 465] },
-  { name: 'Polyp General', category: 'health', frequencies: [522, 146, 2720, 727, 690, 666, 650, 625, 600, 465, 444, 20] },
-  { name: 'Sleep', category: 'health', frequencies: [4.6, 147, 6] },
-  { name: 'Spleen Enlarged', category: 'health', frequencies: [35, 787, 3176] },
-  { name: 'Swelling', category: 'health', frequencies: [522, 146, 6.3, 148, 444, 440, 880, 787, 727, 20, 10000, 5000, 3000] },
-  { name: 'Weakness General', category: 'health', frequencies: [10, 440, 660, 727, 787, 880, 10000] },
-  { name: 'Wound Healing', category: 'health', frequencies: [2720, 880, 787, 727, 220, 190, 20, 40] },
-  { name: 'Allergy Relief', category: 'health', frequencies: [10000, 7344, 5000, 1550, 1234, 880, 787, 727, 500, 330, 160, 3] },
+  { name: 'Chronic Fatigue Syndrome', category: 'body', frequencies: [10000, 660, 2127, 787, 465, 424, 664, 120, 880, 1550] },
+  { name: 'Diabetes', category: 'body', frequencies: [35, 465, 6220, 727, 787] },
+  { name: 'Edema', category: 'body', frequencies: [522, 146, 6.3, 148, 444, 440, 880, 787, 727, 20, 10000] },
+  { name: 'Hernia', category: 'body', frequencies: [727, 787, 880, 10000] },
+  { name: 'Inflammation General', category: 'body', frequencies: [160, 727, 787, 880, 10000] },
+  { name: 'Motion Sickness', category: 'body', frequencies: [10, 20, 727, 787] },
+  { name: 'Obesity', category: 'body', frequencies: [10000] },
+  { name: 'Pancreas', category: 'body', frequencies: [727, 787, 465] },
+  { name: 'Polyp General', category: 'body', frequencies: [522, 146, 2720, 727, 690, 666, 650, 625, 600, 465, 444, 20] },
+  { name: 'Sleep', category: 'body', frequencies: [4.6, 147, 6] },
+  { name: 'Spleen Enlarged', category: 'body', frequencies: [35, 787, 3176] },
+  { name: 'Swelling', category: 'body', frequencies: [522, 146, 6.3, 148, 444, 440, 880, 787, 727, 20, 10000, 5000, 3000] },
+  { name: 'Weakness General', category: 'body', frequencies: [10, 440, 660, 727, 787, 880, 10000] },
+  { name: 'Wound Recovery', category: 'body', frequencies: [2720, 880, 787, 727, 220, 190, 20, 40] },
+  { name: 'Allergy Relief', category: 'body', frequencies: [10000, 7344, 5000, 1550, 1234, 880, 787, 727, 500, 330, 160, 3] },
 
   // ═══════════ IMMUNE ═══════════
   { name: 'AIDS', category: 'immune', frequencies: [2489, 465, 727, 787, 880, 1550, 1500] },
@@ -372,7 +372,7 @@ export const ARCHIVE_CATEGORIES = [
   { id: 'ear', name: 'EAR' },
   { id: 'eye', name: 'EYE' },
   { id: 'glands', name: 'GLANDS' },
-  { id: 'health', name: 'HEALTH' },
+  { id: 'body', name: 'HEALTH' },
   { id: 'immune', name: 'IMMUNE' },
   { id: 'kidney', name: 'KIDNEY' },
   { id: 'mental', name: 'MENTAL' },

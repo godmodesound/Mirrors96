@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
+import DisclaimerFooter from '../src/DisclaimerFooter';
 import { WebView } from 'react-native-webview';
 import { AudioEngine } from '../src/AudioEngine';
 
@@ -26,7 +27,7 @@ interface BinauralPreset {
 
 const BINAURAL_PRESETS: BinauralPreset[] = [
   { name: 'CALM_ALPHA_432', carrier: 432, beatHz: 10, description: 'Relaxed focus • Alpha entrainment', color: '#00ffaa' },
-  { name: 'THETA_SOOTHE_288', carrier: 288, beatHz: 6, description: 'Anxiety relief • Theta healing', color: '#6644ff' },
+  { name: 'THETA_SOOTHE_288', carrier: 288, beatHz: 6, description: 'Anxiety relief • Theta calm', color: '#6644ff' },
   { name: 'DELTA_RESTORE_216', carrier: 216, beatHz: 2, description: 'Deep sleep • Delta restoration', color: '#0088ff' },
   { name: 'GAMMA_PEAK_528', carrier: 528, beatHz: 40, description: 'Peak cognition • Gamma focus', color: '#ffaa00' },
   { name: 'SCHUMANN_7.83', carrier: 432, beatHz: 7.83, description: 'Earth resonance • Grounding', color: '#44ff44' },
@@ -875,6 +876,7 @@ export default function BinauralScreen() {
               visualizing the binaural beat convergence at the pineal center.
             </Text>
           </View>
+          <DisclaimerFooter />
         </ScrollView>
       </View>
     </View>
