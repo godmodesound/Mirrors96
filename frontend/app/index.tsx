@@ -507,6 +507,13 @@ export default function TerminalScreen() {
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
           {/* ══════ HERO — MIRRORS 96 ══════ */}
+          <TouchableOpacity onPress={() => router.push('/chirpconnect')} activeOpacity={0.7} style={styles.codesIdBadge}>
+            <Image
+              source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/x7wgp9g9_MIRRORS%20ID.jpeg' }}
+              style={styles.codesIdImage}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
           <View style={styles.header}>
             <View style={styles.headerRow}>
               <Image
@@ -516,13 +523,6 @@ export default function TerminalScreen() {
               />
               <View style={styles.headerTextBlock}>
                 <Text style={styles.heroTitle}>MIRRORS 96</Text>
-                <TouchableOpacity onPress={() => router.push('/chirpconnect')} activeOpacity={0.7} style={styles.codesIdBadge}>
-                  <Image
-                    source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/x7wgp9g9_MIRRORS%20ID.jpeg' }}
-                    style={styles.codesIdImage}
-                    resizeMode="contain"
-                  />
-                </TouchableOpacity>
                 <View style={styles.bubbleRow}>
                   <TouchableOpacity
                     style={styles.bubble}
@@ -1177,8 +1177,8 @@ const styles = StyleSheet.create({
   },
   codesIdBadge: {
     width: '100%',
-    height: 48,
-    marginBottom: 8,
+    paddingHorizontal: 8,
+    marginBottom: 4,
   },
   codesIdImage: {
     width: '100%',
