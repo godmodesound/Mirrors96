@@ -373,7 +373,7 @@ async def create_sound_checkout(request: Request):
         unit_amount = 196   # $1.96
         description = f"Single Track — {product_name}"
     else:
-        unit_amount = 1300  # $13.00
+        unit_amount = 3396  # $33.96
         description = f"Full Album — {product_name}"
 
     try:

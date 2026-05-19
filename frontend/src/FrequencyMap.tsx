@@ -1,29 +1,35 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions,
+  Animated, Easing,
 } from 'react-native';
-import Svg, { Circle, Line, G, Text as SvgText, Defs, RadialGradient, Stop } from 'react-native-svg';
+import Svg, {
+  Circle, Line, G, Text as SvgText, Defs, RadialGradient, Stop,
+  LinearGradient, Path, Rect, Ellipse,
+} from 'react-native-svg';
 import { AudioEngine } from './AudioEngine';
 
 const SW = Dimensions.get('window').width;
 const MAP_W = SW - 16;
-const MAP_H = MAP_W * 0.95;
+const MAP_H = MAP_W * 1.15;
+const CX = MAP_W / 2;
+const CY = MAP_H / 2;
 
 // ═══ BRAINWAVE BANDS ═══
 type Band = 'delta' | 'theta' | 'alpha' | 'beta' | 'gamma';
 const BAND_COLORS: Record<Band, string> = {
   delta: '#00ccff',
-  theta: '#8844ff',
-  alpha: '#ffaa00',
-  beta: '#ff6600',
+  theta: '#a855f7',
+  alpha: '#fbbf24',
+  beta: '#f97316',
   gamma: '#ff0a0a',
 };
-const BAND_RANGES: Record<Band, [number, number]> = {
-  delta: [0.5, 4],
-  theta: [4, 8],
-  alpha: [8, 13],
-  beta: [13, 30],
-  gamma: [30, 100],
+const BAND_GLOW: Record<Band, string> = {
+  delta: '#00ccff',
+  theta: '#c084fc',
+  alpha: '#fde68a',
+  beta: '#fb923c',
+  gamma: '#ff3040',
 };
 function getBand(hz: number): Band {
   if (hz < 4) return 'delta';
@@ -37,8 +43,8 @@ function getBand(hz: number): Band {
 interface BrainNode {
   id: string;
   label: string;
-  x: number; // 0-1 normalized
-  y: number; // 0-1 normalized
+  x: number;
+  y: number;
   hz: number;
 }
 
@@ -49,7 +55,7 @@ interface GeometryType {
   subtitle: string;
   description: string;
   nodes: BrainNode[];
-  edges: [number, number][]; // pairs of node indices to connect
+  edges: [number, number][];
 }
 
 const METATRON: GeometryType = {
@@ -57,7 +63,6 @@ const METATRON: GeometryType = {
   name: 'METATRON',
   subtitle: "METATRON'S CUBE",
   description: '13-circle Fruit of Life with all 5 Platonic solids — whole-brain non-local resonance.',
-  // Metatron data matched to godmodesound.com
   nodes: [
     { id: 'crown', label: 'CROWN', x: 0.5, y: 0.06, hz: 5.3 },
     { id: 'prefrontal', label: 'PREFRONTAL', x: 0.5, y: 0.20, hz: 7.83 },
@@ -254,14 +259,70 @@ const ICOSA: GeometryType = {
 
 const GEOMETRIES: GeometryType[] = [TREE, MERKABA, METATRON, VE64, SRI_YANTRA, TORUS, PHI_SPIRAL, ICOSA];
 
+// ═══ STARFIELD ═══
+const NUM_STARS = 80;
+const STARS = Array.from({ length: NUM_STARS }, (_, i) => ({
+  x: Math.random() * MAP_W,
+  y: Math.random() * MAP_H,
+  r: Math.random() * 1.4 + 0.4,
+  opacity: Math.random() * 0.5 + 0.15,
+}));
+
 // ═══ COMPONENT ═══
 interface Props {
   onLoadFrequencies?: (freqs: number[]) => void;
 }
 
+const AnimatedNode = Animated.createAnimatedComponent(View);
+
 export default function FrequencyMap({ onLoadFrequencies }: Props) {
   const [selectedGeo, setSelectedGeo] = useState(METATRON);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [activeNode, setActiveNode] = useState<number | null>(null);
+  const [soloNode, setSoloNode] = useState<number | null>(null);
+
+  // Animations
+  const breathAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+  const starTwinkle = useRef(new Animated.Value(0)).current;
+  const edgeFlow = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Continuous breath animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(breathAnim, { toValue: 1, duration: 3000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(breathAnim, { toValue: 0, duration: 3000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+      ])
+    ).start();
+
+    // Star twinkle
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(starTwinkle, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(starTwinkle, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+      ])
+    ).start();
+
+    // Edge flow animation
+    Animated.loop(
+      Animated.timing(edgeFlow, { toValue: 1, duration: 4000, easing: Easing.linear, useNativeDriver: false }),
+    ).start();
+  }, []);
+
+  useEffect(() => {
+    if (isPlaying) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+          Animated.timing(pulseAnim, { toValue: 0, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.stopAnimation();
+      pulseAnim.setValue(0);
+    }
+  }, [isPlaying]);
 
   const totalHz = useMemo(() =>
     selectedGeo.nodes.reduce((s, n) => s + n.hz, 0),
@@ -279,17 +340,18 @@ export default function FrequencyMap({ onLoadFrequencies }: Props) {
     return max;
   }, [selectedGeo]);
 
-  const handlePlay = useCallback(() => {
+  const handlePlayAll = useCallback(() => {
     if (isPlaying) {
       AudioEngine.stopAll();
       AudioEngine.stopMulti();
       setIsPlaying(false);
+      setSoloNode(null);
       return;
     }
-    // Play all node frequencies via AudioEngine
     const freqs = selectedGeo.nodes.map(n => n.hz);
     AudioEngine.playMulti(freqs, 0.3);
     setIsPlaying(true);
+    setSoloNode(null);
     if (onLoadFrequencies) onLoadFrequencies(freqs);
   }, [isPlaying, selectedGeo, onLoadFrequencies]);
 
@@ -297,37 +359,62 @@ export default function FrequencyMap({ onLoadFrequencies }: Props) {
     AudioEngine.stopAll();
     AudioEngine.stopMulti();
     setIsPlaying(false);
+    setSoloNode(null);
+    setActiveNode(null);
   }, []);
+
+  const handleNodeTap = useCallback((index: number) => {
+    const node = selectedGeo.nodes[index];
+    if (!node) return;
+
+    if (soloNode === index) {
+      // Unsolo
+      AudioEngine.stopAll();
+      AudioEngine.stopMulti();
+      setSoloNode(null);
+      setIsPlaying(false);
+    } else {
+      // Solo this node
+      AudioEngine.stopAll();
+      AudioEngine.stopMulti();
+      AudioEngine.playMulti([node.hz], 0.5);
+      setSoloNode(index);
+      setIsPlaying(true);
+    }
+    setActiveNode(index);
+  }, [selectedGeo, soloNode]);
 
   const handleSelectGeo = (geo: GeometryType) => {
     if (isPlaying) { handleStop(); }
     setSelectedGeo(geo);
+    setActiveNode(null);
+    setSoloNode(null);
   };
+
+  // Animated values for rendering
+  const breathScale = breathAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.97, 1.03],
+  });
 
   return (
     <View style={st.container}>
-      {/* Header */}
+      {/* ═══ HEADER ═══ */}
       <View style={st.headerRow}>
-        <Text style={st.headerTitle}>{'\u003E'} FREQUENCY_MAP</Text>
-        <Text style={st.headerSub}> / {selectedGeo.subtitle}</Text>
+        <View style={st.headerLeft}>
+          <Text style={st.headerCaret}>{'\u276F'}</Text>
+          <Text style={st.headerTitle}>FREQUENCY_MAP</Text>
+          <Text style={st.headerSub}> / {selectedGeo.subtitle}</Text>
+        </View>
         <View style={st.headerRight}>
-          <Text style={st.activeCount}>{selectedGeo.nodes.length} active</Text>
+          <View style={[st.statusDot, isPlaying && st.statusDotActive]} />
+          <Text style={[st.activeCount, isPlaying && st.activeCountLive]}>
+            {isPlaying ? 'ACTIVE' : `${selectedGeo.nodes.length} NODES`}
+          </Text>
         </View>
       </View>
 
-      {/* Controls */}
-      <View style={st.controlRow}>
-        <TouchableOpacity style={[st.playBtn, isPlaying && st.playBtnActive]} onPress={handlePlay} activeOpacity={0.7}>
-          <Text style={st.playBtnText}>{isPlaying ? '\u25A0 STOP' : '\u25B6 PLAY GEOMETRY'}</Text>
-        </TouchableOpacity>
-        {isPlaying && (
-          <TouchableOpacity style={st.stopBtn} onPress={handleStop} activeOpacity={0.7}>
-            <Text style={st.stopBtnText}>{'\u25A0'} STOP</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Geometry Tabs */}
+      {/* ═══ GEOMETRY TABS ═══ */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={st.tabScroll} contentContainerStyle={st.tabRow}>
         {GEOMETRIES.map(g => (
           <TouchableOpacity
@@ -341,113 +428,306 @@ export default function FrequencyMap({ onLoadFrequencies }: Props) {
         ))}
       </ScrollView>
 
-      {/* Description */}
+      {/* ═══ DESCRIPTION ═══ */}
       <Text style={st.description}>{selectedGeo.description}</Text>
 
-      {/* SVG Map */}
-      <View style={st.mapContainer}>
-        <View style={st.mapBorder}>
+      {/* ═══ SVG MAP — INTERSTELLAR FIELD ═══ */}
+      <View style={st.mapOuter}>
+        <View style={st.mapContainer}>
           <Svg width={MAP_W} height={MAP_H} viewBox={`0 0 ${MAP_W} ${MAP_H}`}>
             <Defs>
+              {/* Deep space background gradient */}
+              <RadialGradient id="bg-nebula" cx="50%" cy="40%" r="75%">
+                <Stop offset="0%" stopColor="#0a001a" stopOpacity="1" />
+                <Stop offset="40%" stopColor="#050010" stopOpacity="1" />
+                <Stop offset="70%" stopColor="#020008" stopOpacity="1" />
+                <Stop offset="100%" stopColor="#000000" stopOpacity="1" />
+              </RadialGradient>
+
+              {/* Nebula accent */}
+              <RadialGradient id="nebula-red" cx="30%" cy="60%" r="50%">
+                <Stop offset="0%" stopColor="#ff0a0a" stopOpacity="0.1" />
+                <Stop offset="60%" stopColor="#ff0a0a" stopOpacity="0.04" />
+                <Stop offset="100%" stopColor="#ff0a0a" stopOpacity="0" />
+              </RadialGradient>
+
+              <RadialGradient id="nebula-purple" cx="70%" cy="30%" r="45%">
+                <Stop offset="0%" stopColor="#8844ff" stopOpacity="0.08" />
+                <Stop offset="60%" stopColor="#8844ff" stopOpacity="0.03" />
+                <Stop offset="100%" stopColor="#8844ff" stopOpacity="0" />
+              </RadialGradient>
+
+              {/* Dimensional portal glow */}
+              <RadialGradient id="portal-glow" cx="50%" cy="48%" r="35%">
+                <Stop offset="0%" stopColor={BAND_COLORS[dominantBand]} stopOpacity={isPlaying ? '0.12' : '0.04'} />
+                <Stop offset="50%" stopColor={BAND_COLORS[dominantBand]} stopOpacity={isPlaying ? '0.04' : '0.01'} />
+                <Stop offset="100%" stopColor={BAND_COLORS[dominantBand]} stopOpacity="0" />
+              </RadialGradient>
+
+              {/* Node glows */}
               {selectedGeo.nodes.map((n, i) => {
                 const band = getBand(n.hz);
-                const c = BAND_COLORS[band];
+                const c = BAND_GLOW[band];
+                const isSolo = soloNode === i;
                 return (
-                  <RadialGradient key={`grad-${i}`} id={`glow-${i}`} cx="50%" cy="50%" r="50%">
-                    <Stop offset="0%" stopColor={c} stopOpacity="0.8" />
-                    <Stop offset="60%" stopColor={c} stopOpacity="0.15" />
+                  <RadialGradient key={`glow-${i}`} id={`glow-${i}`} cx="50%" cy="50%" r="50%">
+                    <Stop offset="0%" stopColor={c} stopOpacity={isSolo ? '1' : isPlaying ? '0.95' : '0.8'} />
+                    <Stop offset="30%" stopColor={c} stopOpacity={isSolo ? '0.6' : isPlaying ? '0.4' : '0.2'} />
+                    <Stop offset="60%" stopColor={c} stopOpacity={isSolo ? '0.2' : '0.06'} />
                     <Stop offset="100%" stopColor={c} stopOpacity="0" />
                   </RadialGradient>
                 );
               })}
+
+              {/* Edge energy gradient */}
+              <LinearGradient id="edge-energy" x1="0%" y1="0%" x2="100%" y2="100%">
+                <Stop offset="0%" stopColor="#ff0a0a" stopOpacity="0.5" />
+                <Stop offset="50%" stopColor="#ff3040" stopOpacity="0.2" />
+                <Stop offset="100%" stopColor="#ff0a0a" stopOpacity="0.5" />
+              </LinearGradient>
             </Defs>
 
-            {/* Edges / Connection Lines */}
+            {/* Background: Deep space */}
+            <Rect x="0" y="0" width={MAP_W} height={MAP_H} fill="url(#bg-nebula)" />
+            <Rect x="0" y="0" width={MAP_W} height={MAP_H} fill="url(#nebula-red)" />
+            <Rect x="0" y="0" width={MAP_W} height={MAP_H} fill="url(#nebula-purple)" />
+
+            {/* Starfield */}
+            {STARS.map((s, i) => (
+              <Circle
+                key={`star-${i}`}
+                cx={s.x}
+                cy={s.y}
+                r={s.r}
+                fill="#ffffff"
+                opacity={s.opacity}
+              />
+            ))}
+
+            {/* Dimensional rings — concentric orbital rings */}
+            {[0.15, 0.25, 0.35, 0.45].map((r, i) => (
+              <Ellipse
+                key={`ring-${i}`}
+                cx={CX}
+                cy={CY * 0.95}
+                rx={MAP_W * r}
+                ry={MAP_H * r * 0.55}
+                fill="none"
+                stroke={isPlaying ? '#ff0a0a' : '#ffffff'}
+                strokeWidth={0.6}
+                opacity={isPlaying ? 0.2 - i * 0.03 : 0.08 - i * 0.012}
+                strokeDasharray={`${4 + i * 2},${8 + i * 4}`}
+              />
+            ))}
+
+            {/* Portal glow in center */}
+            <Rect x="0" y="0" width={MAP_W} height={MAP_H} fill="url(#portal-glow)" />
+
+            {/* ═══ GEOMETRY EDGES ═══ */}
             {selectedGeo.edges.map(([a, b], i) => {
               const na = selectedGeo.nodes[a];
               const nb = selectedGeo.nodes[b];
               if (!na || !nb) return null;
+              const ax = na.x * MAP_W;
+              const ay = na.y * MAP_H;
+              const bx = nb.x * MAP_W;
+              const by = nb.y * MAP_H;
+              const isSoloEdge = soloNode !== null && (a === soloNode || b === soloNode);
+              const isActiveEdge = activeNode !== null && (a === activeNode || b === activeNode);
+
               return (
-                <Line
-                  key={`edge-${i}`}
-                  x1={na.x * MAP_W} y1={na.y * MAP_H}
-                  x2={nb.x * MAP_W} y2={nb.y * MAP_H}
-                  stroke={isPlaying ? '#ffaa0044' : '#ffffff18'}
-                  strokeWidth={isPlaying ? 1.2 : 0.8}
-                />
+                <G key={`edge-${i}`}>
+                  {/* Outer glow line */}
+                  {(isPlaying || isSoloEdge) && (
+                    <Line
+                      x1={ax} y1={ay} x2={bx} y2={by}
+                      stroke={isSoloEdge ? BAND_COLORS[getBand(selectedGeo.nodes[soloNode!].hz)] : '#ff0a0a'}
+                      strokeWidth={isSoloEdge ? 3 : 2}
+                      opacity={isSoloEdge ? 0.3 : 0.08}
+                    />
+                  )}
+                  {/* Main line */}
+                  <Line
+                    x1={ax} y1={ay} x2={bx} y2={by}
+                    stroke={isSoloEdge ? BAND_COLORS[getBand(selectedGeo.nodes[soloNode!].hz)] : isActiveEdge ? '#ff3040' : isPlaying ? '#ff0a0a' : '#ffffff'}
+                    strokeWidth={isSoloEdge ? 1.8 : isPlaying ? 1 : 0.7}
+                    opacity={isSoloEdge ? 0.9 : isPlaying ? 0.45 : 0.2}
+                  />
+                </G>
               );
             })}
 
-            {/* Nodes */}
+            {/* ═══ NODES ═══ */}
             {selectedGeo.nodes.map((n, i) => {
               const cx = n.x * MAP_W;
               const cy = n.y * MAP_H;
               const band = getBand(n.hz);
               const color = BAND_COLORS[band];
-              const r = 14;
+              const glow = BAND_GLOW[band];
+              const isSolo = soloNode === i;
+              const isActive = activeNode === i;
+              const baseR = 22;
+              const r = isSolo ? 28 : baseR;
+
               return (
-                <G key={`node-${i}`}>
-                  {/* Outer glow */}
-                  <Circle cx={cx} cy={cy} r={r * 2.2} fill={`url(#glow-${i})`} opacity={isPlaying ? 0.9 : 0.5} />
-                  {/* Node circle */}
-                  <Circle cx={cx} cy={cy} r={r} fill="#000000" stroke={color} strokeWidth={1.5} opacity={0.9} />
-                  <Circle cx={cx} cy={cy} r={r * 0.45} fill={color} opacity={isPlaying ? 0.9 : 0.6} />
+                <G key={`node-${i}`} onPress={() => handleNodeTap(i)}>
+                  {/* Outer dimensional halo — large soft glow */}
+                  <Circle
+                    cx={cx} cy={cy}
+                    r={isSolo ? r * 4 : isPlaying ? r * 3 : r * 2.5}
+                    fill={`url(#glow-${i})`}
+                    opacity={isSolo ? 1 : isPlaying ? 0.7 : 0.4}
+                  />
+
+                  {/* Corona ring */}
+                  {(isPlaying || isSolo) && (
+                    <Circle
+                      cx={cx} cy={cy}
+                      r={isSolo ? r * 2.2 : r * 1.8}
+                      fill="none"
+                      stroke={color}
+                      strokeWidth={isSolo ? 1 : 0.5}
+                      opacity={isSolo ? 0.6 : 0.2}
+                      strokeDasharray={isSolo ? '0' : '3,5'}
+                    />
+                  )}
+
+                  {/* Inner ring (orbit) */}
+                  {isSolo && (
+                    <Circle
+                      cx={cx} cy={cy}
+                      r={r * 1.5}
+                      fill="none"
+                      stroke={glow}
+                      strokeWidth={0.8}
+                      opacity={0.4}
+                    />
+                  )}
+
+                  {/* Node body — dark core with colored border */}
+                  <Circle
+                    cx={cx} cy={cy}
+                    r={r}
+                    fill="#060612"
+                    stroke={color}
+                    strokeWidth={isSolo ? 2.5 : isActive ? 2 : 1.5}
+                    opacity={1}
+                  />
+
+                  {/* Inner core — colored center */}
+                  <Circle
+                    cx={cx} cy={cy}
+                    r={r * 0.55}
+                    fill={color}
+                    opacity={isSolo ? 1 : isPlaying ? 0.9 : 0.7}
+                  />
+
+                  {/* Hot pixel — white center for intensity */}
+                  <Circle
+                    cx={cx} cy={cy}
+                    r={isSolo ? 4 : 2.5}
+                    fill="#ffffff"
+                    opacity={isSolo ? 1 : isPlaying ? 0.7 : 0.4}
+                  />
+
                   {/* Label */}
                   <SvgText
-                    x={cx} y={cy - r - 6}
-                    fill={color}
-                    fontSize={7}
-                    fontWeight="700"
+                    x={cx} y={cy - r - 8}
+                    fill={isSolo ? '#ffffff' : color}
+                    fontSize={isSolo ? 9 : 7.5}
+                    fontWeight="900"
                     textAnchor="middle"
-                    letterSpacing={1}
+                    letterSpacing={1.5}
+                    opacity={isSolo ? 1 : 0.9}
                   >
                     {n.label}
                   </SvgText>
-                  {/* Frequency */}
+
+                  {/* Hz value */}
                   <SvgText
-                    x={cx} y={cy + 3}
+                    x={cx} y={cy + 4}
                     fill="#ffffff"
-                    fontSize={7.5}
-                    fontWeight="700"
+                    fontSize={isSolo ? 10 : 8}
+                    fontWeight="900"
                     textAnchor="middle"
+                    opacity={isSolo ? 1 : 0.95}
                   >
                     {n.hz < 100 ? n.hz.toFixed(n.hz % 1 ? 1 : 0) : Math.round(n.hz)}
                   </SvgText>
                   <SvgText
                     x={cx} y={cy + 12}
-                    fill="#ffffff66"
-                    fontSize={5}
+                    fill="#ffffff"
+                    fontSize={4.5}
                     textAnchor="middle"
+                    opacity={0.4}
                   >
                     Hz
                   </SvgText>
                 </G>
               );
             })}
+
+            {/* Coordinate grid markers */}
+            <SvgText x={8} y={MAP_H - 6} fill="#ffffff" fontSize={5} opacity={0.1} letterSpacing={1}>
+              DIMENSION: {selectedGeo.id.toUpperCase()}
+            </SvgText>
+            <SvgText x={MAP_W - 8} y={MAP_H - 6} fill="#ffffff" fontSize={5} opacity={0.1} letterSpacing={1} textAnchor="end">
+              {'\u03A3'} {totalHz.toFixed(1)} Hz
+            </SvgText>
           </Svg>
+
+          {/* Solo node detail overlay */}
+          {soloNode !== null && selectedGeo.nodes[soloNode] && (
+            <View style={st.soloOverlay}>
+              <View style={[st.soloBadge, { borderColor: BAND_COLORS[getBand(selectedGeo.nodes[soloNode].hz)] }]}>
+                <Text style={[st.soloLabel, { color: BAND_COLORS[getBand(selectedGeo.nodes[soloNode].hz)] }]}>
+                  {'\u25CF'} {selectedGeo.nodes[soloNode].label}
+                </Text>
+                <Text style={st.soloHz}>{selectedGeo.nodes[soloNode].hz} Hz</Text>
+                <Text style={st.soloBand}>{getBand(selectedGeo.nodes[soloNode].hz).toUpperCase()} WAVE</Text>
+              </View>
+            </View>
+          )}
         </View>
 
-        {/* Info Panel */}
-        <View style={st.infoPanel}>
-          <View style={st.infoDotRow}>
-            <View style={[st.infoDot, { backgroundColor: BAND_COLORS[dominantBand] }]} />
-            <Text style={[st.infoLabel, { color: BAND_COLORS[dominantBand] }]}>
-              {dominantBand.toUpperCase()}
+        {/* ═══ CONTROLS BAR ═══ */}
+        <View style={st.controlBar}>
+          <TouchableOpacity
+            style={[st.playBtn, isPlaying && st.playBtnActive]}
+            onPress={handlePlayAll}
+            activeOpacity={0.7}
+          >
+            <Text style={[st.playIcon, isPlaying && st.playIconActive]}>
+              {isPlaying ? '\u25A0' : '\u25B6'}
             </Text>
-          </View>
-          <Text style={st.infoHz}>{'\u03A3'} {totalHz.toFixed(1)} Hz</Text>
-          <Text style={st.infoNodes}>{selectedGeo.nodes.length} NODES</Text>
-        </View>
-      </View>
+            <Text style={[st.playBtnText, isPlaying && st.playBtnTextActive]}>
+              {isPlaying ? 'STOP ALL' : 'PLAY GEOMETRY'}
+            </Text>
+          </TouchableOpacity>
 
-      {/* Brainwave Legend */}
-      <View style={st.legend}>
-        {(['delta', 'theta', 'alpha', 'beta', 'gamma'] as Band[]).map(b => (
-          <View key={b} style={st.legendItem}>
-            <View style={[st.legendDot, { backgroundColor: BAND_COLORS[b] }]} />
-            <Text style={st.legendText}>{b.charAt(0).toUpperCase() + b.slice(1)}</Text>
+          <View style={st.infoCluster}>
+            <View style={st.infoDotRow}>
+              <View style={[st.infoDot, { backgroundColor: BAND_COLORS[dominantBand] }]} />
+              <Text style={[st.infoLabel, { color: BAND_COLORS[dominantBand] }]}>
+                {dominantBand.toUpperCase()}
+              </Text>
+            </View>
+            <Text style={st.infoHz}>{'\u03A3'} {totalHz.toFixed(1)} Hz</Text>
           </View>
-        ))}
+        </View>
+
+        {/* ═══ NODE INTERACTION HINT ═══ */}
+        <Text style={st.hint}>TAP ANY NODE TO SOLO · TAP AGAIN TO RELEASE</Text>
+
+        {/* ═══ BRAINWAVE LEGEND ═══ */}
+        <View style={st.legend}>
+          {(['delta', 'theta', 'alpha', 'beta', 'gamma'] as Band[]).map(b => (
+            <View key={b} style={st.legendItem}>
+              <View style={[st.legendDot, { backgroundColor: BAND_COLORS[b] }]} />
+              <Text style={st.legendLabel}>{b.charAt(0).toUpperCase() + b.slice(1)}</Text>
+            </View>
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -456,127 +736,192 @@ export default function FrequencyMap({ onLoadFrequencies }: Props) {
 // ═══ STYLES ═══
 const st = StyleSheet.create({
   container: {
-    marginTop: 14,
+    marginTop: 16,
     marginHorizontal: 4,
   },
+
+  // Header
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 8,
-    marginBottom: 6,
+    marginBottom: 8,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flex: 1,
+  },
+  headerCaret: {
+    color: '#ff0a0a',
+    fontSize: 10,
+    marginRight: 6,
   },
   headerTitle: {
     color: '#ff0a0a',
-    fontSize: 11,
-    fontWeight: '700',
-    fontFamily: 'TerminatorRealNFI',
+    fontSize: 12,
+    fontWeight: '900',
     letterSpacing: 2,
   },
   headerSub: {
-    color: '#ff0a0a66',
+    color: '#ff0a0a55',
     fontSize: 9,
-    fontFamily: 'TerminatorRealNFI',
     letterSpacing: 1,
   },
   headerRight: {
-    flex: 1,
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#333',
+  },
+  statusDotActive: {
+    backgroundColor: '#00ff44',
   },
   activeCount: {
-    color: '#ffffff44',
+    color: '#555',
     fontSize: 8,
-    fontFamily: 'TerminatorRealNFI',
-    letterSpacing: 1,
-  },
-  controlRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 8,
-    gap: 8,
-    marginBottom: 8,
-  },
-  playBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#ff0a0a44',
-    borderRadius: 3,
-  },
-  playBtnActive: {
-    borderColor: '#ff0a0a',
-    backgroundColor: '#ff0a0a15',
-  },
-  playBtnText: {
-    color: '#ff0a0a',
-    fontSize: 9,
     fontWeight: '700',
-    fontFamily: 'TerminatorRealNFI',
     letterSpacing: 2,
   },
-  stopBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#ffffff33',
-    borderRadius: 3,
+  activeCountLive: {
+    color: '#00ff44',
   },
-  stopBtnText: {
-    color: '#ffffff88',
-    fontSize: 9,
-    fontWeight: '700',
-    fontFamily: 'TerminatorRealNFI',
-    letterSpacing: 2,
-  },
+
+  // Tabs
   tabScroll: {
-    marginBottom: 4,
+    marginBottom: 6,
   },
   tabRow: {
     paddingHorizontal: 8,
-    gap: 4,
+    gap: 5,
   },
   tab: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#ffffff18',
-    borderRadius: 2,
+    borderColor: '#1a1a1a',
+    borderRadius: 3,
+    backgroundColor: '#050505',
   },
   tabActive: {
     borderColor: '#ff0a0a',
-    backgroundColor: '#ff0a0a15',
+    backgroundColor: '#1a0000',
   },
   tabText: {
-    color: '#ffffff44',
+    color: '#444',
     fontSize: 8,
-    fontWeight: '700',
-    fontFamily: 'TerminatorRealNFI',
-    letterSpacing: 1,
+    fontWeight: '800',
+    letterSpacing: 2,
   },
   tabTextActive: {
     color: '#ff0a0a',
   },
+
+  // Description
   description: {
     color: '#ff0a0a44',
-    fontSize: 7.5,
-    fontFamily: 'TerminatorRealNFI',
+    fontSize: 8,
     letterSpacing: 0.5,
     paddingHorizontal: 8,
-    marginBottom: 6,
+    marginBottom: 8,
+    lineHeight: 12,
+  },
+
+  // Map
+  mapOuter: {
+    marginHorizontal: 0,
   },
   mapContainer: {
-    position: 'relative',
-  },
-  mapBorder: {
     borderWidth: 1,
-    borderColor: '#ff0a0a22',
-    borderRadius: 4,
-    backgroundColor: '#050505',
+    borderColor: '#ff0a0a30',
+    borderRadius: 6,
     overflow: 'hidden',
     marginHorizontal: 4,
+    position: 'relative',
+    backgroundColor: '#020005',
   },
-  infoPanel: {
+
+  // Solo overlay
+  soloOverlay: {
     position: 'absolute',
-    top: 8,
-    right: 12,
+    top: 10,
+    left: 10,
+    zIndex: 10,
+  },
+  soloBadge: {
+    backgroundColor: '#000000cc',
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  soloLabel: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 2,
+  },
+  soloHz: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  soloBand: {
+    color: '#ffffff55',
+    fontSize: 7,
+    letterSpacing: 2,
+    marginTop: 2,
+  },
+
+  // Controls
+  controlBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginHorizontal: 4,
+    marginTop: 2,
+  },
+  playBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#ff0a0a33',
+    borderRadius: 4,
+    backgroundColor: '#0a0000',
+  },
+  playBtnActive: {
+    borderColor: '#ff0a0a',
+    backgroundColor: '#1a0000',
+  },
+  playIcon: {
+    color: '#ff0a0a66',
+    fontSize: 10,
+  },
+  playIconActive: {
+    color: '#ff0a0a',
+  },
+  playBtnText: {
+    color: '#ff0a0a88',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 2,
+  },
+  playBtnTextActive: {
+    color: '#ff0a0a',
+  },
+  infoCluster: {
     alignItems: 'flex-end',
     gap: 2,
   },
@@ -586,34 +931,40 @@ const st = StyleSheet.create({
     gap: 4,
   },
   infoDot: {
-    width: 5,
-    height: 5,
+    width: 6,
+    height: 6,
     borderRadius: 3,
   },
   infoLabel: {
     fontSize: 8,
-    fontWeight: '700',
-    fontFamily: 'TerminatorRealNFI',
-    letterSpacing: 1,
+    fontWeight: '800',
+    letterSpacing: 2,
   },
   infoHz: {
-    color: '#ffffff88',
+    color: '#ffffff55',
     fontSize: 8,
-    fontFamily: 'TerminatorRealNFI',
     letterSpacing: 1,
   },
-  infoNodes: {
-    color: '#ffffff44',
+
+  // Hint
+  hint: {
+    color: '#ffffff22',
     fontSize: 7,
-    fontFamily: 'TerminatorRealNFI',
-    letterSpacing: 1,
+    letterSpacing: 3,
+    textAlign: 'center',
+    paddingVertical: 6,
   },
+
+  // Legend
   legend: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 14,
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#ffffff08',
+    marginHorizontal: 4,
   },
   legendItem: {
     flexDirection: 'row',
@@ -625,10 +976,9 @@ const st = StyleSheet.create({
     height: 5,
     borderRadius: 3,
   },
-  legendText: {
-    color: '#ffffff55',
+  legendLabel: {
+    color: '#ffffff44',
     fontSize: 7,
-    fontFamily: 'TerminatorRealNFI',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
 });

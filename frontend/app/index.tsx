@@ -524,51 +524,72 @@ export default function TerminalScreen() {
               />
               <View style={styles.headerTextBlock}>
                 <Text style={styles.heroTitle}>MIRRORS 96</Text>
-                <View style={styles.bubbleRow}>
-                  <TouchableOpacity
-                    style={styles.bubble}
-                    onPress={() => Linking.openURL('https://earth.google.com/web/')}
-                  >
-                    <View style={styles.bubbleDot} />
-                    <Text style={styles.bubbleText}>GODMODE</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.bubble}
-                    onPress={() => router.push('/library')}
-                  >
-                    <View style={styles.bubbleDot} />
-                    <Text style={styles.bubbleText}>Archive</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.bubble}
-                    onPress={() => router.push('/sound')}
-                  >
-                    <View style={styles.bubbleDot} />
-                    <Text style={styles.bubbleText}>90.6</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.bubble}
-                    onPress={() => Linking.openURL('https://soundcloud.com/codes-godmode/sets/dj-sets')}
-                  >
-                    <View style={styles.bubbleDot} />
-                    <Text style={styles.bubbleText}>DJ SETS</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.bubble}
-                    onPress={() => router.push('/store')}
-                  >
-                    <View style={[styles.bubbleDot, { backgroundColor: '#ff3040' }]} />
-                    <Text style={styles.bubbleText}>STORE</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.bubble}
-                    onPress={() => router.push('/chirpconnect')}
-                  >
-                    <View style={[styles.bubbleDot, { backgroundColor: '#00ff41' }]} />
-                    <Text style={styles.bubbleText}>CODES</Text>
-                  </TouchableOpacity>
-                </View>
               </View>
+            </View>
+            {/* ═══ NAVIGATION TILES — FULL WIDTH ═══ */}
+            <View style={styles.tileRow}>
+              <TouchableOpacity
+                style={styles.tile}
+                onPress={() => Linking.openURL('https://earth.google.com/web/')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.tileIconWrap}>
+                  <Text style={styles.tileIcon}>{'\u25CE'}</Text>
+                </View>
+                <Text style={styles.tileLabel}>GODMODE</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.tile}
+                onPress={() => router.push('/library')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.tileIconWrap}>
+                  <Text style={styles.tileIcon}>{'\u2261'}</Text>
+                </View>
+                <Text style={styles.tileLabel}>ARCHIVE</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.tile}
+                onPress={() => router.push('/sound')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.tileIconWrap}>
+                  <Text style={[styles.tileIcon, { fontSize: 16 }]}>90.6</Text>
+                </View>
+                <Text style={styles.tileLabel}>SOUND</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.tileRow}>
+              <TouchableOpacity
+                style={styles.tile}
+                onPress={() => Linking.openURL('https://soundcloud.com/codes-godmode/sets/dj-sets')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.tileIconWrap}>
+                  <Text style={styles.tileIcon}>{'\u25C8'}</Text>
+                </View>
+                <Text style={styles.tileLabel}>DJ SETS</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.tile}
+                onPress={() => router.push('/store')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.tileIconWrap, styles.tileIconStore]}>
+                  <Text style={styles.tileIcon}>{'\u25C7'}</Text>
+                </View>
+                <Text style={styles.tileLabel}>STORE</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.tile}
+                onPress={() => router.push('/chirpconnect')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.tileIconWrap, styles.tileIconCodes]}>
+                  <Text style={[styles.tileIcon, { color: '#00ff41' }]}>{'\u25B2'}</Text>
+                </View>
+                <Text style={[styles.tileLabel, { color: '#00ff41' }]}>CODES</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -587,7 +608,7 @@ export default function TerminalScreen() {
               style={slabStyles.discographyBtn}
               onPress={() => slHandleCheckout('album', 'GODMODE DISCOGRAPHY', '', 'VINCE SINNOTT')}
             >
-              <Text style={slabStyles.discographyText}>BUY FULL DISCOGRAPHY — $13</Text>
+              <Text style={slabStyles.discographyText}>BUY FULL DISCOGRAPHY — $33.96</Text>
             </TouchableOpacity>
 
             {/* Album Grid */}
@@ -608,7 +629,7 @@ export default function TerminalScreen() {
                       style={slabStyles.buyAlbumBtn}
                       onPress={() => slHandleCheckout('album', album.name, album.coverUrl, album.artist)}
                     >
-                      <Text style={slabStyles.buyAlbumText}>BUY ALBUM $13</Text>
+                      <Text style={slabStyles.buyAlbumText}>BUY ALBUM{'\n'}$13</Text>
                     </TouchableOpacity>
 
                     {/* Expanded Track List */}
@@ -1144,33 +1165,50 @@ const styles = StyleSheet.create({
     fontFamily: 'TerminatorRealNFI',
     fontWeight: '700',
   },
-  bubbleRow: {
+  tileRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
-    marginTop: 6,
+    marginBottom: 8,
+    paddingHorizontal: 4,
   },
-  bubble: {
-    flexDirection: 'row',
+  tile: {
+    flex: 1,
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#0a0505',
+    backgroundColor: '#060008',
     borderWidth: 1,
-    borderColor: '#ff0a0a',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    borderColor: '#1a0010',
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
   },
-  bubbleDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: '#ff0a0a',
+  tileIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#0a0000',
+    borderWidth: 1,
+    borderColor: '#ff0a0a44',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
   },
-  bubbleText: {
+  tileIconStore: {
+    borderColor: '#ff304055',
+  },
+  tileIconCodes: {
+    borderColor: '#00ff4144',
+    backgroundColor: '#000a00',
+  },
+  tileIcon: {
     color: '#ff0a0a',
-    fontSize: 9,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  tileLabel: {
+    color: '#ff0a0a',
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 3,
     fontFamily: 'TerminatorRealNFI',
   },
   section: { marginTop: 18 },
