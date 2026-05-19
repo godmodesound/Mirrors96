@@ -57,6 +57,7 @@ const METATRON: GeometryType = {
   name: 'METATRON',
   subtitle: "METATRON'S CUBE",
   description: '13-circle Fruit of Life with all 5 Platonic solids — whole-brain non-local resonance.',
+  // Metatron data matched to godmodesound.com
   nodes: [
     { id: 'crown', label: 'CROWN', x: 0.5, y: 0.06, hz: 5.3 },
     { id: 'prefrontal', label: 'PREFRONTAL', x: 0.5, y: 0.20, hz: 7.83 },
@@ -90,7 +91,7 @@ const TREE: GeometryType = {
   id: 'tree',
   name: 'TREE',
   subtitle: 'TREE OF LIFE',
-  description: 'Kabbalistic 10-node Sephiroth — vertical axis consciousness mapping.',
+  description: 'Kabbalistic 10-sephirot path — the original brain lattice configuration.',
   nodes: [
     { id: 'crown', label: 'KETHER', x: 0.5, y: 0.05, hz: 963 },
     { id: 'chokmah', label: 'CHOKMAH', x: 0.75, y: 0.15, hz: 852 },
@@ -114,7 +115,7 @@ const MERKABA: GeometryType = {
   id: 'merkaba',
   name: 'MERKABA',
   subtitle: 'STAR TETRAHEDRON',
-  description: 'Counter-rotating light vehicle — bilateral brain hemisphere synchronization.',
+  description: 'Star Tetrahedron — counter-rotating light vehicle for vertical crown-root coherence.',
   nodes: [
     { id: 'top', label: 'CROWN', x: 0.5, y: 0.05, hz: 7.83 },
     { id: 'ul', label: 'L FRONTAL', x: 0.2, y: 0.35, hz: 10 },
@@ -135,7 +136,7 @@ const VE64: GeometryType = {
   id: 've64',
   name: 'VE / 64-TET',
   subtitle: 'VECTOR EQUILIBRIUM',
-  description: 'Buckminster Fuller\'s VE — zero-point balanced field across all cortex layers.',
+  description: 'Cuboctahedron — Buckminster Fuller\'s zero-point matrix. All vectors equal.',
   nodes: [
     { id: 'n1', label: 'CROWN', x: 0.5, y: 0.05, hz: 432 },
     { id: 'n2', label: 'PREFRONTAL', x: 0.5, y: 0.22, hz: 528 },
@@ -162,7 +163,7 @@ const SRI_YANTRA: GeometryType = {
   id: 'sri',
   name: 'SRI YANTRA',
   subtitle: 'SRI YANTRA',
-  description: '9-interlocking triangles — 432Hz harmonic series mapped to cortex geometry.',
+  description: '9 interlocking triangles around the central bindu — Tantric manifestation field.',
   nodes: [
     { id: 'bindu', label: 'BINDU', x: 0.5, y: 0.15, hz: 136.1 },
     { id: 'n2', label: 'L FRONTAL', x: 0.22, y: 0.30, hz: 10 },
@@ -186,7 +187,7 @@ const TORUS: GeometryType = {
   id: 'torus',
   name: 'TORUS',
   subtitle: 'TOROIDAL FIELD',
-  description: 'Self-sustaining energy vortex — heart-brain coherence entrainment pattern.',
+  description: 'Self-referencing donut field — up the axis, down the outer ring, back through root.',
   nodes: [
     { id: 'top', label: 'CROWN', x: 0.5, y: 0.05, hz: 7.83 },
     { id: 'ur', label: 'R FRONTAL', x: 0.82, y: 0.22, hz: 10 },
@@ -208,7 +209,7 @@ const PHI_SPIRAL: GeometryType = {
   id: 'phi',
   name: '\u03A6 SPIRAL',
   subtitle: 'GOLDEN RATIO SPIRAL',
-  description: 'Fibonacci 1.618 ratio — logarithmic cortex unfold from brainstem to crown.',
+  description: 'Fibonacci spiral (\u03C6 = 1.618) seeded from Vesica Piscis — Solfeggio stacking by golden angle.',
   nodes: [
     { id: 'n1', label: 'BRAINSTEM', x: 0.5, y: 0.88, hz: 1.618 },
     { id: 'n2', label: 'OCCIPITAL', x: 0.62, y: 0.72, hz: 2.618 },
@@ -231,7 +232,7 @@ const ICOSA: GeometryType = {
   id: 'icosa',
   name: 'ICOSA',
   subtitle: 'ICOSAHEDRON',
-  description: '20-face water crystal geometry — emotional body and fluid resonance mapping.',
+  description: '20-faced water geometry — limbic regulation, glymphatic flow, emotional fluidity.',
   nodes: [
     { id: 'top', label: 'CROWN', x: 0.5, y: 0.05, hz: 528 },
     { id: 'n2', label: 'L FRONTAL', x: 0.18, y: 0.25, hz: 396 },

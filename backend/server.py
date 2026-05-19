@@ -122,7 +122,8 @@ class CodesChannelCreate(BaseModel):
 class CodesTransmit(BaseModel):
     channel_id: str
     sender_name: str
-    audio_base64: str
+    audio_base64: str = ""
+    text: str = ""
     duration: float = 0
     sender_id: str = ""
 
@@ -1333,6 +1334,7 @@ async def codes_transmit(msg: CodesTransmit):
         "sender_id": msg.sender_id or "anonymous",
         "sender_name": msg.sender_name or "ANONYMOUS",
         "audio_base64": msg.audio_base64,
+        "text": msg.text,
         "duration": msg.duration,
         "status": "delivered",
         "created_at": datetime.utcnow().isoformat(),
@@ -1344,6 +1346,7 @@ async def codes_transmit(msg: CodesTransmit):
         "message_id": message_id,
         "sender_name": doc["sender_name"],
         "sender_id": doc["sender_id"],
+        "text": doc["text"],
         "duration": doc["duration"],
         "created_at": doc["created_at"],
         "audio_base64": doc["audio_base64"],
@@ -1366,6 +1369,7 @@ async def get_codes_messages(channel_id: str, limit: int = 30):
             "sender_id": m.get("sender_id", "anonymous"),
             "sender_name": m.get("sender_name", "ANONYMOUS"),
             "audio_base64": m.get("audio_base64", ""),
+            "text": m.get("text", ""),
             "duration": m.get("duration", 0),
             "status": m.get("status", "delivered"),
             "created_at": m.get("created_at", ""),
