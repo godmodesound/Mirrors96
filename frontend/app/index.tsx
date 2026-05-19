@@ -27,6 +27,7 @@ import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
+import FrequencyMap from '../src/FrequencyMap';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const API_URL =
@@ -654,6 +655,18 @@ export default function TerminalScreen() {
               </View>
             )}
           </View>
+
+          {/* ══════ FREQUENCY MAP — Sacred Geometry ══════ */}
+          <FrequencyMap onLoadFrequencies={(freqs) => {
+            const newLayers = freqs.slice(0, 8).map((f, i) => ({
+              id: i + 1,
+              frequency: f,
+              gain: 0.3,
+              isPlaying: false,
+            }));
+            setLayers(newLayers);
+            setLoadedArchiveName('GEOMETRY');
+          }} />
 
           {/* Tone Layers - Analog Style */}
           <View style={styles.section}>
