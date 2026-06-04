@@ -18,7 +18,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import GodmodeSlider from '../src/GodmodeSlider';
 import Svg, { Path, Circle as SvgCircle, Text as SvgText, G, Line } from 'react-native-svg';
 import { AudioEngine } from '../src/AudioEngine';
-import { ParticleLab, GodmodeEarth } from '../src/GodmodeFeatures';
+import { ParticleLab } from '../src/GodmodeFeatures';
 import { MirrorsWheel, CAMELOT_KEYS, CamelotKey } from '../src/MirrorsWheel';
 import { FREQUENCY_ARCHIVE, ARCHIVE_CATEGORIES, FrequencyEntry } from '../src/FrequencyArchiveData';
 import { PLAYABLE_ALBUMS, ALBUMS, Album, Track } from '../src/AlbumData';
@@ -917,13 +917,6 @@ export default function TerminalScreen() {
             />
           </View>
 
-
-          {/* ══════ GODMODE EARTH ══════ */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>&gt; GODMODE</Text>
-            <Text style={styles.sectionSub}>Interactive Google Earth — Search any location</Text>
-            <GodmodeEarth height={450} />
-          </View>
 
           {/* Quick Archive Access */}
           <View style={styles.section}>
