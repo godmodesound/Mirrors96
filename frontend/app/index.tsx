@@ -517,27 +517,23 @@ export default function TerminalScreen() {
           </TouchableOpacity>
           <View style={styles.header}>
             <View style={styles.headerRow}>
-              <Image
-                source={require('../assets/images/logo.jpg')}
-                style={styles.miniLogo}
-                resizeMode="cover"
-              />
+              {/* ═══ SECRET GODMODE — tap logo to launch Google Earth ═══ */}
+              <TouchableOpacity
+                onPress={() => Linking.openURL('https://earth.google.com/web/')}
+                activeOpacity={0.85}
+              >
+                <Image
+                  source={require('../assets/images/logo.jpg')}
+                  style={styles.miniLogo}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
               <View style={styles.headerTextBlock}>
                 <Text style={styles.heroTitle}>MIRRORS 96</Text>
               </View>
             </View>
-            {/* ═══ NAVIGATION TILES — FULL WIDTH ═══ */}
+            {/* ═══ NAVIGATION TILES ═══ */}
             <View style={styles.tileRow}>
-              <TouchableOpacity
-                style={styles.tile}
-                onPress={() => Linking.openURL('https://earth.google.com/web/')}
-                activeOpacity={0.7}
-              >
-                <View style={styles.tileIconWrap}>
-                  <Text style={styles.tileIcon}>{'\u25CE'}</Text>
-                </View>
-                <Text style={styles.tileLabel}>GODMODE</Text>
-              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.tile}
                 onPress={() => router.push('/library')}
@@ -558,8 +554,6 @@ export default function TerminalScreen() {
                 </View>
                 <Text style={styles.tileLabel}>SOUND</Text>
               </TouchableOpacity>
-            </View>
-            <View style={styles.tileRow}>
               <TouchableOpacity
                 style={styles.tile}
                 onPress={() => Linking.openURL('https://soundcloud.com/codes-godmode/sets/dj-sets')}
@@ -570,6 +564,8 @@ export default function TerminalScreen() {
                 </View>
                 <Text style={styles.tileLabel}>DJ SETS</Text>
               </TouchableOpacity>
+            </View>
+            <View style={styles.tileRow}>
               <TouchableOpacity
                 style={styles.tile}
                 onPress={() => router.push('/store')}
