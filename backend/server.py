@@ -175,7 +175,7 @@ SEED_ALBUMS = [
         "artist": "VINCE SINNOTT",
         "description": "96 Mirrors — the flagship album. A sonic architecture of 432Hz-tuned frequencies, infrared textures, and hypnotic rhythms. 11 tracks of pure frequency exploration.",
         "price_cents": 1299,
-        "cover_url": "https://customer-assets.emergentagent.com/job_ed6a0deb-be55-415b-8702-764f1299165b/artifacts/enhrt4um_96%20Mirros%20Album%20Cover.PNG",
+        "cover_url": "https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/c5jwbmte_MIRRORS_1024x1024.jpg",
         "tracklist": ["96 MIRRORS","WENOTDONE","13th St","Here 2day Gone 2morrow","Musical Chairs 2026","Poor Man Style","$hango","Spun The Block","Grateful","UNCLE MAJIC","RED Magick"],
         "preview_urls": [
             "https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/ln4b6jco_8A%20-%20120%20-%2096%20MIRRORS.mp3",
@@ -191,7 +191,7 @@ SEED_ALBUMS = [
         "artist": "VINCE SINNOTT",
         "description": "13 tracks of deep, hypnotic house music. From the ethereal Godmode to the raw energy of Blood Sport — a journey through sound.",
         "price_cents": 1299,
-        "cover_url": "https://customer-assets.emergentagent.com/job_ed6a0deb-be55-415b-8702-764f1299165b/artifacts/lad4p2yz_CODES%20Album%20Cover.jpg",
+        "cover_url": "https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/lpcyrm06_CODES%20Album%20Cover.jpg",
         "tracklist": ["Godmode","Codes","24k","Lion Heart","Dont Stop","My Mind","Silence","Concrete Jungle","Blood Sport","96","Cooked","Third Eye","Source"],
         "preview_urls": [
             "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/4f/8c/32/4f8c32fe-5378-c312-0755-212fe63388fc/mzaf_17829693640304093227.plus.aac.p.m4a",

@@ -19,7 +19,7 @@ export const ALBUMS: Album[] = [
     id: 'mirrors',
     name: '96 Mirrors',
     artist: 'VINCE SINNOTT',
-    coverUrl: 'https://customer-assets.emergentagent.com/job_ed6a0deb-be55-415b-8702-764f1299165b/artifacts/enhrt4um_96%20Mirros%20Album%20Cover.PNG',
+    coverUrl: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/c5jwbmte_MIRRORS_1024x1024.jpg',
     buyUrl: 'https://www.vincesinnott.com/',
     tracks: [
       { number: 1, name: '96 MIRRORS', duration: 0, previewUrl: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/ln4b6jco_8A%20-%20120%20-%2096%20MIRRORS.mp3' },
@@ -39,7 +39,7 @@ export const ALBUMS: Album[] = [
     id: 'codes',
     name: 'CODES',
     artist: 'VINCE SINNOTT',
-    coverUrl: 'https://customer-assets.emergentagent.com/job_ed6a0deb-be55-415b-8702-764f1299165b/artifacts/lad4p2yz_CODES%20Album%20Cover.jpg',
+    coverUrl: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/lpcyrm06_CODES%20Album%20Cover.jpg',
     buyUrl: 'https://music.apple.com/us/album/codes/1812232122',
     tracks: [
       { number: 1, name: 'Godmode', duration: 184, previewUrl: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/4f/8c/32/4f8c32fe-5378-c312-0755-212fe63388fc/mzaf_17829693640304093227.plus.aac.p.m4a' },
