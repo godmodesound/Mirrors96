@@ -506,108 +506,59 @@ export default function TerminalScreen() {
     <View style={styles.container}>
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
-          {/* ══════ HERO — MIRRORS 96 ══════ */}
-          <TouchableOpacity onPress={() => router.push('/chirpconnect')} activeOpacity={0.7} style={styles.codesIdBadge}>
-            <Image
-              source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/x7wgp9g9_MIRRORS%20ID.jpeg' }}
-              style={styles.codesIdImage}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-          <View style={styles.header}>
-            <View style={styles.headerRow}>
-              {/* ═══ SECRET GODMODE — tap logo to launch Google Earth ═══ */}
-              <TouchableOpacity
-                onPress={() => Linking.openURL('https://earth.google.com/web/')}
-                activeOpacity={0.85}
-              >
-                <Image
-                  source={require('../assets/images/logo.jpg')}
-                  style={styles.miniLogo}
-                  resizeMode="cover"
-                />
+          {/* ══════ TOP NAV BAR ══════ */}
+          <View style={styles.topNav}>
+            <TouchableOpacity onPress={() => Linking.openURL('https://earth.google.com/web/')} activeOpacity={0.85}>
+              <Image source={require('../assets/images/logo.jpg')} style={styles.navLogo} resizeMode="cover" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/chirpconnect')} activeOpacity={0.7}>
+              <Image
+                source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/x7wgp9g9_MIRRORS%20ID.jpeg' }}
+                style={styles.navCodesIcon}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+            <View style={styles.navPills}>
+              <TouchableOpacity style={styles.navPill} onPress={() => router.push('/library')}>
+                <Text style={styles.navPillText}>MIRRORS</Text>
               </TouchableOpacity>
-              <View style={styles.headerTextBlock}>
-                <Text style={styles.heroTitle}>MIRRORS 96</Text>
-              </View>
-            </View>
-            {/* ═══ NAVIGATION TILES ═══ */}
-            <View style={styles.tileRow}>
-              <TouchableOpacity
-                style={styles.tile}
-                onPress={() => router.push('/library')}
-                activeOpacity={0.7}
-              >
-                <View style={styles.tileIconWrap}>
-                  <Text style={styles.tileIcon}>{'\u2261'}</Text>
-                </View>
-                <Text style={styles.tileLabel}>ARCHIVE</Text>
+              <TouchableOpacity style={styles.navPill} onPress={() => router.push('/sound')}>
+                <Text style={styles.navPillText}>90.6</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.tile}
-                onPress={() => router.push('/sound')}
-                activeOpacity={0.7}
-              >
-                <View style={styles.tileIconWrap}>
-                  <Text style={[styles.tileIcon, { fontSize: 16 }]}>90.6</Text>
-                </View>
-                <Text style={styles.tileLabel}>SOUND</Text>
+              <TouchableOpacity style={styles.navPill} onPress={() => router.push('/chirpconnect')}>
+                <Text style={styles.navPillText}>CODES</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.tile}
-                onPress={() => Linking.openURL('https://soundcloud.com/codes-godmode/sets/dj-sets')}
-                activeOpacity={0.7}
-              >
-                <View style={styles.tileIconWrap}>
-                  <Text style={styles.tileIcon}>{'\u25C8'}</Text>
-                </View>
-                <Text style={styles.tileLabel}>DJ SETS</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.tileRow}>
-              <TouchableOpacity
-                style={styles.tile}
-                onPress={() => router.push('/store')}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.tileIconWrap, styles.tileIconStore]}>
-                  <Text style={styles.tileIcon}>{'\u25C7'}</Text>
-                </View>
-                <Text style={styles.tileLabel}>STORE</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.tile}
-                onPress={() => router.push('/chirpconnect')}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.tileIconWrap, styles.tileIconCodes]}>
-                  <Text style={[styles.tileIcon, { color: '#00ff41' }]}>{'\u25B2'}</Text>
-                </View>
-                <Text style={[styles.tileLabel, { color: '#00ff41' }]}>CODES</Text>
+              <TouchableOpacity style={styles.navPill} onPress={() => Linking.openURL('https://soundcloud.com/codes-godmode/sets/dj-sets')}>
+                <Text style={styles.navPillText}>DJ SETS</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* ══════ SOUND LAB — Albums with Buy & Preview ══════ */}
-          <View style={styles.section}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={styles.sectionTitle}>&gt; SOUND_LAB</Text>
+          {/* ══════ HERO ══════ */}
+          <View style={styles.heroSection}>
+            <View style={styles.heroContent}>
+              <Text style={styles.heroTitle}>MIRRORS</Text>
+              <Text style={styles.heroSub}>FUNCTIONAL SOUND {'\u00B7'} VINCE SINNOTT</Text>
+            </View>
+            <TouchableOpacity style={styles.libraryBtn} onPress={() => router.push('/library')}>
+              <Text style={styles.libraryBtnText}>LIBRARY</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* ══════ SOUND LAB ══════ */}
+          <View style={slabStyles.container}>
+            <View style={slabStyles.headerRow}>
+              <View style={slabStyles.headerLeft}>
+                <View style={slabStyles.headerDot} />
+                <Text style={slabStyles.headerTitle}>SOUND LAB</Text>
+              </View>
+              <Text style={slabStyles.headerMeta}>{ALBUMS.length} albums {'\u00B7'} {ALBUMS.reduce((acc, a) => acc + a.tracks.length, 0)} tracks</Text>
               <TouchableOpacity onPress={() => router.push('/store')} style={slabStyles.openStoreBtn}>
                 <Text style={slabStyles.openStoreText}>OPEN STORE</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.sectionSub}>{ALBUMS.length} albums · {ALBUMS.reduce((acc, a) => acc + a.tracks.length, 0)} tracks</Text>
 
-            {/* Buy Full Discography */}
-            <TouchableOpacity
-              style={slabStyles.discographyBtn}
-              onPress={() => slHandleCheckout('album', 'GODMODE DISCOGRAPHY', '', 'VINCE SINNOTT')}
-            >
-              <Text style={slabStyles.discographyText}>BUY FULL DISCOGRAPHY — $33.96</Text>
-            </TouchableOpacity>
-
-            {/* Album Grid */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={slabStyles.albumScroll} contentContainerStyle={{ gap: 10, paddingRight: 8 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={slabStyles.albumScroll} contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingRight: 20 }}>
               {ALBUMS.map((album) => {
                 const isExpanded = slExpandedAlbum === album.id;
                 const hasTracks = album.tracks.length > 0;
@@ -619,15 +570,6 @@ export default function TerminalScreen() {
                       <Text style={slabStyles.albumMeta}>{hasTracks ? `${album.tracks.length} tracks` : 'Album'}</Text>
                     </TouchableOpacity>
 
-                    {/* Buy Album Button */}
-                    <TouchableOpacity
-                      style={slabStyles.buyAlbumBtn}
-                      onPress={() => slHandleCheckout('album', album.name, album.coverUrl, album.artist)}
-                    >
-                      <Text style={slabStyles.buyAlbumText}>BUY ALBUM{'\n'}$13</Text>
-                    </TouchableOpacity>
-
-                    {/* Expanded Track List */}
                     {isExpanded && hasTracks && (
                       <View style={slabStyles.trackList}>
                         {album.tracks.map((track) => {
@@ -635,19 +577,13 @@ export default function TerminalScreen() {
                           const isPlaying = slPlayingTrack === trackKey;
                           return (
                             <View key={track.number} style={slabStyles.trackRow}>
-                              <TouchableOpacity
-                                style={slabStyles.trackPlayBtn}
-                                onPress={() => slPlayPreview(track, album.name)}
-                              >
+                              <TouchableOpacity style={slabStyles.trackPlayBtn} onPress={() => slPlayPreview(track, album.name)}>
                                 <Text style={[slabStyles.trackPlayIcon, isPlaying && slabStyles.trackPlayIconActive]}>
-                                  {isPlaying ? '■' : '▶'}
+                                  {isPlaying ? '\u25A0' : '\u25B6'}
                                 </Text>
                               </TouchableOpacity>
                               <Text style={[slabStyles.trackName, isPlaying && slabStyles.trackNameActive]} numberOfLines={1}>{track.name}</Text>
-                              <TouchableOpacity
-                                style={slabStyles.trackBuyBtn}
-                                onPress={() => slHandleCheckout('single', `${album.name} — ${track.name}`, album.coverUrl, album.artist)}
-                              >
+                              <TouchableOpacity style={slabStyles.trackBuyBtn} onPress={() => slHandleCheckout('single', `${album.name} — ${track.name}`, album.coverUrl, album.artist)}>
                                 <Text style={slabStyles.trackBuyText}>$1.96</Text>
                               </TouchableOpacity>
                             </View>
@@ -660,13 +596,20 @@ export default function TerminalScreen() {
               })}
             </ScrollView>
 
-            {/* Now Playing Bar */}
+            {/* Buy Full Discography */}
+            <TouchableOpacity
+              style={slabStyles.discographyBtn}
+              onPress={() => slHandleCheckout('album', 'GODMODE DISCOGRAPHY', '', 'VINCE SINNOTT')}
+            >
+              <Text style={slabStyles.discographyText}>BUY FULL DISCOGRAPHY — $33.96</Text>
+            </TouchableOpacity>
+
             {slPlayingTrack && (
               <View style={slabStyles.nowPlayingBar}>
                 <View style={slabStyles.npDot} />
                 <Text style={slabStyles.npLabel} numberOfLines={1}>PREVIEW: {slPlayingTrack.toUpperCase()}</Text>
                 <TouchableOpacity onPress={slStopPreview}>
-                  <Text style={slabStyles.npStopBtn}>■ STOP</Text>
+                  <Text style={slabStyles.npStopBtn}>{'\u25A0'} STOP</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -1116,125 +1059,84 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000000' },
   safeArea: { flex: 1 },
   scrollView: { flex: 1, paddingHorizontal: 0 },
-  header: { paddingTop: 16, paddingBottom: 12, paddingHorizontal: 20 },
-  headerRow: {
+
+  // ── TOP NAV ──
+  topNav: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1a0505',
   },
-  miniLogo: {
-    width: 44,
-    height: 44,
-    borderRadius: 0,
-    borderWidth: 0,
-  },
-  headerTextBlock: { flex: 1 },
-  mirrorsIdBanner: {
-    width: '100%',
-    height: 48,
+  navLogo: {
+    width: 32,
+    height: 32,
     borderRadius: 0,
   },
-  terminalTitle: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '300',
-    letterSpacing: 6,
-    textTransform: 'uppercase',
-  },
-  tileRow: {
-    flexDirection: 'row',
-    gap: 1,
-    marginBottom: 1,
-    paddingHorizontal: 20,
-  },
-  tile: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: '#0a0a0a',
-    borderWidth: 0,
-    borderRadius: 0,
-    paddingVertical: 20,
-    paddingHorizontal: 4,
-  },
-  tileIconWrap: {
+  navCodesIcon: {
     width: 36,
-    height: 36,
+    height: 28,
     borderRadius: 0,
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#333',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
   },
-  tileIconStore: {
-    borderColor: '#444',
-  },
-  tileIconCodes: {
-    borderColor: '#00ff41',
-    backgroundColor: 'transparent',
-  },
-  tileIcon: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '300',
-  },
-  tileLabel: {
-    color: '#888',
-    fontSize: 8,
-    fontWeight: '500',
-    letterSpacing: 3,
-  },
-  section: { marginTop: 32, paddingHorizontal: 20 },
-  heroTitle: {
-    color: '#ffffff',
-    fontSize: 36,
-    fontWeight: '800',
-    letterSpacing: 8,
-    marginBottom: 0,
-  },
-  heroRow: {
+  navPills: {
+    flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    justifyContent: 'flex-end',
+    gap: 6,
   },
-  codesIdBadge: {
-    width: '100%',
-    paddingHorizontal: 0,
-    marginBottom: 8,
+  navPill: {
+    borderWidth: 1,
+    borderColor: '#ff0a0a',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: 'transparent',
   },
-  codesIdImage: {
-    width: '100%',
-    height: 48,
-    borderRadius: 0,
+  navPillText: {
+    color: '#ff0a0a',
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 2,
   },
-  heroH2: {
-    color: '#666',
+
+  // ── HERO ──
+  heroSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 16,
+  },
+  heroContent: { flex: 1 },
+  heroTitle: {
+    color: '#ff0a0a',
+    fontSize: 42,
+    fontWeight: '900',
+    letterSpacing: 6,
+  },
+  heroSub: {
+    color: '#ff0a0a66',
     fontSize: 10,
     fontWeight: '400',
-    letterSpacing: 3,
-    marginTop: 8,
-    marginBottom: 4,
+    letterSpacing: 2,
+    marginTop: 4,
   },
-  heroSubhead: {
-    color: '#444',
+  libraryBtn: {
+    borderWidth: 1,
+    borderColor: '#ff0a0a',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: 'transparent',
+  },
+  libraryBtnText: {
+    color: '#ff0a0a',
     fontSize: 9,
-    fontWeight: '300',
-    lineHeight: 14,
-    letterSpacing: 0.5,
-    marginBottom: 6,
+    fontWeight: '700',
+    letterSpacing: 2,
   },
-  artistLink: {
-    paddingVertical: 4,
-    marginBottom: 4,
-  },
-  artistLinkText: {
-    color: '#555',
-    fontSize: 8,
-    fontWeight: '400',
-    letterSpacing: 1,
-  },
+  section: { marginTop: 24, paddingHorizontal: 20 },
   footerLinks: {
     marginTop: 24,
     alignItems: 'center',
@@ -1786,93 +1688,101 @@ const plStyles = StyleSheet.create({
 
 // ═══════ SOUND LAB STYLES ═══════
 const slabStyles = StyleSheet.create({
+  container: {
+    marginTop: 8,
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#ff0a0a',
+    paddingVertical: 16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    gap: 10,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  headerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ff0a0a',
+  },
+  headerTitle: {
+    color: '#ff0a0a',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 3,
+  },
+  headerMeta: {
+    flex: 1,
+    color: '#ff0a0a55',
+    fontSize: 9,
+    letterSpacing: 1,
+  },
   openStoreBtn: {
     borderWidth: 1,
-    borderColor: '#ff0a0a40',
-    paddingHorizontal: 12,
+    borderColor: '#ff0a0a',
+    paddingHorizontal: 10,
     paddingVertical: 5,
-    backgroundColor: '#0a0000',
+    backgroundColor: 'transparent',
   },
   openStoreText: {
     color: '#ff0a0a',
     fontSize: 8,
     fontWeight: '700',
     letterSpacing: 2,
-    fontFamily: 'TerminatorRealNFI',
-  },
-  discographyBtn: {
-    backgroundColor: '#ff0a0a',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    marginTop: 10,
-    borderRadius: 50,
-    shadowColor: '#ff0a0a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  discographyText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 2,
-    fontFamily: 'TerminatorRealNFI',
   },
   albumScroll: {
-    marginTop: 10,
+    marginTop: 0,
   },
   albumCard: {
-    width: 140,
-    backgroundColor: '#0a0000',
-    borderWidth: 1,
-    borderColor: '#1a0505',
-    padding: 8,
+    width: 130,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    padding: 0,
   },
   albumCardExpanded: {
     width: 200,
-    borderColor: '#ff0a0a40',
   },
   albumCover: {
     width: '100%',
-    height: 120,
-    borderRadius: 2,
-    marginBottom: 6,
+    height: 130,
+    borderRadius: 0,
+    marginBottom: 8,
   },
   albumName: {
-    color: '#ff0a0a',
+    color: '#ffffff',
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.5,
-    fontFamily: 'TerminatorRealNFI',
   },
   albumMeta: {
-    color: '#5a1a1a',
+    color: '#555',
     fontSize: 8,
     letterSpacing: 1,
     marginTop: 2,
-    fontFamily: 'TerminatorRealNFI',
   },
-  buyAlbumBtn: {
-    backgroundColor: '#ff0a0a',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+  discographyBtn: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#ff0a0a',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
     alignItems: 'center',
-    marginTop: 8,
-    borderRadius: 50,
-    shadowColor: '#ff0a0a',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 4,
+    marginTop: 16,
+    marginHorizontal: 16,
   },
-  buyAlbumText: {
-    color: '#fff',
-    fontSize: 9,
-    fontWeight: '800',
+  discographyText: {
+    color: '#ff0a0a',
+    fontSize: 10,
+    fontWeight: '700',
     letterSpacing: 2,
-    fontFamily: 'TerminatorRealNFI',
   },
   trackList: {
     marginTop: 8,
