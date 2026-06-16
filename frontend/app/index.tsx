@@ -508,16 +508,16 @@ export default function TerminalScreen() {
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
           {/* ══════ TOP NAV BAR ══════ */}
           <View style={styles.topNav}>
-            <TouchableOpacity onPress={() => Linking.openURL('https://earth.google.com/web/')} activeOpacity={0.85}>
-              <Image source={require('../assets/images/logo.jpg')} style={styles.navLogo} resizeMode="cover" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/chirpconnect')} activeOpacity={0.7}>
+            {/* LEFT — MIRRORS ID Logo */}
+            <TouchableOpacity onPress={() => router.push('/chirpconnect')} activeOpacity={0.8}>
               <Image
                 source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/x7wgp9g9_MIRRORS%20ID.jpeg' }}
-                style={styles.navCodesIcon}
+                style={styles.navLogoLeft}
                 resizeMode="contain"
               />
             </TouchableOpacity>
+
+            {/* CENTER — Nav Pills */}
             <View style={styles.navPills}>
               <TouchableOpacity style={styles.navPill} onPress={() => router.push('/library')}>
                 <Text style={styles.navPillText}>MIRRORS</Text>
@@ -532,17 +532,26 @@ export default function TerminalScreen() {
                 <Text style={styles.navPillText}>DJ SETS</Text>
               </TouchableOpacity>
             </View>
+
+            {/* RIGHT — 96 Logo */}
+            <TouchableOpacity onPress={() => Linking.openURL('https://earth.google.com/web/')} activeOpacity={0.8}>
+              <Image
+                source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/c5jwbmte_MIRRORS_1024x1024.jpg' }}
+                style={styles.navLogoRight}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
           </View>
 
           {/* ══════ HERO ══════ */}
           <View style={styles.heroSection}>
-            <View style={styles.heroContent}>
-              <Text style={styles.heroTitle}>MIRRORS</Text>
+            <Text style={styles.heroTitle} adjustsFontSizeToFit numberOfLines={1}>MIRRORS 96</Text>
+            <View style={styles.heroRow}>
               <Text style={styles.heroSub}>FUNCTIONAL SOUND {'\u00B7'} VINCE SINNOTT</Text>
+              <TouchableOpacity style={styles.libraryBtn} onPress={() => router.push('/library')}>
+                <Text style={styles.libraryBtnText}>LIBRARY</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.libraryBtn} onPress={() => router.push('/library')}>
-              <Text style={styles.libraryBtnText}>LIBRARY</Text>
-            </TouchableOpacity>
           </View>
 
           {/* ══════ SOUND LAB ══════ */}
@@ -1064,64 +1073,69 @@ const styles = StyleSheet.create({
   topNav: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    gap: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#1a0505',
   },
-  navLogo: {
-    width: 32,
+  navLogoLeft: {
+    width: 40,
     height: 32,
     borderRadius: 0,
   },
-  navCodesIcon: {
-    width: 36,
-    height: 28,
+  navLogoRight: {
+    width: 32,
+    height: 32,
     borderRadius: 0,
   },
   navPills: {
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     gap: 6,
+    marginHorizontal: 8,
   },
   navPill: {
     borderWidth: 1,
     borderColor: '#ff0a0a',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     backgroundColor: 'transparent',
   },
   navPillText: {
     color: '#ff0a0a',
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: '700',
-    letterSpacing: 2,
+    letterSpacing: 1.5,
   },
 
   // ── HERO ──
   heroSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 28,
     paddingBottom: 16,
   },
   heroContent: { flex: 1 },
   heroTitle: {
     color: '#ff0a0a',
-    fontSize: 42,
+    fontSize: 26,
     fontWeight: '900',
-    letterSpacing: 6,
+    fontFamily: 'TerminatorRealNFI',
+    letterSpacing: 4,
+  },
+  heroRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
   },
   heroSub: {
-    color: '#ff0a0a66',
-    fontSize: 10,
+    color: '#ff0a0a55',
+    fontSize: 9,
     fontWeight: '400',
     letterSpacing: 2,
-    marginTop: 4,
+    flex: 1,
   },
   libraryBtn: {
     borderWidth: 1,
