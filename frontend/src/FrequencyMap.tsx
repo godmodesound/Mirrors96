@@ -12,6 +12,7 @@ import Svg, {
   Text as SvgText,
   Rect,
   Polygon,
+  Ellipse,
 } from 'react-native-svg';
 import { AudioEngine } from './AudioEngine';
 
@@ -24,19 +25,19 @@ const CY = MAP_H / 2;
 // Sacred Geometry Types
 type GeometryType = 'TREE' | 'MERKABA' | 'METATRON' | 'VE64' | 'SRI_YANTRA' | 'TORUS' | 'PHI_SPIRAL' | 'ICOSA';
 
-const GEOMETRY_TABS: { id: GeometryType; label: string }[] = [
-  { id: 'TREE', label: 'TREE' },
-  { id: 'MERKABA', label: 'MERKABA' },
-  { id: 'METATRON', label: 'METATRON' },
-  { id: 'VE64', label: 'VE / 64-TET' },
-  { id: 'SRI_YANTRA', label: 'SRI YANTRA' },
-  { id: 'TORUS', label: 'TORUS' },
-  { id: 'PHI_SPIRAL', label: 'Φ SPIRAL' },
-  { id: 'ICOSA', label: 'ICOSA' },
+const GEOMETRY_TABS: { id: GeometryType; label: string; description: string }[] = [
+  { id: 'TREE', label: 'TREE', description: 'Tree of Life — 10 Sephiroth, pathways of consciousness ascension' },
+  { id: 'MERKABA', label: 'MERKABA', description: 'Star Tetrahedron — counter-rotating light vehicle for crown-root coherence' },
+  { id: 'METATRON', label: 'METATRON', description: "Metatron's Cube — 13 spheres containing all Platonic solids" },
+  { id: 'VE64', label: 'VE / 64-TET', description: 'Vector Equilibrium — zero-point energy structure, 64 tetrahedra' },
+  { id: 'SRI_YANTRA', label: 'SRI YANTRA', description: 'Sri Yantra — 9 interlocking triangles, cosmic creation geometry' },
+  { id: 'TORUS', label: 'TORUS', description: 'Toroidal Field — self-sustaining energy flow pattern' },
+  { id: 'PHI_SPIRAL', label: 'Φ SPIRAL', description: 'Golden Spiral — Fibonacci sequence, natural growth pattern' },
+  { id: 'ICOSA', label: 'ICOSA', description: 'Icosahedron — 20 faces, water element, emotional flow' },
 ];
 
-// Brain Region Nodes for Merkaba geometry
-interface BrainNode {
+// Generic Node interface for all geometries
+interface GeometryNode {
   id: string;
   name: string;
   x: number;
@@ -46,7 +47,35 @@ interface BrainNode {
   color: string;
 }
 
-const BRAIN_NODES: BrainNode[] = [
+// ═══════════════════════════════════════════════════════════════
+// TREE OF LIFE - 10 Sephiroth
+// ═══════════════════════════════════════════════════════════════
+const TREE_NODES: GeometryNode[] = [
+  { id: 'kether', name: 'KETHER', x: CX, y: MAP_H * 0.08, freq: 963, band: 'CROWN', color: '#FFFFFF' },
+  { id: 'chokmah', name: 'CHOKMAH', x: MAP_W * 0.75, y: MAP_H * 0.18, freq: 852, band: 'WISDOM', color: '#808080' },
+  { id: 'binah', name: 'BINAH', x: MAP_W * 0.25, y: MAP_H * 0.18, freq: 741, band: 'UNDERSTANDING', color: '#000000' },
+  { id: 'chesed', name: 'CHESED', x: MAP_W * 0.75, y: MAP_H * 0.38, freq: 639, band: 'MERCY', color: '#4169E1' },
+  { id: 'geburah', name: 'GEBURAH', x: MAP_W * 0.25, y: MAP_H * 0.38, freq: 528, band: 'STRENGTH', color: '#DC143C' },
+  { id: 'tiphareth', name: 'TIPHARETH', x: CX, y: MAP_H * 0.48, freq: 528, band: 'BEAUTY', color: '#FFD700' },
+  { id: 'netzach', name: 'NETZACH', x: MAP_W * 0.75, y: MAP_H * 0.62, freq: 417, band: 'VICTORY', color: '#32CD32' },
+  { id: 'hod', name: 'HOD', x: MAP_W * 0.25, y: MAP_H * 0.62, freq: 396, band: 'SPLENDOR', color: '#FF8C00' },
+  { id: 'yesod', name: 'YESOD', x: CX, y: MAP_H * 0.75, freq: 285, band: 'FOUNDATION', color: '#9370DB' },
+  { id: 'malkuth', name: 'MALKUTH', x: CX, y: MAP_H * 0.92, freq: 174, band: 'KINGDOM', color: '#8B4513' },
+];
+
+const TREE_CONNECTIONS = [
+  ['kether', 'chokmah'], ['kether', 'binah'], ['chokmah', 'binah'],
+  ['chokmah', 'chesed'], ['binah', 'geburah'], ['chokmah', 'tiphareth'], ['binah', 'tiphareth'],
+  ['chesed', 'geburah'], ['chesed', 'tiphareth'], ['geburah', 'tiphareth'],
+  ['chesed', 'netzach'], ['geburah', 'hod'], ['tiphareth', 'netzach'], ['tiphareth', 'hod'],
+  ['netzach', 'hod'], ['netzach', 'yesod'], ['hod', 'yesod'], ['tiphareth', 'yesod'],
+  ['yesod', 'malkuth'],
+];
+
+// ═══════════════════════════════════════════════════════════════
+// MERKABA - Star Tetrahedron (Brain Regions)
+// ═══════════════════════════════════════════════════════════════
+const MERKABA_NODES: GeometryNode[] = [
   { id: 'crown', name: 'CROWN', x: CX, y: MAP_H * 0.12, freq: 963, band: 'GAMMA', color: '#FF6B6B' },
   { id: 'l_frontal', name: 'L FRONTAL', x: MAP_W * 0.22, y: MAP_H * 0.28, freq: 18, band: 'BETA', color: '#FFD93D' },
   { id: 'r_frontal', name: 'R FRONTAL', x: MAP_W * 0.78, y: MAP_H * 0.28, freq: 18, band: 'BETA', color: '#FFD93D' },
@@ -58,6 +87,275 @@ const BRAIN_NODES: BrainNode[] = [
   { id: 'r_parietal', name: 'R PARIETAL', x: MAP_W * 0.78, y: MAP_H * 0.72, freq: 10, band: 'ALPHA', color: '#FFD93D' },
   { id: 'root', name: 'ROOT', x: CX, y: MAP_H * 0.88, freq: 396, band: 'DELTA', color: '#9B59B6' },
 ];
+
+const MERKABA_CONNECTIONS = [
+  ['crown', 'l_frontal'], ['crown', 'r_frontal'], ['l_frontal', 'r_frontal'],
+  ['l_frontal', 'pineal'], ['r_frontal', 'pineal'], ['crown', 'pineal'],
+  ['l_temporal', 'r_temporal'], ['l_temporal', 'pineal'], ['r_temporal', 'pineal'],
+  ['l_temporal', 'thalamus'], ['r_temporal', 'thalamus'], ['pineal', 'thalamus'],
+  ['thalamus', 'l_parietal'], ['thalamus', 'r_parietal'], ['l_parietal', 'r_parietal'],
+  ['l_parietal', 'root'], ['r_parietal', 'root'], ['thalamus', 'root'],
+  ['l_frontal', 'l_temporal'], ['r_frontal', 'r_temporal'],
+  ['l_temporal', 'l_parietal'], ['r_temporal', 'r_parietal'],
+];
+
+// ═══════════════════════════════════════════════════════════════
+// METATRON'S CUBE - 13 Spheres
+// ═══════════════════════════════════════════════════════════════
+const METATRON_NODES: GeometryNode[] = (() => {
+  const nodes: GeometryNode[] = [];
+  const centerNode: GeometryNode = { id: 'center', name: 'SOURCE', x: CX, y: CY, freq: 432, band: 'OM', color: '#FFFFFF' };
+  nodes.push(centerNode);
+  
+  // Inner hexagon (6 nodes)
+  const innerR = MAP_W * 0.18;
+  const innerFreqs = [528, 639, 741, 852, 963, 396];
+  const innerNames = ['LOVE', 'CONNECT', 'AWAKEN', 'INTUITION', 'ONENESS', 'LIBERATE'];
+  for (let i = 0; i < 6; i++) {
+    const angle = (i * 60 - 90) * (Math.PI / 180);
+    nodes.push({
+      id: `inner_${i}`,
+      name: innerNames[i],
+      x: CX + Math.cos(angle) * innerR,
+      y: CY + Math.sin(angle) * innerR,
+      freq: innerFreqs[i],
+      band: `${innerFreqs[i]}Hz`,
+      color: `hsl(${i * 60}, 70%, 60%)`,
+    });
+  }
+  
+  // Outer hexagon (6 nodes)
+  const outerR = MAP_W * 0.36;
+  const outerFreqs = [174, 285, 417, 528, 639, 741];
+  const outerNames = ['EARTH', 'QUANTUM', 'CHANGE', 'MIRACLE', 'RELATION', 'EXPRESS'];
+  for (let i = 0; i < 6; i++) {
+    const angle = (i * 60 - 60) * (Math.PI / 180);
+    nodes.push({
+      id: `outer_${i}`,
+      name: outerNames[i],
+      x: CX + Math.cos(angle) * outerR,
+      y: CY + Math.sin(angle) * outerR,
+      freq: outerFreqs[i],
+      band: `${outerFreqs[i]}Hz`,
+      color: `hsl(${i * 60 + 30}, 70%, 50%)`,
+    });
+  }
+  return nodes;
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// VECTOR EQUILIBRIUM / 64-TET
+// ═══════════════════════════════════════════════════════════════
+const VE64_NODES: GeometryNode[] = (() => {
+  const nodes: GeometryNode[] = [];
+  // Center
+  nodes.push({ id: 've_center', name: 'ZERO POINT', x: CX, y: CY, freq: 432, band: 'BALANCE', color: '#FFFFFF' });
+  
+  // 12 vertices of cuboctahedron
+  const freqs = [174, 285, 396, 417, 432, 528, 639, 741, 852, 963, 1074, 1185];
+  const names = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'UP-N', 'UP-S', 'DN-N', 'DN-S'];
+  
+  // Square vertices (4)
+  for (let i = 0; i < 4; i++) {
+    const angle = (i * 90 + 45) * (Math.PI / 180);
+    const r = MAP_W * 0.35;
+    nodes.push({
+      id: `ve_sq_${i}`,
+      name: names[i * 2],
+      x: CX + Math.cos(angle) * r,
+      y: CY + Math.sin(angle) * r,
+      freq: freqs[i * 2],
+      band: 'VERTEX',
+      color: `hsl(${i * 90}, 70%, 60%)`,
+    });
+  }
+  
+  // Triangle vertices top (4)
+  for (let i = 0; i < 4; i++) {
+    const angle = (i * 90) * (Math.PI / 180);
+    const r = MAP_W * 0.22;
+    nodes.push({
+      id: `ve_tri_t_${i}`,
+      name: names[i * 2 + 1],
+      x: CX + Math.cos(angle) * r,
+      y: CY + Math.sin(angle) * r * 0.6 - MAP_H * 0.15,
+      freq: freqs[i * 2 + 1],
+      band: 'VERTEX',
+      color: `hsl(${i * 90 + 45}, 70%, 50%)`,
+    });
+  }
+  
+  // Triangle vertices bottom (4)
+  for (let i = 0; i < 4; i++) {
+    const angle = (i * 90) * (Math.PI / 180);
+    const r = MAP_W * 0.22;
+    nodes.push({
+      id: `ve_tri_b_${i}`,
+      name: `V${i + 8}`,
+      x: CX + Math.cos(angle) * r,
+      y: CY + Math.sin(angle) * r * 0.6 + MAP_H * 0.15,
+      freq: freqs[i + 8] || 432,
+      band: 'VERTEX',
+      color: `hsl(${i * 90 + 22}, 60%, 55%)`,
+    });
+  }
+  
+  return nodes;
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// SRI YANTRA - 9 Interlocking Triangles
+// ═══════════════════════════════════════════════════════════════
+const SRI_YANTRA_NODES: GeometryNode[] = (() => {
+  const nodes: GeometryNode[] = [];
+  // Bindu (center point)
+  nodes.push({ id: 'bindu', name: 'BINDU', x: CX, y: CY, freq: 432, band: 'SOURCE', color: '#FF0000' });
+  
+  // Inner triangle points (upward - Shiva)
+  const innerR = MAP_W * 0.12;
+  nodes.push({ id: 'shiva_1', name: 'SHIVA 1', x: CX, y: CY - innerR, freq: 963, band: 'CONSCIOUSNESS', color: '#4169E1' });
+  nodes.push({ id: 'shiva_2', name: 'SHIVA 2', x: CX - innerR * 0.866, y: CY + innerR * 0.5, freq: 852, band: 'CONSCIOUSNESS', color: '#4169E1' });
+  nodes.push({ id: 'shiva_3', name: 'SHIVA 3', x: CX + innerR * 0.866, y: CY + innerR * 0.5, freq: 741, band: 'CONSCIOUSNESS', color: '#4169E1' });
+  
+  // Middle triangle points (downward - Shakti)
+  const midR = MAP_W * 0.22;
+  nodes.push({ id: 'shakti_1', name: 'SHAKTI 1', x: CX, y: CY + midR, freq: 639, band: 'ENERGY', color: '#DC143C' });
+  nodes.push({ id: 'shakti_2', name: 'SHAKTI 2', x: CX - midR * 0.866, y: CY - midR * 0.5, freq: 528, band: 'ENERGY', color: '#DC143C' });
+  nodes.push({ id: 'shakti_3', name: 'SHAKTI 3', x: CX + midR * 0.866, y: CY - midR * 0.5, freq: 417, band: 'ENERGY', color: '#DC143C' });
+  
+  // Outer points
+  const outerR = MAP_W * 0.35;
+  for (let i = 0; i < 8; i++) {
+    const angle = (i * 45 - 90) * (Math.PI / 180);
+    nodes.push({
+      id: `outer_${i}`,
+      name: `PETAL ${i + 1}`,
+      x: CX + Math.cos(angle) * outerR,
+      y: CY + Math.sin(angle) * outerR,
+      freq: [174, 285, 396, 417, 528, 639, 741, 852][i],
+      band: 'LOTUS',
+      color: `hsl(${i * 45}, 70%, 55%)`,
+    });
+  }
+  
+  return nodes;
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// TORUS - Toroidal Field
+// ═══════════════════════════════════════════════════════════════
+const TORUS_NODES: GeometryNode[] = (() => {
+  const nodes: GeometryNode[] = [];
+  // Center axis
+  nodes.push({ id: 'torus_center', name: 'AXIS', x: CX, y: CY, freq: 432, band: 'CENTER', color: '#FFFFFF' });
+  nodes.push({ id: 'torus_top', name: 'INFLOW', x: CX, y: MAP_H * 0.1, freq: 963, band: 'RECEIVE', color: '#00CED1' });
+  nodes.push({ id: 'torus_bottom', name: 'OUTFLOW', x: CX, y: MAP_H * 0.9, freq: 174, band: 'EMIT', color: '#FF6B6B' });
+  
+  // Outer ring (energy flow)
+  const outerR = MAP_W * 0.4;
+  const flowFreqs = [285, 396, 417, 528, 639, 741, 852, 963];
+  for (let i = 0; i < 8; i++) {
+    const angle = (i * 45 - 90) * (Math.PI / 180);
+    nodes.push({
+      id: `torus_outer_${i}`,
+      name: `FLOW ${i + 1}`,
+      x: CX + Math.cos(angle) * outerR,
+      y: CY + Math.sin(angle) * outerR * 0.5,
+      freq: flowFreqs[i],
+      band: 'FLOW',
+      color: `hsl(${180 + i * 22}, 70%, 55%)`,
+    });
+  }
+  
+  // Inner ring
+  const innerR = MAP_W * 0.2;
+  for (let i = 0; i < 6; i++) {
+    const angle = (i * 60 - 90) * (Math.PI / 180);
+    nodes.push({
+      id: `torus_inner_${i}`,
+      name: `CORE ${i + 1}`,
+      x: CX + Math.cos(angle) * innerR,
+      y: CY + Math.sin(angle) * innerR * 0.4,
+      freq: [432, 528, 639, 741, 852, 963][i],
+      band: 'CORE',
+      color: `hsl(${i * 60}, 80%, 60%)`,
+    });
+  }
+  
+  return nodes;
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// PHI SPIRAL - Golden Ratio
+// ═══════════════════════════════════════════════════════════════
+const PHI_SPIRAL_NODES: GeometryNode[] = (() => {
+  const nodes: GeometryNode[] = [];
+  const PHI = 1.618033988749895;
+  const fibFreqs = [174, 285, 396, 417, 432, 528, 639, 741, 852, 963, 1074, 1185];
+  
+  // Spiral points
+  for (let i = 0; i < 12; i++) {
+    const angle = i * 137.5 * (Math.PI / 180); // Golden angle
+    const r = MAP_W * 0.03 * Math.pow(PHI, i * 0.3);
+    const clampedR = Math.min(r, MAP_W * 0.42);
+    nodes.push({
+      id: `phi_${i}`,
+      name: `Φ${i + 1}`,
+      x: CX + Math.cos(angle) * clampedR,
+      y: CY + Math.sin(angle) * clampedR,
+      freq: fibFreqs[i],
+      band: `${fibFreqs[i]}Hz`,
+      color: `hsl(${i * 30}, 70%, ${50 + i * 2}%)`,
+    });
+  }
+  
+  return nodes;
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// ICOSAHEDRON - 12 Vertices
+// ═══════════════════════════════════════════════════════════════
+const ICOSA_NODES: GeometryNode[] = (() => {
+  const nodes: GeometryNode[] = [];
+  const PHI = 1.618033988749895;
+  const freqs = [174, 285, 396, 417, 432, 528, 639, 741, 852, 963, 1074, 1185];
+  const names = ['NORTH', 'EAST', 'SOUTH', 'WEST', 'NE-UP', 'SE-UP', 'SW-UP', 'NW-UP', 'NE-DN', 'SE-DN', 'SW-DN', 'NW-DN'];
+  
+  // Top and bottom poles
+  nodes.push({ id: 'icosa_top', name: 'APEX', x: CX, y: MAP_H * 0.08, freq: 963, band: 'PEAK', color: '#00CED1' });
+  nodes.push({ id: 'icosa_bottom', name: 'NADIR', x: CX, y: MAP_H * 0.92, freq: 174, band: 'BASE', color: '#FF6B6B' });
+  
+  // Upper ring (5 vertices)
+  const upperR = MAP_W * 0.35;
+  for (let i = 0; i < 5; i++) {
+    const angle = (i * 72 - 90) * (Math.PI / 180);
+    nodes.push({
+      id: `icosa_upper_${i}`,
+      name: names[i],
+      x: CX + Math.cos(angle) * upperR,
+      y: MAP_H * 0.32 + Math.sin(angle) * upperR * 0.15,
+      freq: freqs[i + 2],
+      band: 'UPPER',
+      color: `hsl(${i * 72}, 70%, 55%)`,
+    });
+  }
+  
+  // Lower ring (5 vertices, offset by 36°)
+  for (let i = 0; i < 5; i++) {
+    const angle = (i * 72 - 90 + 36) * (Math.PI / 180);
+    nodes.push({
+      id: `icosa_lower_${i}`,
+      name: names[i + 5],
+      x: CX + Math.cos(angle) * upperR,
+      y: MAP_H * 0.68 + Math.sin(angle) * upperR * 0.15,
+      freq: freqs[i + 7] || 432,
+      band: 'LOWER',
+      color: `hsl(${i * 72 + 36}, 60%, 50%)`,
+    });
+  }
+  
+  return nodes;
+})();
 
 // Solfeggio Frequencies
 const SOLFEGGIO_FREQS = [174, 285, 396, 417, 432, 528, 639, 741, 852, 963];
@@ -114,6 +412,35 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeSolfeggio, setActiveSolfeggio] = useState<number | null>(null);
 
+  // Get nodes based on active geometry
+  const currentNodes = useMemo(() => {
+    switch (activeGeometry) {
+      case 'TREE': return TREE_NODES;
+      case 'MERKABA': return MERKABA_NODES;
+      case 'METATRON': return METATRON_NODES;
+      case 'VE64': return VE64_NODES;
+      case 'SRI_YANTRA': return SRI_YANTRA_NODES;
+      case 'TORUS': return TORUS_NODES;
+      case 'PHI_SPIRAL': return PHI_SPIRAL_NODES;
+      case 'ICOSA': return ICOSA_NODES;
+      default: return MERKABA_NODES;
+    }
+  }, [activeGeometry]);
+
+  // Get connections based on active geometry
+  const currentConnections = useMemo(() => {
+    switch (activeGeometry) {
+      case 'TREE': return TREE_CONNECTIONS;
+      case 'MERKABA': return MERKABA_CONNECTIONS;
+      default: return [];
+    }
+  }, [activeGeometry]);
+
+  // Get current geometry description
+  const currentDescription = useMemo(() => {
+    return GEOMETRY_TABS.find(t => t.id === activeGeometry)?.description || '';
+  }, [activeGeometry]);
+
   // Animations
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -136,7 +463,14 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
     ).start();
   }, []);
 
-  const handleNodePress = (node: BrainNode) => {
+  // Reset active node when geometry changes
+  useEffect(() => {
+    setActiveNode(null);
+    setIsPlaying(false);
+    AudioEngine.stopCamelot();
+  }, [activeGeometry]);
+
+  const handleNodePress = (node: GeometryNode) => {
     if (activeNode === node.id) {
       AudioEngine.stopCamelot();
       setActiveNode(null);
@@ -188,40 +522,235 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
   };
 
   // Get active node info for telemetry
-  const activeNodeData = activeNode ? BRAIN_NODES.find(n => n.id === activeNode) : null;
+  const activeNodeData = activeNode ? currentNodes.find(n => n.id === activeNode) : null;
 
-  // Merkaba geometry connections (Star Tetrahedron)
-  const merkabaConnections = useMemo(() => {
-    const nodes = BRAIN_NODES;
-    return [
-      // Upper tetrahedron (pointing up)
-      { from: 'crown', to: 'l_frontal' },
-      { from: 'crown', to: 'r_frontal' },
-      { from: 'l_frontal', to: 'r_frontal' },
-      { from: 'l_frontal', to: 'pineal' },
-      { from: 'r_frontal', to: 'pineal' },
-      { from: 'crown', to: 'pineal' },
-      // Middle horizontal
-      { from: 'l_temporal', to: 'r_temporal' },
-      { from: 'l_temporal', to: 'pineal' },
-      { from: 'r_temporal', to: 'pineal' },
-      { from: 'l_temporal', to: 'thalamus' },
-      { from: 'r_temporal', to: 'thalamus' },
-      { from: 'pineal', to: 'thalamus' },
-      // Lower tetrahedron (pointing down)
-      { from: 'thalamus', to: 'l_parietal' },
-      { from: 'thalamus', to: 'r_parietal' },
-      { from: 'l_parietal', to: 'r_parietal' },
-      { from: 'l_parietal', to: 'root' },
-      { from: 'r_parietal', to: 'root' },
-      { from: 'thalamus', to: 'root' },
-      // Cross connections
-      { from: 'l_frontal', to: 'l_temporal' },
-      { from: 'r_frontal', to: 'r_temporal' },
-      { from: 'l_temporal', to: 'l_parietal' },
-      { from: 'r_temporal', to: 'r_parietal' },
-    ];
-  }, []);
+  // Render geometry-specific decorations
+  const renderGeometryDecorations = () => {
+    switch (activeGeometry) {
+      case 'METATRON':
+        // Draw circles around nodes for Metatron's Cube
+        return currentNodes.map((node, i) => (
+          <SvgCircle
+            key={`metatron-circle-${i}`}
+            cx={node.x}
+            cy={node.y}
+            r={i === 0 ? MAP_W * 0.08 : MAP_W * 0.05}
+            fill="none"
+            stroke={node.color}
+            strokeWidth={0.5}
+            opacity={0.3}
+          />
+        ));
+      
+      case 'SRI_YANTRA':
+        // Draw concentric triangles
+        const triangles = [];
+        for (let i = 0; i < 3; i++) {
+          const r = MAP_W * (0.15 + i * 0.1);
+          // Upward triangle
+          triangles.push(
+            <Polygon
+              key={`sri-up-${i}`}
+              points={`${CX},${CY - r} ${CX - r * 0.866},${CY + r * 0.5} ${CX + r * 0.866},${CY + r * 0.5}`}
+              fill="none"
+              stroke="#4169E1"
+              strokeWidth={0.8}
+              opacity={0.4 - i * 0.1}
+            />
+          );
+          // Downward triangle
+          triangles.push(
+            <Polygon
+              key={`sri-down-${i}`}
+              points={`${CX},${CY + r} ${CX - r * 0.866},${CY - r * 0.5} ${CX + r * 0.866},${CY - r * 0.5}`}
+              fill="none"
+              stroke="#DC143C"
+              strokeWidth={0.8}
+              opacity={0.4 - i * 0.1}
+            />
+          );
+        }
+        return triangles;
+      
+      case 'TORUS':
+        // Draw torus field lines
+        const torusLines = [];
+        for (let i = 0; i < 8; i++) {
+          const angle = i * 45 * (Math.PI / 180);
+          torusLines.push(
+            <Path
+              key={`torus-line-${i}`}
+              d={`M ${CX} ${MAP_H * 0.1} Q ${CX + Math.cos(angle) * MAP_W * 0.5} ${CY} ${CX} ${MAP_H * 0.9}`}
+              fill="none"
+              stroke="#00CED1"
+              strokeWidth={0.5}
+              opacity={0.2}
+            />
+          );
+        }
+        // Outer ellipse
+        torusLines.push(
+          <Ellipse
+            key="torus-outer"
+            cx={CX}
+            cy={CY}
+            rx={MAP_W * 0.42}
+            ry={MAP_H * 0.22}
+            fill="none"
+            stroke="#00CED1"
+            strokeWidth={1}
+            opacity={0.3}
+          />
+        );
+        return torusLines;
+      
+      case 'PHI_SPIRAL':
+        // Draw golden spiral
+        const spiralPath = [];
+        let prevX = CX, prevY = CY;
+        const PHI = 1.618033988749895;
+        for (let i = 0; i <= 720; i += 10) {
+          const angle = i * (Math.PI / 180);
+          const r = MAP_W * 0.01 * Math.pow(PHI, i / 360);
+          const clampedR = Math.min(r, MAP_W * 0.44);
+          const x = CX + Math.cos(angle) * clampedR;
+          const y = CY + Math.sin(angle) * clampedR;
+          if (i > 0) {
+            spiralPath.push(
+              <Line
+                key={`spiral-${i}`}
+                x1={prevX}
+                y1={prevY}
+                x2={x}
+                y2={y}
+                stroke="#FFD700"
+                strokeWidth={0.8}
+                opacity={0.4}
+              />
+            );
+          }
+          prevX = x;
+          prevY = y;
+        }
+        return spiralPath;
+      
+      case 'ICOSA':
+        // Draw icosahedron edges
+        const icoLines = [];
+        // Connect top to upper ring
+        for (let i = 0; i < 5; i++) {
+          const upperNode = currentNodes.find(n => n.id === `icosa_upper_${i}`);
+          if (upperNode) {
+            icoLines.push(
+              <Line
+                key={`ico-top-${i}`}
+                x1={CX}
+                y1={MAP_H * 0.08}
+                x2={upperNode.x}
+                y2={upperNode.y}
+                stroke="#00CED1"
+                strokeWidth={0.6}
+                opacity={0.3}
+              />
+            );
+          }
+        }
+        // Connect bottom to lower ring
+        for (let i = 0; i < 5; i++) {
+          const lowerNode = currentNodes.find(n => n.id === `icosa_lower_${i}`);
+          if (lowerNode) {
+            icoLines.push(
+              <Line
+                key={`ico-bottom-${i}`}
+                x1={CX}
+                y1={MAP_H * 0.92}
+                x2={lowerNode.x}
+                y2={lowerNode.y}
+                stroke="#FF6B6B"
+                strokeWidth={0.6}
+                opacity={0.3}
+              />
+            );
+          }
+        }
+        // Connect upper ring
+        for (let i = 0; i < 5; i++) {
+          const curr = currentNodes.find(n => n.id === `icosa_upper_${i}`);
+          const next = currentNodes.find(n => n.id === `icosa_upper_${(i + 1) % 5}`);
+          if (curr && next) {
+            icoLines.push(
+              <Line
+                key={`ico-upper-ring-${i}`}
+                x1={curr.x}
+                y1={curr.y}
+                x2={next.x}
+                y2={next.y}
+                stroke="#00CED1"
+                strokeWidth={0.6}
+                opacity={0.25}
+              />
+            );
+          }
+        }
+        // Connect lower ring
+        for (let i = 0; i < 5; i++) {
+          const curr = currentNodes.find(n => n.id === `icosa_lower_${i}`);
+          const next = currentNodes.find(n => n.id === `icosa_lower_${(i + 1) % 5}`);
+          if (curr && next) {
+            icoLines.push(
+              <Line
+                key={`ico-lower-ring-${i}`}
+                x1={curr.x}
+                y1={curr.y}
+                x2={next.x}
+                y2={next.y}
+                stroke="#FF6B6B"
+                strokeWidth={0.6}
+                opacity={0.25}
+              />
+            );
+          }
+        }
+        // Connect between rings
+        for (let i = 0; i < 5; i++) {
+          const upper = currentNodes.find(n => n.id === `icosa_upper_${i}`);
+          const lower1 = currentNodes.find(n => n.id === `icosa_lower_${i}`);
+          const lower2 = currentNodes.find(n => n.id === `icosa_lower_${(i + 4) % 5}`);
+          if (upper && lower1) {
+            icoLines.push(
+              <Line
+                key={`ico-cross-${i}-a`}
+                x1={upper.x}
+                y1={upper.y}
+                x2={lower1.x}
+                y2={lower1.y}
+                stroke="#9370DB"
+                strokeWidth={0.5}
+                opacity={0.2}
+              />
+            );
+          }
+          if (upper && lower2) {
+            icoLines.push(
+              <Line
+                key={`ico-cross-${i}-b`}
+                x1={upper.x}
+                y1={upper.y}
+                x2={lower2.x}
+                y2={lower2.y}
+                stroke="#9370DB"
+                strokeWidth={0.5}
+                opacity={0.2}
+              />
+            );
+          }
+        }
+        return icoLines;
+      
+      default:
+        return null;
+    }
+  };
 
   return (
     <View style={st.container}>
@@ -262,7 +791,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
 
       {/* Geometry Description */}
       <Text style={st.geoDescription}>
-        Star Tetrahedron — counter-rotating light vehicle for vertical crown-root coherence.
+        {currentDescription}
       </Text>
 
       {/* Main Visualization */}
@@ -271,17 +800,8 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
         <View style={st.telemetryLeft}>
           <Text style={st.telemetryLabel}>◇ GEOMETRY</Text>
           <Text style={st.telemetryValue}>{activeGeometry}</Text>
-          <Text style={st.telemetryLabel}>NODES: {BRAIN_NODES.length}</Text>
+          <Text style={st.telemetryLabel}>NODES: {currentNodes.length}</Text>
           <Text style={st.telemetryLabel}>STATUS: {isPlaying ? 'LIVE' : 'IDLE'}</Text>
-          
-          {/* Brainwave indicator */}
-          <View style={st.brainwaveIndicator}>
-            <Text style={[st.bandLabel, { color: '#FFD93D' }]}>γ</Text>
-            <Text style={[st.bandLabel, { color: '#FF6B6B' }]}>β</Text>
-            <Text style={[st.bandLabel, { color: '#6BCB77' }]}>α</Text>
-            <Text style={[st.bandLabel, { color: '#4D96FF' }]}>θ</Text>
-            <Text style={[st.bandLabel, { color: '#9B59B6' }]}>δ</Text>
-          </View>
         </View>
 
         {/* SVG Visualization */}
@@ -295,7 +815,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
             </RadialGradient>
 
             {/* Node glows */}
-            {BRAIN_NODES.map((node) => (
+            {currentNodes.map((node, i) => (
               <RadialGradient key={`glow-${node.id}`} id={`glow-${node.id}`} cx="50%" cy="50%" r="50%">
                 <Stop offset="0%" stopColor={node.color} stopOpacity={activeNode === node.id ? '1' : '0.6'} />
                 <Stop offset="50%" stopColor={node.color} stopOpacity={activeNode === node.id ? '0.5' : '0.2'} />
@@ -305,8 +825,8 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
 
             {/* Center glow */}
             <RadialGradient id="center-glow" cx="50%" cy="50%" r="30%">
-              <Stop offset="0%" stopColor="#ff0a0a" stopOpacity={isPlaying ? '0.4' : '0.1'} />
-              <Stop offset="70%" stopColor="#ff0a0a" stopOpacity={isPlaying ? '0.1' : '0.02'} />
+              <Stop offset="0%" stopColor="#ffffff" stopOpacity={isPlaying ? '0.15' : '0.05'} />
+              <Stop offset="70%" stopColor="#ff0a0a" stopOpacity={isPlaying ? '0.08' : '0.02'} />
               <Stop offset="100%" stopColor="#ff0a0a" stopOpacity="0" />
             </RadialGradient>
           </Defs>
@@ -322,12 +842,15 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
             </G>
           ))}
 
-          {/* Merkaba Connections */}
-          {merkabaConnections.map((conn, i) => {
-            const fromNode = BRAIN_NODES.find(n => n.id === conn.from);
-            const toNode = BRAIN_NODES.find(n => n.id === conn.to);
+          {/* Geometry-specific decorations */}
+          {renderGeometryDecorations()}
+
+          {/* Connections (for geometries with defined connections) */}
+          {currentConnections.map((conn, i) => {
+            const fromNode = currentNodes.find(n => n.id === conn[0]);
+            const toNode = currentNodes.find(n => n.id === conn[1]);
             if (!fromNode || !toNode) return null;
-            const isActive = activeNode === conn.from || activeNode === conn.to;
+            const isActive = activeNode === conn[0] || activeNode === conn[1];
             return (
               <Line
                 key={`conn-${i}`}
@@ -345,17 +868,17 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
           {/* Center glow */}
           <SvgCircle cx={CX} cy={CY} r={MAP_W * 0.15} fill="url(#center-glow)" />
 
-          {/* Brain Nodes */}
-          {BRAIN_NODES.map((node) => {
+          {/* Nodes */}
+          {currentNodes.map((node) => {
             const isActive = activeNode === node.id;
-            const nodeR = isActive ? 20 : 14;
+            const nodeR = isActive ? 18 : 12;
             return (
               <G key={node.id} onPress={() => handleNodePress(node)}>
                 {/* Glow */}
                 <SvgCircle
                   cx={node.x}
                   cy={node.y}
-                  r={isActive ? 45 : 30}
+                  r={isActive ? 40 : 28}
                   fill={`url(#glow-${node.id})`}
                 />
                 {/* Outer ring */}
@@ -396,32 +919,33 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
                 {/* Label */}
                 <SvgText
                   x={node.x}
-                  y={node.y + nodeR + 14}
+                  y={node.y + nodeR + 12}
                   fill={isActive ? '#ffffff' : node.color}
-                  fontSize={7}
+                  fontSize={6}
                   fontWeight="700"
                   textAnchor="middle"
-                  letterSpacing={1}
+                  letterSpacing={0.5}
                 >
                   {node.name}
                 </SvgText>
                 {/* Frequency label */}
                 <SvgText
                   x={node.x}
-                  y={node.y + nodeR + 24}
+                  y={node.y + nodeR + 21}
                   fill="#666"
-                  fontSize={6}
+                  fontSize={5}
                   textAnchor="middle"
                 >
-                  {node.freq} Hz · {node.band}
+                  {node.freq} Hz
                 </SvgText>
               </G>
             );
           })}
 
           {/* Axis labels */}
-          <SvgText x={6} y={MAP_H / 2} fill="#ff0a0a" fontSize={8} opacity={0.3}>Y</SvgText>
-          <SvgText x={MAP_W - 30} y={MAP_H / 2} fill="#ff0a0a" fontSize={7} opacity={0.3}>X:0.955</SvgText>
+          <SvgText x={6} y={MAP_H - 6} fill="#ff0a0a" fontSize={6} opacity={0.2}>
+            {activeGeometry} · {currentNodes.length} NODES
+          </SvgText>
         </Svg>
 
         {/* Right Telemetry */}
@@ -429,7 +953,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
           <Text style={st.telemetryLabel}>◇ TELEMETRY</Text>
           <Text style={st.telemetryValue}>BAND: {activeNodeData?.band || 'ALPHA'}</Text>
           <Text style={st.telemetryValue}>{activeNodeData?.freq || '432'} Hz</Text>
-          <Text style={st.telemetryLabel}>{isPlaying ? '10 CH ACTIVE' : 'STANDBY'}</Text>
+          <Text style={st.telemetryLabel}>{isPlaying ? 'TRANSMIT' : 'STANDBY'}</Text>
         </View>
       </View>
 
@@ -662,14 +1186,6 @@ const st = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1,
     marginBottom: 4,
-  },
-  brainwaveIndicator: {
-    marginTop: 12,
-    gap: 4,
-  },
-  bandLabel: {
-    fontSize: 10,
-    fontWeight: '900',
   },
   spectrumContainer: {
     paddingHorizontal: 16,
