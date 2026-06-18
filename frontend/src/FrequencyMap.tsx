@@ -407,10 +407,14 @@ interface Props {
 export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Props) {
   const [activeGeometry, setActiveGeometry] = useState<GeometryType>('MERKABA');
   const [activeNode, setActiveNode] = useState<string | null>(null);
+  const [activeNodes, setActiveNodes] = useState<Set<string>>(new Set()); // For "Play Geometry" - multiple active nodes
   const [activeProtocol, setActiveProtocol] = useState<string | null>(null);
   const [protocolTab, setProtocolTab] = useState<'STATE' | 'CORTEX'>('STATE');
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlayingGeometry, setIsPlayingGeometry] = useState(false); // For geometry sequence playback
   const [activeSolfeggio, setActiveSolfeggio] = useState<number | null>(null);
+  const [geometryPlayIndex, setGeometryPlayIndex] = useState<number>(-1); // Current node index in sequence
+  const geometryIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get nodes based on active geometry
   const currentNodes = useMemo(() => {
@@ -466,9 +470,92 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
   // Reset active node when geometry changes
   useEffect(() => {
     setActiveNode(null);
+    setActiveNodes(new Set());
     setIsPlaying(false);
+    setIsPlayingGeometry(false);
+    setGeometryPlayIndex(-1);
+    if (geometryIntervalRef.current) {
+      clearInterval(geometryIntervalRef.current);
+      geometryIntervalRef.current = null;
+    }
     AudioEngine.stopCamelot();
   }, [activeGeometry]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (geometryIntervalRef.current) {
+        clearInterval(geometryIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Play Geometry - lights up nodes sequentially and plays their frequencies
+  const handlePlayGeometry = () => {
+    if (isPlayingGeometry) {
+      // Stop playing
+      if (geometryIntervalRef.current) {
+        clearInterval(geometryIntervalRef.current);
+        geometryIntervalRef.current = null;
+      }
+      setIsPlayingGeometry(false);
+      setActiveNodes(new Set());
+      setGeometryPlayIndex(-1);
+      AudioEngine.stopCamelot();
+      AudioEngine.stopMulti();
+      setIsPlaying(false);
+    } else {
+      // Start playing geometry sequence
+      setIsPlayingGeometry(true);
+      setIsPlaying(true);
+      setActiveNode(null);
+      setActiveSolfeggio(null);
+      
+      let index = 0;
+      const litNodes = new Set<string>();
+      
+      // Light up first node immediately
+      if (currentNodes.length > 0) {
+        const firstNode = currentNodes[0];
+        litNodes.add(firstNode.id);
+        setActiveNodes(new Set(litNodes));
+        setGeometryPlayIndex(0);
+        AudioEngine.playCamelot(firstNode.freq);
+      }
+      
+      // Set up interval to light up remaining nodes
+      geometryIntervalRef.current = setInterval(() => {
+        index++;
+        
+        if (index >= currentNodes.length) {
+          // All nodes lit - keep them all active and play combined frequency
+          const allFreqs = currentNodes.map(n => n.freq).slice(0, 6); // Limit to 6 for audio
+          AudioEngine.playMulti(allFreqs, 0.15);
+          
+          // Keep all nodes lit for a moment, then restart sequence
+          setTimeout(() => {
+            if (geometryIntervalRef.current) {
+              // Reset and continue loop
+              index = 0;
+              litNodes.clear();
+              const firstNode = currentNodes[0];
+              litNodes.add(firstNode.id);
+              setActiveNodes(new Set(litNodes));
+              setGeometryPlayIndex(0);
+              AudioEngine.playCamelot(firstNode.freq);
+            }
+          }, 2000);
+        } else {
+          // Light up next node
+          const node = currentNodes[index];
+          litNodes.add(node.id);
+          setActiveNodes(new Set(litNodes));
+          setGeometryPlayIndex(index);
+          AudioEngine.playCamelot(node.freq);
+        }
+      }, 600); // 600ms between each node
+    }
+  };
 
   const handleNodePress = (node: GeometryNode) => {
     if (activeNode === node.id) {
@@ -759,19 +846,14 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
         <Text style={st.headerTitle}>&gt; FREQUENCY_MAP</Text>
         <Text style={st.headerSub}>/ {activeGeometry}</Text>
         <View style={st.headerRight}>
-          {isPlaying && <View style={st.liveDot} />}
-          <TouchableOpacity style={st.playBtn} onPress={() => {
-            if (isPlaying) {
-              AudioEngine.stopAll();
-              AudioEngine.stopCamelot();
-              AudioEngine.stopMulti();
-              setIsPlaying(false);
-              setActiveNode(null);
-              setActiveSolfeggio(null);
-              setActiveProtocol(null);
-            }
-          }}>
-            <Text style={st.playBtnText}>{isPlaying ? 'STOP' : 'PLAY GEOMETRY'}</Text>
+          {(isPlaying || isPlayingGeometry) && <View style={st.liveDot} />}
+          <TouchableOpacity 
+            style={[st.playBtn, isPlayingGeometry && st.playBtnActive]} 
+            onPress={handlePlayGeometry}
+          >
+            <Text style={[st.playBtnText, isPlayingGeometry && st.playBtnTextActive]}>
+              {isPlayingGeometry ? '■ STOP' : '▶ PLAY GEOMETRY'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -850,7 +932,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
             const fromNode = currentNodes.find(n => n.id === conn[0]);
             const toNode = currentNodes.find(n => n.id === conn[1]);
             if (!fromNode || !toNode) return null;
-            const isActive = activeNode === conn[0] || activeNode === conn[1];
+            const isActive = activeNode === conn[0] || activeNode === conn[1] || activeNodes.has(conn[0]) || activeNodes.has(conn[1]);
             return (
               <Line
                 key={`conn-${i}`}
@@ -870,7 +952,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
 
           {/* Nodes */}
           {currentNodes.map((node) => {
-            const isActive = activeNode === node.id;
+            const isActive = activeNode === node.id || activeNodes.has(node.id);
             const nodeR = isActive ? 18 : 12;
             return (
               <G key={node.id} onPress={() => handleNodePress(node)}>
@@ -1113,11 +1195,18 @@ const st = StyleSheet.create({
     paddingVertical: 6,
     backgroundColor: '#ff0a0a15',
   },
+  playBtnActive: {
+    backgroundColor: '#ff0a0a',
+    borderColor: '#ff3030',
+  },
   playBtnText: {
     color: '#ff0a0a',
     fontSize: 8,
     fontWeight: '700',
     letterSpacing: 1.5,
+  },
+  playBtnTextActive: {
+    color: '#000000',
   },
   tabsScroll: {
     maxHeight: 44,
