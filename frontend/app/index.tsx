@@ -27,6 +27,7 @@ import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
+import { FrequencyMap } from '../src/FrequencyMap';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const API_URL =
@@ -744,6 +745,15 @@ export default function TerminalScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
+
+          {/* ══════ FREQUENCY MAP / MERKABA ══════ */}
+          <View style={styles.section}>
+            <FrequencyMap
+              onFrequencySelect={(freq) => {
+                console.log('Frequency selected from map:', freq);
+              }}
+            />
           </View>
 
           {/* Mirrors Wheel */}
