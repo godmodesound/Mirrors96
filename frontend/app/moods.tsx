@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
 import { AudioEngine } from '../src/AudioEngine';
+import { FrequencyMap } from '../src/FrequencyMap';
 
 const { width } = Dimensions.get('window');
 
@@ -129,6 +130,16 @@ export default function MoodsScreen() {
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
         <MirrorsIdBanner />
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
+          
+          {/* Frequency Map Section */}
+          <View style={styles.frequencyMapSection}>
+            <FrequencyMap
+              onFrequencySelect={(freq) => {
+                console.log('Frequency selected from map:', freq);
+              }}
+            />
+          </View>
+
           <View style={styles.header}>
             <View style={styles.terminalHeader}>
               <Text style={styles.terminalTitle}>BRAIN MIRROR v2.0</Text>
@@ -229,6 +240,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000000' },
   safeArea: { flex: 1 },
   scrollView: { flex: 1, paddingHorizontal: 16 },
+  frequencyMapSection: { marginBottom: 16 },
   header: { paddingTop: 16, paddingBottom: 8 },
   terminalHeader: { borderWidth: 1, borderColor: '#ff0a0a', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#0a0505' },
   terminalTitle: { color: '#ff0a0a', fontSize: 14, fontFamily: 'TerminatorRealNFI', fontWeight: '700', textAlign: 'center' },

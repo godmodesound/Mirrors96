@@ -756,27 +756,6 @@ export default function TerminalScreen() {
             />
           </View>
 
-          {/* Mirrors Wheel */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>&gt; MIRRORS_WHEEL</Text>
-            <Text style={styles.sectionSub}>Liquid Metal × Harmonic Mixing Engine — 432Hz — Tap to emit</Text>
-
-            <MirrorsWheel
-              activeKey={activeCamelotKey}
-              onKeyPress={handleCamelotPress}
-              isEmitting={!!activeCamelotKey}
-            />
-
-            {activeCamelotKey && (
-              <TouchableOpacity
-                style={styles.stopCamelotBtn}
-                onPress={() => { AudioEngine.stopCamelot(); setActiveCamelotKey(null); setCamelotInfo(null); }}
-              >
-                <Text style={styles.stopCamelotText}>[ ■ STOP FREQUENCY ]</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
           {/* ══════ CHAKRA PIANO SCALE — "13" ══════ */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>&gt; CHAKRA_PIANO_SCALE</Text>
