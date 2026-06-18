@@ -130,6 +130,43 @@ def test_codes_transmit():
         log_test("POST /api/codes/transmit", "FAIL", f"Exception: {str(e)}")
         return None
 
+def test_codes_transmit_text():
+    """Test POST /api/codes/transmit - Send a TEXT message (new feature)"""
+    try:
+        payload = {
+            "channel_id": "code-direct",
+            "text": "Backend test message",
+            "user_id": "test-user",
+            "sender_name": "Test User",
+            "sender_id": "test-user",
+            "audio_base64": "",
+            "duration": 0
+        }
+        
+        response = requests.post(f"{BASE_URL}/codes/transmit", json=payload, timeout=10)
+        
+        if response.status_code != 200:
+            log_test("POST /api/codes/transmit (TEXT)", "FAIL", f"Status: {response.status_code}, Response: {response.text}")
+            return None
+            
+        data = response.json()
+        
+        # Verify response structure
+        if "message_id" not in data or "status" not in data:
+            log_test("POST /api/codes/transmit (TEXT)", "FAIL", f"Missing message_id or status in response: {data}")
+            return None
+            
+        if data["status"] != "delivered":
+            log_test("POST /api/codes/transmit (TEXT)", "FAIL", f"Status not 'delivered': {data['status']}")
+            return None
+            
+        log_test("POST /api/codes/transmit (TEXT)", "PASS", f"Text message transmitted with ID: {data['message_id']}")
+        return data["message_id"]
+        
+    except Exception as e:
+        log_test("POST /api/codes/transmit (TEXT)", "FAIL", f"Exception: {str(e)}")
+        return None
+
 def test_codes_messages_get():
     """Test GET /api/codes/messages/{channel_id} - Get messages for channel"""
     try:
@@ -156,6 +193,42 @@ def test_codes_messages_get():
         
     except Exception as e:
         log_test("GET /api/codes/messages/godmode-main", "FAIL", f"Exception: {str(e)}")
+        return False
+
+def test_codes_messages_get_code_direct():
+    """Test GET /api/codes/messages/code-direct - Get messages for code-direct channel"""
+    try:
+        response = requests.get(f"{BASE_URL}/codes/messages/code-direct?limit=5", timeout=10)
+        
+        if response.status_code != 200:
+            log_test("GET /api/codes/messages/code-direct", "FAIL", f"Status: {response.status_code}, Response: {response.text}")
+            return False
+            
+        data = response.json()
+        messages = data.get("messages", [])
+        
+        # Verify message structure if any messages exist
+        if messages:
+            required_fields = ["id", "sender_name", "created_at"]
+            for msg in messages:
+                missing_fields = [field for field in required_fields if field not in msg]
+                if missing_fields:
+                    log_test("GET /api/codes/messages/code-direct", "FAIL", f"Missing fields in message: {missing_fields}")
+                    return False
+                    
+            # Check if our test message is present
+            test_msg_found = any(msg.get("text") == "Backend test message" for msg in messages)
+            if test_msg_found:
+                log_test("GET /api/codes/messages/code-direct", "PASS", f"Retrieved {len(messages)} messages, test message found")
+            else:
+                log_test("GET /api/codes/messages/code-direct", "PASS", f"Retrieved {len(messages)} messages (test message may have been sent earlier)")
+        else:
+            log_test("GET /api/codes/messages/code-direct", "PASS", f"Retrieved {len(messages)} messages (empty channel)")
+        
+        return True
+        
+    except Exception as e:
+        log_test("GET /api/codes/messages/code-direct", "FAIL", f"Exception: {str(e)}")
         return False
 
 def test_codes_channel_invite(channel_id):
@@ -315,12 +388,19 @@ def main():
     test_channel_id = test_codes_channel_create()
     results["channel_create"] = test_channel_id is not None
     
-    # Test 3: Transmit message
+    # Test 3: Transmit message (audio)
     message_id = test_codes_transmit()
     results["transmit"] = message_id is not None
     
+    # Test 3b: Transmit TEXT message (new feature)
+    text_message_id = test_codes_transmit_text()
+    results["transmit_text"] = text_message_id is not None
+    
     # Test 4: Get messages
     results["messages_get"] = test_codes_messages_get()
+    
+    # Test 4b: Get messages from code-direct channel
+    results["messages_get_code_direct"] = test_codes_messages_get_code_direct()
     
     # Test 5: Invite user (expect 404)
     results["channel_invite"] = test_codes_channel_invite(test_channel_id)

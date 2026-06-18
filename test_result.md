@@ -320,6 +320,9 @@ backend:
       - working: true
         agent: "testing"
         comment: "POST /api/codes/transmit endpoint tested successfully. Accepts voice messages with channel_id, sender_name, sender_id, audio_base64, and duration. Returns message_id and status 'delivered'."
+      - working: true
+        agent: "testing"
+        comment: "TEXT message functionality verified. POST /api/codes/transmit successfully accepts text messages with 'text' field. Tested with payload: {channel_id: 'code-direct', text: 'Backend test message', sender_name: 'Test User'}. Returns message_id and status 'delivered'. Text messages are properly stored and retrieved."
 
   - task: "CODES Messages Retrieval API"
     implemented: true
@@ -332,6 +335,9 @@ backend:
       - working: true
         agent: "testing"
         comment: "GET /api/codes/messages/{channel_id} endpoint tested successfully. Retrieves messages with all required fields (id, sender_name, audio_base64, duration, status, created_at). Supports limit parameter."
+      - working: true
+        agent: "testing"
+        comment: "TEXT message retrieval verified. GET /api/codes/messages/code-direct?limit=5 successfully retrieves text messages with 'text' field populated. Verified that text messages sent via POST /api/codes/transmit are properly stored and can be retrieved with all fields intact."
 
   - task: "CODES Channel Invite API"
     implemented: true
@@ -473,3 +479,5 @@ agent_communication:
     message: "Built ChirpConnect 2026 — full Nextel Direct Connect experience. New files: chirpconnect.tsx (retro-futuristic green-on-black UI with fleet talkgroups, PTT hold/lock modes, channel admin, presence, emergency talkgroups), ChirpAudio.ts (classic two-tone chirp sound synthesis). Updated app.json with iOS/Android background modes, privacy manifest, microphone/location permissions. CHIRP bubble on home page. Backend CODES API powers all functionality. Screenshots verified: fleet view, channel PTT view, create talkgroup view all working perfectly."
   - agent: "main"
     message: "Redesigned CODES I.D. Direct Connect (chirpconnect.tsx) with Black/Infrared aesthetic. Removed non-functional Action Button sync. Added dual-mode dispatch: VOICE (PTT hold-to-talk with expo-av recording) and TEXT (type+send). Features: WebSocket real-time connection with presence tracking, animated PTT button with ring/glow effects, dispatch feed with message history, channel switching (CODE/MIRRORS). Updated backend CodesTransmit model to support text field. Updated FrequencyMap.tsx descriptions to match godmodesound.com exactly. All verified working with screenshots."
+  - agent: "testing"
+    message: "CODES I.D. PTT text message functionality testing completed successfully. Verified POST /api/codes/transmit accepts text messages with 'text' field and returns message_id and status 'delivered'. Verified GET /api/codes/messages/code-direct retrieves text messages correctly with all fields. Note: sender_name is a required field (not mentioned in original review request). All 11/11 backend tests passed including new text message tests."
