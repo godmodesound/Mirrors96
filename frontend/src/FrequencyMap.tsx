@@ -103,9 +103,10 @@ const CORTEX_PROTOCOLS = [
 
 interface Props {
   onFrequencySelect?: (freq: number) => void;
+  showBrainMirror?: boolean;
 }
 
-export function FrequencyMap({ onFrequencySelect }: Props) {
+export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Props) {
   const [activeGeometry, setActiveGeometry] = useState<GeometryType>('MERKABA');
   const [activeNode, setActiveNode] = useState<string | null>(null);
   const [activeProtocol, setActiveProtocol] = useState<string | null>(null);
@@ -468,64 +469,68 @@ export function FrequencyMap({ onFrequencySelect }: Props) {
         </View>
       </View>
 
-      {/* Protocol Section Header */}
-      <View style={st.protocolHeader}>
-        <View style={st.protocolTitleBox}>
-          <Text style={st.protocolMainTitle}>BRAIN MIRROR V2.0</Text>
-        </View>
-        <Text style={st.protocolSubtitle}>CORTEX-LAYERED FREQUENCY PROTOCOLS</Text>
-      </View>
+      {/* Protocol Section Header - conditionally rendered */}
+      {showBrainMirror && (
+        <>
+          <View style={st.protocolHeader}>
+            <View style={st.protocolTitleBox}>
+              <Text style={st.protocolMainTitle}>BRAIN MIRROR V2.0</Text>
+            </View>
+            <Text style={st.protocolSubtitle}>CORTEX-LAYERED FREQUENCY PROTOCOLS</Text>
+          </View>
 
-      {/* Protocol Tabs */}
-      <View style={st.protocolTabs}>
-        <TouchableOpacity
-          style={[st.protocolTab, protocolTab === 'STATE' && st.protocolTabActive]}
-          onPress={() => setProtocolTab('STATE')}
-        >
-          <Text style={[st.protocolTabText, protocolTab === 'STATE' && st.protocolTabTextActive]}>STATE MACHINE</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[st.protocolTab, protocolTab === 'CORTEX' && st.protocolTabActive]}
-          onPress={() => setProtocolTab('CORTEX')}
-        >
-          <Text style={[st.protocolTabText, protocolTab === 'CORTEX' && st.protocolTabTextActive]}>CORTEX LAYERS</Text>
-        </TouchableOpacity>
-      </View>
+          {/* Protocol Tabs */}
+          <View style={st.protocolTabs}>
+            <TouchableOpacity
+              style={[st.protocolTab, protocolTab === 'STATE' && st.protocolTabActive]}
+              onPress={() => setProtocolTab('STATE')}
+            >
+              <Text style={[st.protocolTabText, protocolTab === 'STATE' && st.protocolTabTextActive]}>STATE MACHINE</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[st.protocolTab, protocolTab === 'CORTEX' && st.protocolTabActive]}
+              onPress={() => setProtocolTab('CORTEX')}
+            >
+              <Text style={[st.protocolTabText, protocolTab === 'CORTEX' && st.protocolTabTextActive]}>CORTEX LAYERS</Text>
+            </TouchableOpacity>
+          </View>
 
-      {/* Protocol Cards */}
-      <View style={st.protocolGrid}>
-        {protocolTab === 'STATE' ? (
-          STATE_PROTOCOLS.map((protocol) => (
-            <TouchableOpacity
-              key={protocol.id}
-              style={[st.protocolCard, activeProtocol === protocol.id && st.protocolCardActive]}
-              onPress={() => handleProtocolPress(protocol)}
-            >
-              <Text style={[st.protocolName, { color: protocol.color }]}>{protocol.name}</Text>
-              <Text style={st.protocolDescription}>{protocol.subtitle}</Text>
-              <Text style={st.protocolBand}>{protocol.band}</Text>
-              {activeProtocol === protocol.id && (
-                <View style={[st.protocolActiveDot, { backgroundColor: protocol.color }]} />
-              )}
-            </TouchableOpacity>
-          ))
-        ) : (
-          CORTEX_PROTOCOLS.map((cortex) => (
-            <TouchableOpacity
-              key={cortex.id}
-              style={[st.protocolCard, activeProtocol === cortex.id && st.protocolCardActive]}
-              onPress={() => handleCortexPress(cortex)}
-            >
-              <Text style={[st.protocolName, { color: cortex.color }]}>{cortex.name}</Text>
-              <Text style={st.protocolDescription}>{cortex.subtitle}</Text>
-              <Text style={st.protocolBand}>{cortex.freq} Hz</Text>
-              {activeProtocol === cortex.id && (
-                <View style={[st.protocolActiveDot, { backgroundColor: cortex.color }]} />
-              )}
-            </TouchableOpacity>
-          ))
-        )}
-      </View>
+          {/* Protocol Cards */}
+          <View style={st.protocolGrid}>
+            {protocolTab === 'STATE' ? (
+              STATE_PROTOCOLS.map((protocol) => (
+                <TouchableOpacity
+                  key={protocol.id}
+                  style={[st.protocolCard, activeProtocol === protocol.id && st.protocolCardActive]}
+                  onPress={() => handleProtocolPress(protocol)}
+                >
+                  <Text style={[st.protocolName, { color: protocol.color }]}>{protocol.name}</Text>
+                  <Text style={st.protocolDescription}>{protocol.subtitle}</Text>
+                  <Text style={st.protocolBand}>{protocol.band}</Text>
+                  {activeProtocol === protocol.id && (
+                    <View style={[st.protocolActiveDot, { backgroundColor: protocol.color }]} />
+                  )}
+                </TouchableOpacity>
+              ))
+            ) : (
+              CORTEX_PROTOCOLS.map((cortex) => (
+                <TouchableOpacity
+                  key={cortex.id}
+                  style={[st.protocolCard, activeProtocol === cortex.id && st.protocolCardActive]}
+                  onPress={() => handleCortexPress(cortex)}
+                >
+                  <Text style={[st.protocolName, { color: cortex.color }]}>{cortex.name}</Text>
+                  <Text style={st.protocolDescription}>{cortex.subtitle}</Text>
+                  <Text style={st.protocolBand}>{cortex.freq} Hz</Text>
+                  {activeProtocol === cortex.id && (
+                    <View style={[st.protocolActiveDot, { backgroundColor: cortex.color }]} />
+                  )}
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        </>
+      )}
 
       {/* Help text */}
       <Text style={st.helpText}>

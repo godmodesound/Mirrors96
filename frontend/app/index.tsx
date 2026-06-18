@@ -753,6 +753,7 @@ export default function TerminalScreen() {
               onFrequencySelect={(freq) => {
                 console.log('Frequency selected from map:', freq);
               }}
+              showBrainMirror={false}
             />
           </View>
 
