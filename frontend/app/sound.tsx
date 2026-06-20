@@ -156,17 +156,18 @@ export default function SoundScreen() {
               <Text style={styles.terminalTitle}>SOUND</Text>
             </View>
             <Text style={styles.subtitle}>
-              GODMODE SOUND DISCOGRAPHY — PREVIEW INSIDE THE GRID. UNLOCK FULL ACCESS WITH YOUR MIRRORS ID.
+              GODMODE SOUND DISCOGRAPHY — ALL MUSIC FREE. STREAMING ENABLED.
             </Text>
             <TouchableOpacity style={styles.discographyBtn} onPress={() => handleCheckout('album', 'GODMODE DISCOGRAPHY', '')}>
-              <Text style={styles.discographyBtnText}>Buy Discography — $13</Text>
+              <Text style={styles.discographyBtnText}>♡ Support The Artist — $33.96</Text>
             </TouchableOpacity>
+            <Text style={styles.freeAccessLabel}>ALL TRACKS FREE · FULL STREAMING ACCESS</Text>
           </View>
 
-          {/* Preview Mode Badge */}
+          {/* Full Access Badge */}
           <View style={styles.previewBadge}>
-            <View style={styles.previewDot} />
-            <Text style={styles.previewBadgeText}>PREVIEW MODE (30s)</Text>
+            <View style={[styles.previewDot, { backgroundColor: '#00ff00' }]} />
+            <Text style={[styles.previewBadgeText, { color: '#00ff00' }]}>FULL ACCESS · FREE STREAMING</Text>
           </View>
 
           {/* Quick Select */}
@@ -403,6 +404,14 @@ const styles = StyleSheet.create({
     fontFamily: 'TerminatorRealNFI',
     fontWeight: '700',
     letterSpacing: 1,
+  },
+  freeAccessLabel: {
+    color: '#00ff00',
+    fontSize: 8,
+    fontWeight: '600',
+    letterSpacing: 2,
+    textAlign: 'center',
+    marginTop: 8,
   },
   externalNote: {
     color: '#3a1010',

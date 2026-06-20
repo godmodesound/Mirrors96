@@ -593,9 +593,9 @@ export default function TerminalScreen() {
                                 </Text>
                               </TouchableOpacity>
                               <Text style={[slabStyles.trackName, isPlaying && slabStyles.trackNameActive]} numberOfLines={1}>{track.name}</Text>
-                              <TouchableOpacity style={slabStyles.trackBuyBtn} onPress={() => slHandleCheckout('single', `${album.name} — ${track.name}`, album.coverUrl, album.artist)}>
-                                <Text style={slabStyles.trackBuyText}>$1.96</Text>
-                              </TouchableOpacity>
+                              <View style={slabStyles.trackFreeTag}>
+                                <Text style={slabStyles.trackFreeText}>FREE</Text>
+                              </View>
                             </View>
                           );
                         })}
@@ -606,13 +606,14 @@ export default function TerminalScreen() {
               })}
             </ScrollView>
 
-            {/* Buy Full Discography */}
+            {/* Support Discography - All Music Free */}
             <TouchableOpacity
               style={slabStyles.discographyBtn}
               onPress={() => slHandleCheckout('album', 'GODMODE DISCOGRAPHY', '', 'VINCE SINNOTT')}
             >
-              <Text style={slabStyles.discographyText}>BUY FULL DISCOGRAPHY — $33.96</Text>
+              <Text style={slabStyles.discographyText}>♡ SUPPORT THE ARTIST — $33.96</Text>
             </TouchableOpacity>
+            <Text style={slabStyles.freeAccessText}>ALL MUSIC FREE · STREAMING ENABLED</Text>
 
             {slPlayingTrack && (
               <View style={slabStyles.nowPlayingBar}>
@@ -1809,6 +1810,15 @@ const slabStyles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 2,
   },
+  freeAccessText: {
+    color: '#00ff00',
+    fontSize: 8,
+    fontWeight: '600',
+    letterSpacing: 2,
+    textAlign: 'center',
+    marginTop: 8,
+    marginHorizontal: 16,
+  },
   trackList: {
     marginTop: 8,
     borderTopWidth: 1,
@@ -1860,6 +1870,18 @@ const slabStyles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 4,
     elevation: 3,
+  },
+  trackFreeTag: {
+    backgroundColor: '#00aa00',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  trackFreeText: {
+    color: '#000000',
+    fontSize: 7,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   trackBuyText: {
     color: '#fff',
