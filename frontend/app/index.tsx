@@ -729,41 +729,12 @@ export default function TerminalScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Sacred Frequencies - Minimal Phone Dialpad */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>&gt; SACRED_FREQUENCIES</Text>
-            <View style={styles.dialpadContainer}>
-              {[
-                { freq: 174, desc: 'PAIN' },
-                { freq: 285, desc: 'HEAL' },
-                { freq: 396, desc: 'FREE' },
-                { freq: 417, desc: 'CHANGE' },
-                { freq: 432, desc: 'TUNE' },
-                { freq: 528, desc: 'LOVE' },
-                { freq: 639, desc: 'CONNECT' },
-                { freq: 741, desc: 'AWAKEN' },
-                { freq: 852, desc: 'INTUIT' },
-                { freq: 963, desc: 'ONENESS' },
-                { freq: 1074, desc: 'ASCEND' },
-                { freq: 1185, desc: 'DIVINE' },
-              ].map(item => (
-                <TouchableOpacity
-                  key={item.freq}
-                  style={styles.dialpadKey}
-                  onPress={() => updateLayerFrequency(layers[0].id, item.freq)}
-                >
-                  <Text style={styles.dialpadFreq}>{item.freq}</Text>
-                  <Text style={styles.dialpadLabel}>{item.desc}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
           {/* ══════ FREQUENCY MAP / MERKABA ══════ */}
           <View style={styles.section}>
             <FrequencyMap
               onFrequencySelect={(freq) => {
                 console.log('Frequency selected from map:', freq);
+                updateLayerFrequency(layers[0].id, freq);
               }}
               showBrainMirror={false}
             />

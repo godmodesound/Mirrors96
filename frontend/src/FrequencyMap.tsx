@@ -1073,51 +1073,51 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
         </View>
       </View>
 
-      {/* Brainwave Spectrum Bar - Interactive */}
-      <View style={st.spectrumContainer}>
-        <View style={st.spectrumHeader}>
-          <Text style={st.spectrumLabel}>BRAINWAVE METER</Text>
-          {currentFrequency && (
-            <Text style={st.spectrumFreqDisplay}>{currentFrequency} Hz</Text>
-          )}
-        </View>
-        <View style={st.spectrumBar}>
+      {/* Brainwave Meter + Solfeggio - Compact Combined Strip */}
+      <View style={st.compactStrip}>
+        {/* Brainwave Meter Row */}
+        <View style={st.meterRow}>
           {BRAINWAVE_BANDS.map((band) => {
             const isActive = activeBand === band.name;
             return (
               <View
                 key={band.name}
                 style={[
-                  st.spectrumSegment,
-                  { backgroundColor: isActive ? band.color : `${band.color}30` },
-                  isActive && st.spectrumSegmentActive,
+                  st.meterCell,
+                  { backgroundColor: isActive ? band.color : `${band.color}20` },
                 ]}
               >
-                <Text style={[st.bandSymbol, isActive && { color: '#000' }]}>{band.name}</Text>
-                <Text style={[st.bandRange, isActive && { color: '#000' }]}>{band.range}</Text>
+                <Text style={[st.meterSymbol, isActive && { color: '#000' }]}>{band.name}</Text>
               </View>
             );
           })}
+          {currentFrequency && (
+            <View style={st.freqDisplay}>
+              <Text style={st.freqDisplayText}>{currentFrequency}</Text>
+            </View>
+          )}
         </View>
-      </View>
-
-      {/* Solfeggio Frequencies - Phone Dialpad Layout */}
-      <View style={st.dialpadSection}>
-        <View style={st.dialpadGrid}>
+        
+        {/* Solfeggio Horizontal Scroll */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          style={st.solfeggioScroll}
+          contentContainerStyle={st.solfeggioScrollContent}
+        >
           {SOLFEGGIO_FREQS.map((freqObj) => {
             const isActive = activeSolfeggio === freqObj.freq;
             return (
               <TouchableOpacity
                 key={freqObj.freq}
-                style={[st.dialpadBtn, isActive && st.dialpadBtnActive]}
+                style={[st.solfeggioChip, isActive && st.solfeggioChipActive]}
                 onPress={() => handleSolfeggioPress(freqObj)}
               >
-                <Text style={[st.dialpadFreq, isActive && st.dialpadFreqActive]}>{freqObj.label}</Text>
-                <Text style={[st.dialpadDesc, isActive && st.dialpadDescActive]}>{freqObj.desc}</Text>
+                <Text style={[st.solfeggioChipText, isActive && st.solfeggioChipTextActive]}>{freqObj.label}</Text>
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
       </View>
 
       {/* Protocol Section Header - conditionally rendered */}
@@ -1320,6 +1320,73 @@ const st = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1,
     marginBottom: 4,
+  },
+  // Compact Combined Strip
+  compactStrip: {
+    borderTopWidth: 1,
+    borderTopColor: '#ff0a0a15',
+    paddingVertical: 8,
+  },
+  meterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    gap: 4,
+    marginBottom: 8,
+  },
+  meterCell: {
+    flex: 1,
+    height: 28,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ff0a0a15',
+  },
+  meterSymbol: {
+    color: '#ffffff50',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  freqDisplay: {
+    backgroundColor: '#ff0a0a',
+    paddingHorizontal: 8,
+    height: 28,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 50,
+  },
+  freqDisplayText: {
+    color: '#000',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  solfeggioScroll: {
+    paddingHorizontal: 8,
+  },
+  solfeggioScrollContent: {
+    gap: 6,
+    paddingHorizontal: 4,
+  },
+  solfeggioChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#ff0a0a30',
+    borderRadius: 4,
+    backgroundColor: '#0a0505',
+  },
+  solfeggioChipActive: {
+    borderColor: '#ff0a0a',
+    backgroundColor: '#ff0a0a20',
+  },
+  solfeggioChipText: {
+    color: '#ff0a0a80',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  solfeggioChipTextActive: {
+    color: '#ff0a0a',
   },
   spectrumContainer: {
     paddingHorizontal: 12,
