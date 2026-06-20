@@ -268,13 +268,8 @@ export default function SoundScreen() {
                 <Text style={styles.selectedBadge}>SELECTED</Text>
                 <Text style={styles.selectedName}>{selectedAlbum.name}</Text>
                 <Text style={styles.selectedArtist}>{selectedAlbum.artist} • GODMODE SOUND</Text>
-                <View style={styles.selectedBtnRow}>
-                  <TouchableOpacity style={styles.buyBtn} onPress={() => handleCheckout('album', selectedAlbum.name, selectedAlbum.coverUrl)}>
-                    <Text style={styles.buyBtnText}>Buy Album — $13</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.lockBtn} onPress={() => handleCheckout('album', selectedAlbum.name, selectedAlbum.coverUrl)}>
-                    <Text style={styles.lockBtnText}>Full Access</Text>
-                  </TouchableOpacity>
+                <View style={styles.freeAccessBadge}>
+                  <Text style={styles.freeAccessBadgeText}>FREE STREAMING</Text>
                 </View>
               </View>
             </View>
@@ -314,12 +309,6 @@ export default function SoundScreen() {
                           </Text>
                         )}
                       </View>
-                      <TouchableOpacity
-                        style={styles.fullBtn}
-                        onPress={() => handleCheckout('single', `${selectedAlbum.name} — ${track.name}`, selectedAlbum.coverUrl)}
-                      >
-                        <Text style={styles.fullBtnText}>$1.96</Text>
-                      </TouchableOpacity>
                     </TouchableOpacity>
                   );
                 })}
@@ -340,10 +329,7 @@ export default function SoundScreen() {
               </View>
             ) : (
               <View style={styles.noTracksBox}>
-                <Text style={styles.noTracksText}>Full album available externally.</Text>
-                <TouchableOpacity style={styles.buyFullBtn} onPress={() => handleCheckout('album', selectedAlbum.name, selectedAlbum.coverUrl)}>
-                  <Text style={styles.buyFullBtnText}>Buy Album — $13</Text>
-                </TouchableOpacity>
+                <Text style={styles.noTracksText}>Full album available for streaming.</Text>
               </View>
             )}
           </View>
@@ -618,6 +604,22 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontFamily: 'TerminatorRealNFI',
     marginTop: 4,
+  },
+  freeAccessBadge: {
+    marginTop: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    backgroundColor: '#00aa0020',
+    borderWidth: 1,
+    borderColor: '#00aa00',
+    borderRadius: 3,
+    alignSelf: 'flex-start',
+  },
+  freeAccessBadgeText: {
+    color: '#00ff00',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   selectedBtnRow: {
     flexDirection: 'row',
