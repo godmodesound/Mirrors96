@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
+import * as Haptics from 'expo-haptics';
 import Constants from 'expo-constants';
 
 // ═══════════════════════════════════
@@ -71,6 +72,8 @@ export default function ChirpConnect() {
   const wsRef = useRef<WebSocket | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const pttStartSoundRef = useRef<Audio.Sound | null>(null);
+  const pttEndSoundRef = useRef<Audio.Sound | null>(null);
   const transmitTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -102,6 +105,58 @@ export default function ChirpConnect() {
       }
     })();
   }, []);
+
+  // ═══════════════════════════════════
+  // PTT AUDIO FEEDBACK - Chirp sounds
+  // ═══════════════════════════════════
+  const playPttStartSound = async () => {
+    try {
+      // Play ascending chirp tone for press
+      if (Platform.OS !== 'web') {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      }
+      
+      // Create a quick chirp using synthesized audio
+      if (pttStartSoundRef.current) {
+        await pttStartSoundRef.current.unloadAsync();
+      }
+      
+      // Use a simple beep sound (base64 encoded short tone)
+      // This is a short 100ms 800Hz beep
+      const chirpTone = 'UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: `data:audio/wav;base64,${chirpTone}` },
+          { shouldPlay: true, volume: 0.7 }
+        );
+        pttStartSoundRef.current = sound;
+      } catch {
+        // Fallback to vibration only
+        Vibration.vibrate([0, 50, 30, 50]);
+      }
+    } catch {
+      // Fallback haptic
+      Vibration.vibrate(50);
+    }
+  };
+
+  const playPttEndSound = async () => {
+    try {
+      // Play descending chirp tone for release
+      if (Platform.OS !== 'web') {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      
+      if (pttEndSoundRef.current) {
+        await pttEndSoundRef.current.unloadAsync();
+      }
+      
+      // Double beep for end
+      Vibration.vibrate([0, 30, 50, 30]);
+    } catch {
+      Vibration.vibrate(30);
+    }
+  };
 
   // ═══════════════════════════════════
   // WEBSOCKET CONNECTION
@@ -260,7 +315,9 @@ export default function ChirpConnect() {
 
     setIsTransmitting(true);
     setTransmitDuration(0);
-    Vibration.vibrate(30);
+    
+    // Play PTT start sound with haptic feedback
+    await playPttStartSound();
     startTransmitAnimation();
 
     // Notify others
@@ -316,7 +373,9 @@ export default function ChirpConnect() {
   const stopVoiceTransmit = async (cancelled = false) => {
     setIsTransmitting(false);
     stopTransmitAnimation();
-    Vibration.vibrate(20);
+    
+    // Play PTT end sound with haptic feedback
+    await playPttEndSound();
 
     if (transmitTimerRef.current) {
       clearInterval(transmitTimerRef.current);
