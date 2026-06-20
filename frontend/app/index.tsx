@@ -611,7 +611,7 @@ export default function TerminalScreen() {
               style={slabStyles.discographyBtn}
               onPress={() => slHandleCheckout('album', 'GODMODE DISCOGRAPHY', '', 'VINCE SINNOTT')}
             >
-              <Text style={slabStyles.discographyText}>♡ SUPPORT THE ARTIST — $33.96</Text>
+              <Text style={slabStyles.discographyText}>DISCOGRAPHY</Text>
             </TouchableOpacity>
             <Text style={slabStyles.freeAccessText}>ALL MUSIC FREE · STREAMING ENABLED</Text>
 

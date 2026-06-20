@@ -159,7 +159,7 @@ export default function SoundScreen() {
               GODMODE SOUND DISCOGRAPHY — ALL MUSIC FREE. STREAMING ENABLED.
             </Text>
             <TouchableOpacity style={styles.discographyBtn} onPress={() => handleCheckout('album', 'GODMODE DISCOGRAPHY', '')}>
-              <Text style={styles.discographyBtnText}>♡ Support The Artist — $33.96</Text>
+              <Text style={styles.discographyBtnText}>DISCOGRAPHY</Text>
             </TouchableOpacity>
             <Text style={styles.freeAccessLabel}>ALL TRACKS FREE · FULL STREAMING ACCESS</Text>
           </View>
