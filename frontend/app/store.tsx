@@ -239,7 +239,7 @@ export default function StoreScreen() {
                   <Text style={styles.albumName}>{album.name}</Text>
                   <Text style={styles.albumArtist}>{album.artist}</Text>
                   <View style={styles.albumBottom}>
-                    <Text style={styles.albumPrice}>{formatPrice(album.price_cents)}</Text>
+                    <Text style={styles.albumFreeTag}>FREE</Text>
                     <Text style={styles.albumTracks}>{album.tracklist.length} TRK</Text>
                   </View>
                 </View>
@@ -263,30 +263,8 @@ export default function StoreScreen() {
         <Text style={styles.detailTitle}>{a.name}</Text>
         <Text style={styles.detailArtist}>{a.artist}</Text>
         <Text style={styles.detailDesc}>{a.description}</Text>
-        <Text style={styles.detailPrice}>{formatPrice(a.price_cents)}</Text>
-
-        {/* Email + Buy */}
-        <View style={styles.buySection}>
-          <TextInput
-            style={styles.emailInput}
-            placeholder="YOUR EMAIL"
-            placeholderTextColor="#5a1a1a"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <TouchableOpacity
-            style={[styles.buyBtn, checkoutLoading && styles.buyBtnDisabled]}
-            onPress={() => handleBuy(a)}
-            disabled={checkoutLoading || !email.trim()}
-          >
-            {checkoutLoading ? (
-              <ActivityIndicator color="#000" size="small" />
-            ) : (
-              <Text style={styles.buyBtnText}>BUY NOW — {formatPrice(a.price_cents)}</Text>
-            )}
-          </TouchableOpacity>
+        <View style={styles.freeAccessBanner}>
+          <Text style={styles.freeAccessText}>FREE STREAMING ACCESS</Text>
         </View>
 
         {/* Tracklist */}
@@ -510,6 +488,7 @@ const styles = StyleSheet.create({
   albumArtist: { color: '#5a1a1a', fontSize: 8, marginTop: 2 },
   albumBottom: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   albumPrice: { color: '#ff3040', fontSize: 12, fontWeight: '700' },
+  albumFreeTag: { color: '#00ff00', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   albumTracks: { color: '#3a1010', fontSize: 8 },
 
   // Album Detail
@@ -519,6 +498,21 @@ const styles = StyleSheet.create({
   detailArtist: { color: '#5a1a1a', fontSize: 10, letterSpacing: 2, marginTop: 4 },
   detailDesc: { color: '#5a1a1a', fontSize: 11, lineHeight: 18, marginTop: 12 },
   detailPrice: { color: '#ff0a0a', fontSize: 28, fontWeight: '700', marginTop: 16 },
+  freeAccessBanner: { 
+    marginTop: 16, 
+    paddingVertical: 12, 
+    paddingHorizontal: 16, 
+    backgroundColor: '#00aa0020', 
+    borderWidth: 1, 
+    borderColor: '#00aa00',
+    alignItems: 'center',
+  },
+  freeAccessText: { 
+    color: '#00ff00', 
+    fontSize: 14, 
+    fontWeight: '900', 
+    letterSpacing: 3 
+  },
 
   // Buy Section
   buySection: { marginTop: 16, gap: 10 },

@@ -563,9 +563,6 @@ export default function TerminalScreen() {
                 <Text style={slabStyles.headerTitle}>SOUND LAB</Text>
               </View>
               <Text style={slabStyles.headerMeta}>{ALBUMS.length} albums {'\u00B7'} {ALBUMS.reduce((acc, a) => acc + a.tracks.length, 0)} tracks</Text>
-              <TouchableOpacity onPress={() => router.push('/store')} style={slabStyles.openStoreBtn}>
-                <Text style={slabStyles.openStoreText}>OPEN STORE</Text>
-              </TouchableOpacity>
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={slabStyles.albumScroll} contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingRight: 20 }}>
