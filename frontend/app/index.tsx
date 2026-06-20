@@ -729,17 +729,31 @@ export default function TerminalScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Sacred Frequencies */}
+          {/* Sacred Frequencies - Minimal Phone Dialpad */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>&gt; SACRED_FREQUENCIES</Text>
-            <View style={styles.presetGrid}>
-              {[432, 528, 639, 741, 852, 963, 174, 285, 396, 417].map(freq => (
+            <View style={styles.dialpadContainer}>
+              {[
+                { freq: 174, desc: 'PAIN' },
+                { freq: 285, desc: 'HEAL' },
+                { freq: 396, desc: 'FREE' },
+                { freq: 417, desc: 'CHANGE' },
+                { freq: 432, desc: 'TUNE' },
+                { freq: 528, desc: 'LOVE' },
+                { freq: 639, desc: 'CONNECT' },
+                { freq: 741, desc: 'AWAKEN' },
+                { freq: 852, desc: 'INTUIT' },
+                { freq: 963, desc: 'ONENESS' },
+                { freq: 1074, desc: 'ASCEND' },
+                { freq: 1185, desc: 'DIVINE' },
+              ].map(item => (
                 <TouchableOpacity
-                  key={freq}
-                  style={styles.presetChip}
-                  onPress={() => updateLayerFrequency(layers[0].id, freq)}
+                  key={item.freq}
+                  style={styles.dialpadKey}
+                  onPress={() => updateLayerFrequency(layers[0].id, item.freq)}
                 >
-                  <Text style={styles.presetText}>{freq}Hz</Text>
+                  <Text style={styles.dialpadFreq}>{item.freq}</Text>
+                  <Text style={styles.dialpadLabel}>{item.desc}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -1360,6 +1374,37 @@ const styles = StyleSheet.create({
     letterSpacing: 4,
   },
   playButtonTextActive: { color: '#ffffff' },
+  // Dialpad Layout for Sacred Frequencies
+  dialpadContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  dialpadKey: {
+    width: '23%',
+    aspectRatio: 1,
+    borderWidth: 1,
+    borderColor: '#ff0a0a30',
+    borderRadius: 8,
+    backgroundColor: '#0a0505',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dialpadFreq: {
+    color: '#ff0a0a',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  dialpadLabel: {
+    color: '#ff0a0a50',
+    fontSize: 6,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginTop: 2,
+  },
   presetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 1 },
   presetChip: {
     borderWidth: 1,

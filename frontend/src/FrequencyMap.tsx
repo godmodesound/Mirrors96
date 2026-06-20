@@ -357,18 +357,44 @@ const ICOSA_NODES: GeometryNode[] = (() => {
   return nodes;
 })();
 
-// Solfeggio Frequencies
-const SOLFEGGIO_FREQS = [174, 285, 396, 417, 432, 528, 639, 741, 852, 963];
-
-// Brainwave Bands
-const BRAINWAVE_BANDS = [
-  { name: 'DELTA', range: '0.5-4 Hz', color: '#9B59B6', width: 10 },
-  { name: 'THETA', range: '4-8 Hz', color: '#4D96FF', width: 12 },
-  { name: 'ALPHA', range: '8-12 Hz', color: '#6BCB77', width: 12 },
-  { name: 'BETA', range: '12-30 Hz', color: '#FFD93D', width: 20 },
-  { name: 'GAMMA', range: '30-100 Hz', color: '#FF6B6B', width: 20 },
-  { name: 'HIGH GAMMA', range: '100+ Hz', color: '#4D96FF', width: 26 },
+// Solfeggio Frequencies - arranged in 3x4 phone dialpad layout
+const SOLFEGGIO_FREQS = [
+  { freq: 174, label: '174', desc: 'PAIN' },
+  { freq: 285, label: '285', desc: 'HEAL' },
+  { freq: 396, label: '396', desc: 'FREE' },
+  { freq: 417, label: '417', desc: 'CHANGE' },
+  { freq: 432, label: '432', desc: 'TUNE' },
+  { freq: 528, label: '528', desc: 'LOVE' },
+  { freq: 639, label: '639', desc: 'CONNECT' },
+  { freq: 741, label: '741', desc: 'AWAKEN' },
+  { freq: 852, label: '852', desc: 'INTUIT' },
+  { freq: 963, label: '963', desc: 'ONENESS' },
+  { freq: 1074, label: '1074', desc: 'ASCEND' },
+  { freq: 1185, label: '1185', desc: 'DIVINE' },
 ];
+
+// Brainwave Bands with frequency ranges for interactive meter
+const BRAINWAVE_BANDS = [
+  { name: 'δ', fullName: 'DELTA', range: '0.5-4', minFreq: 0.5, maxFreq: 4, color: '#9B59B6', solfeggioRange: [174, 285] },
+  { name: 'θ', fullName: 'THETA', range: '4-8', minFreq: 4, maxFreq: 8, color: '#4D96FF', solfeggioRange: [396, 417] },
+  { name: 'α', fullName: 'ALPHA', range: '8-14', minFreq: 8, maxFreq: 14, color: '#6BCB77', solfeggioRange: [432, 528] },
+  { name: 'β', fullName: 'BETA', range: '14-30', minFreq: 14, maxFreq: 30, color: '#FFD93D', solfeggioRange: [639, 741] },
+  { name: 'γ', fullName: 'GAMMA', range: '30-100', minFreq: 30, maxFreq: 100, color: '#FF6B6B', solfeggioRange: [852, 963] },
+  { name: 'H', fullName: 'HIGH', range: '100+', minFreq: 100, maxFreq: 1500, color: '#FF00FF', solfeggioRange: [1074, 1185] },
+];
+
+// Helper function to determine which brainwave band a frequency falls into
+function getActiveBand(freq: number | null): string | null {
+  if (!freq) return null;
+  
+  // For Solfeggio frequencies, map to brainwave bands by their spiritual associations
+  if (freq <= 285) return 'δ'; // DELTA - grounding, pain relief
+  if (freq <= 417) return 'θ'; // THETA - change, liberation
+  if (freq <= 528) return 'α'; // ALPHA - love, harmony, tuning
+  if (freq <= 741) return 'β'; // BETA - awakening, expression
+  if (freq <= 963) return 'γ'; // GAMMA - intuition, spiritual
+  return 'H'; // HIGH - ascension, divine
+}
 
 // State Machine Protocols
 interface StateProtocol {
@@ -414,7 +440,11 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
   const [isPlayingGeometry, setIsPlayingGeometry] = useState(false); // For geometry sequence playback
   const [activeSolfeggio, setActiveSolfeggio] = useState<number | null>(null);
   const [geometryPlayIndex, setGeometryPlayIndex] = useState<number>(-1); // Current node index in sequence
+  const [currentFrequency, setCurrentFrequency] = useState<number | null>(null); // Track active frequency for meter
   const geometryIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get active brainwave band based on current frequency
+  const activeBand = useMemo(() => getActiveBand(currentFrequency), [currentFrequency]);
 
   // Get nodes based on active geometry
   const currentNodes = useMemo(() => {
@@ -562,24 +592,28 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
       AudioEngine.stopCamelot();
       setActiveNode(null);
       setIsPlaying(false);
+      setCurrentFrequency(null);
     } else {
       AudioEngine.playCamelot(node.freq);
       setActiveNode(node.id);
       setIsPlaying(true);
+      setCurrentFrequency(node.freq);
       onFrequencySelect?.(node.freq);
     }
   };
 
-  const handleSolfeggioPress = (freq: number) => {
-    if (activeSolfeggio === freq) {
+  const handleSolfeggioPress = (freqObj: typeof SOLFEGGIO_FREQS[0]) => {
+    if (activeSolfeggio === freqObj.freq) {
       AudioEngine.stopCamelot();
       setActiveSolfeggio(null);
       setIsPlaying(false);
+      setCurrentFrequency(null);
     } else {
-      AudioEngine.playCamelot(freq);
-      setActiveSolfeggio(freq);
+      AudioEngine.playCamelot(freqObj.freq);
+      setActiveSolfeggio(freqObj.freq);
       setIsPlaying(true);
-      onFrequencySelect?.(freq);
+      setCurrentFrequency(freqObj.freq);
+      onFrequencySelect?.(freqObj.freq);
     }
   };
 
@@ -1039,39 +1073,50 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
         </View>
       </View>
 
-      {/* Brainwave Spectrum Bar */}
+      {/* Brainwave Spectrum Bar - Interactive */}
       <View style={st.spectrumContainer}>
-        <Text style={st.spectrumLabel}>TUNING: 432Hz</Text>
-        <View style={st.spectrumBar}>
-          {BRAINWAVE_BANDS.map((band, i) => (
-            <View
-              key={band.name}
-              style={[st.spectrumSegment, { backgroundColor: band.color, flex: band.width }]}
-            />
-          ))}
+        <View style={st.spectrumHeader}>
+          <Text style={st.spectrumLabel}>BRAINWAVE METER</Text>
+          {currentFrequency && (
+            <Text style={st.spectrumFreqDisplay}>{currentFrequency} Hz</Text>
+          )}
         </View>
-        <View style={st.spectrumLabels}>
-          {BRAINWAVE_BANDS.map((band) => (
-            <Text key={band.name} style={[st.spectrumBandLabel, { color: band.color }]}>
-              {band.name.split(' ')[0]}
-            </Text>
-          ))}
+        <View style={st.spectrumBar}>
+          {BRAINWAVE_BANDS.map((band) => {
+            const isActive = activeBand === band.name;
+            return (
+              <View
+                key={band.name}
+                style={[
+                  st.spectrumSegment,
+                  { backgroundColor: isActive ? band.color : `${band.color}30` },
+                  isActive && st.spectrumSegmentActive,
+                ]}
+              >
+                <Text style={[st.bandSymbol, isActive && { color: '#000' }]}>{band.name}</Text>
+                <Text style={[st.bandRange, isActive && { color: '#000' }]}>{band.range}</Text>
+              </View>
+            );
+          })}
         </View>
       </View>
 
-      {/* Solfeggio Frequencies */}
-      <View style={st.solfeggioSection}>
-        <Text style={st.solfeggioTitle}>◁ SOLFEGGIO</Text>
-        <View style={st.solfeggioGrid}>
-          {SOLFEGGIO_FREQS.map((freq) => (
-            <TouchableOpacity
-              key={freq}
-              style={[st.solfeggioBtn, activeSolfeggio === freq && st.solfeggioBtnActive]}
-              onPress={() => handleSolfeggioPress(freq)}
-            >
-              <Text style={[st.solfeggioText, activeSolfeggio === freq && st.solfeggioTextActive]}>{freq}</Text>
-            </TouchableOpacity>
-          ))}
+      {/* Solfeggio Frequencies - Phone Dialpad Layout */}
+      <View style={st.dialpadSection}>
+        <View style={st.dialpadGrid}>
+          {SOLFEGGIO_FREQS.map((freqObj) => {
+            const isActive = activeSolfeggio === freqObj.freq;
+            return (
+              <TouchableOpacity
+                key={freqObj.freq}
+                style={[st.dialpadBtn, isActive && st.dialpadBtnActive]}
+                onPress={() => handleSolfeggioPress(freqObj)}
+              >
+                <Text style={[st.dialpadFreq, isActive && st.dialpadFreqActive]}>{freqObj.label}</Text>
+                <Text style={[st.dialpadDesc, isActive && st.dialpadDescActive]}>{freqObj.desc}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
@@ -1277,34 +1322,98 @@ const st = StyleSheet.create({
     marginBottom: 4,
   },
   spectrumContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#ff0a0a15',
+  },
+  spectrumHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   spectrumLabel: {
-    color: '#ff0a0a40',
-    fontSize: 7,
-    fontWeight: '600',
+    color: '#ff0a0a60',
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
+  spectrumFreqDisplay: {
+    color: '#ff0a0a',
+    fontSize: 12,
+    fontWeight: '900',
     letterSpacing: 1,
-    marginBottom: 4,
   },
   spectrumBar: {
     flexDirection: 'row',
-    height: 24,
-    borderWidth: 1,
-    borderColor: '#ff0a0a30',
+    height: 48,
+    gap: 4,
   },
   spectrumSegment: {
-    height: '100%',
+    flex: 1,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ff0a0a20',
   },
-  spectrumLabels: {
+  spectrumSegmentActive: {
+    borderColor: '#ffffff40',
+  },
+  bandSymbol: {
+    color: '#ffffff60',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  bandRange: {
+    color: '#ffffff40',
+    fontSize: 6,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  dialpadSection: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  dialpadGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 4,
+    flexWrap: 'wrap',
+    gap: 6,
+    justifyContent: 'center',
   },
-  spectrumBandLabel: {
+  dialpadBtn: {
+    width: '23%',
+    aspectRatio: 1,
+    borderWidth: 1,
+    borderColor: '#ff0a0a30',
+    borderRadius: 8,
+    backgroundColor: '#0a0505',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dialpadBtnActive: {
+    borderColor: '#ff0a0a',
+    backgroundColor: '#ff0a0a20',
+  },
+  dialpadFreq: {
+    color: '#ff0a0a',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  dialpadFreqActive: {
+    color: '#ffffff',
+  },
+  dialpadDesc: {
+    color: '#ff0a0a50',
     fontSize: 6,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+    marginTop: 2,
+  },
+  dialpadDescActive: {
+    color: '#ff0a0a',
   },
   solfeggioSection: {
     paddingHorizontal: 16,
