@@ -877,7 +877,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
     <View style={st.container}>
       {/* Header */}
       <View style={st.header}>
-        <Text style={st.headerTitle}>&gt; FREQUENCY_MAP</Text>
+        <Text style={st.headerTitle}>&gt; FREQUENCY_LAB</Text>
         <Text style={st.headerSub}>/ {activeGeometry}</Text>
         <View style={st.headerRight}>
           {(isPlaying || isPlayingGeometry) && <View style={st.liveDot} />}

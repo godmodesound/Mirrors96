@@ -729,7 +729,7 @@ export default function TerminalScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* ══════ FREQUENCY MAP / MERKABA ══════ */}
+          {/* ══════ FREQUENCY LAB / MERKABA ══════ */}
           <View style={styles.section}>
             <FrequencyMap
               onFrequencySelect={(freq) => {
