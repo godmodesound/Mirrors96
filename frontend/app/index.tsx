@@ -125,6 +125,8 @@ export default function TerminalScreen() {
   const [archiveCategory, setArchiveCategory] = useState('all');
   const [archivePlayingItem, setArchivePlayingItem] = useState<string | null>(null);
   const [loadedArchiveName, setLoadedArchiveName] = useState<string | null>(null);
+  const [archiveViewMode, setArchiveViewMode] = useState<'codex' | 'a-z' | 'lab'>('codex');
+  const [selectedCodex, setSelectedCodex] = useState<string | null>(null);
 
   // ═══ LOAD FREQUENCIES FROM ARCHIVE (via route params) ═══
   useEffect(() => {
@@ -632,7 +634,7 @@ export default function TerminalScreen() {
                 onPress={() => setArchiveModalVisible(true)}
               >
                 <View style={styles.archiveBubbleDot} />
-                <Text style={styles.archiveBubbleText}>FREQ ARCHIVE</Text>
+                <Text style={styles.archiveBubbleText}>CODES ARCHIVE</Text>
               </TouchableOpacity>
             </View>
             {loadedArchiveName && (
@@ -891,166 +893,246 @@ export default function TerminalScreen() {
         </ScrollView>
       </View>
 
-      {/* ═══════ FREQUENCY ARCHIVE MODAL ═══════ */}
+      {/* ═══════ CODES ARCHIVE MODAL ═══════ */}
       <Modal
         visible={archiveModalVisible}
         animationType="slide"
         transparent={false}
-        onRequestClose={() => { setArchiveModalVisible(false); AudioEngine.stopMulti(); setArchivePlayingItem(null); }}
+        onRequestClose={() => { setArchiveModalVisible(false); AudioEngine.stopMulti(); setArchivePlayingItem(null); setSelectedCodex(null); }}
       >
         <View style={archiveStyles.modalContainer}>
           <View style={[archiveStyles.modalSafeArea, { paddingTop: insets.top }]}>
-            {/* Header */}
+            {/* Decorative Header with Diamonds */}
+            <View style={archiveStyles.headerDecoration}>
+              <Text style={archiveStyles.headerDiamond}>◆</Text>
+              <View style={archiveStyles.headerLine} />
+              <Text style={archiveStyles.headerDiamond}>◆</Text>
+            </View>
+            
+            {/* Main Header */}
             <View style={archiveStyles.modalHeader}>
-              <View style={archiveStyles.modalHeaderLeft}>
-                <Text style={archiveStyles.modalTitle}>FREQUENCY ARCHIVE</Text>
-                <Text style={archiveStyles.modalSubtitle}>
-                  {FREQUENCY_ARCHIVE.length} CONDITIONS | 432Hz CALIBRATED
-                </Text>
-              </View>
+              <Text style={archiveStyles.modalTitle}>CODES ARCHIVE</Text>
+              <Text style={archiveStyles.modalSubtitle}>CONSOLIDATED ANNOTATED FREQUENCY LIST</Text>
+              <Text style={archiveStyles.modalStats}>
+                {FREQUENCY_ARCHIVE.length} FREQUENCIES · {ARCHIVE_CATEGORIES.length - 1} CODICES · 432Hz CALIBRATED
+              </Text>
               <TouchableOpacity
                 style={archiveStyles.modalCloseBtn}
-                onPress={() => { setArchiveModalVisible(false); AudioEngine.stopMulti(); setArchivePlayingItem(null); }}
+                onPress={() => { setArchiveModalVisible(false); AudioEngine.stopMulti(); setArchivePlayingItem(null); setSelectedCodex(null); }}
               >
-                <Text style={archiveStyles.modalCloseBtnText}>[X]</Text>
+                <Text style={archiveStyles.modalCloseBtnText}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Search */}
+            {/* Search Bar */}
             <View style={archiveStyles.searchContainer}>
-              <Text style={archiveStyles.searchPrompt}>&gt;</Text>
+              <Text style={archiveStyles.searchIcon}>⊕</Text>
               <TextInput
                 style={archiveStyles.searchInput}
-                placeholder="search_condition..."
-                placeholderTextColor="#3a1010"
+                placeholder="Search conditions, frequencies..."
+                placeholderTextColor="#5a1a1a"
                 value={archiveSearch}
                 onChangeText={setArchiveSearch}
               />
               {archiveSearch.length > 0 && (
                 <TouchableOpacity onPress={() => setArchiveSearch('')}>
-                  <Text style={archiveStyles.clearBtn}>[X]</Text>
+                  <Text style={archiveStyles.clearBtn}>✕</Text>
                 </TouchableOpacity>
               )}
             </View>
 
-            {/* Category Tabs */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={archiveStyles.categoryScroll}
-              contentContainerStyle={archiveStyles.categoryContainer}
-            >
-              {ARCHIVE_CATEGORIES.map(cat => (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={[archiveStyles.categoryTab, archiveCategory === cat.id && archiveStyles.categoryTabActive]}
-                  onPress={() => setArchiveCategory(cat.id)}
-                >
-                  <Text style={[archiveStyles.categoryLabel, archiveCategory === cat.id && archiveStyles.categoryLabelActive]}>
-                    {cat.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            {/* Recent Frequencies (User Memory) */}
-            {freqHistory.length > 0 && (
-              <View style={archiveStyles.recentSection}>
-                <Text style={archiveStyles.recentTitle}>RECENT FREQUENCIES</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingRight: 8 }}>
-                  {freqHistory.slice(0, 10).map((item: any, idx: number) => (
-                    <TouchableOpacity
-                      key={idx}
-                      style={archiveStyles.recentChip}
-                      onPress={() => {
-                        // Find matching archive entry and load it
-                        const entry = FREQUENCY_ARCHIVE.find(f => f.name === item.name);
-                        if (entry) {
-                          handleArchiveLoadFrequency(entry);
-                        } else {
-                          // Load single frequency directly
-                          updateLayerFrequency(layers[0].id, item.frequency);
-                          setArchiveModalVisible(false);
-                        }
-                      }}
-                    >
-                      <Text style={archiveStyles.recentChipFreq}>{item.frequency} Hz</Text>
-                      <Text style={archiveStyles.recentChipName} numberOfLines={1}>{item.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
+            {/* Tab Navigation: CODEX | A-Z | LAB */}
+            <View style={archiveStyles.tabRow}>
+              <TouchableOpacity
+                style={[archiveStyles.tabBtn, archiveViewMode === 'codex' && archiveStyles.tabBtnActive]}
+                onPress={() => { setArchiveViewMode('codex'); setSelectedCodex(null); }}
+              >
+                <Text style={[archiveStyles.tabBtnText, archiveViewMode === 'codex' && archiveStyles.tabBtnTextActive]}>CODEX</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[archiveStyles.tabBtn, archiveViewMode === 'a-z' && archiveStyles.tabBtnActive]}
+                onPress={() => { setArchiveViewMode('a-z'); setSelectedCodex(null); }}
+              >
+                <Text style={[archiveStyles.tabBtnText, archiveViewMode === 'a-z' && archiveStyles.tabBtnTextActive]}>A - Z</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[archiveStyles.tabBtn, archiveViewMode === 'lab' && archiveStyles.tabBtnActive]}
+                onPress={() => { setArchiveViewMode('lab'); setSelectedCodex(null); }}
+              >
+                <Text style={[archiveStyles.tabBtnText, archiveViewMode === 'lab' && archiveStyles.tabBtnTextActive]}>LAB</Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Now Playing Bar */}
             {archivePlayingItem && (
               <View style={archiveStyles.nowPlaying}>
                 <View style={archiveStyles.nowPlayingDot} />
-                <Text style={archiveStyles.nowPlayingText} numberOfLines={1}>NOW PLAYING: {archivePlayingItem}</Text>
+                <Text style={archiveStyles.nowPlayingText} numberOfLines={1}>TRANSMITTING: {archivePlayingItem}</Text>
                 <TouchableOpacity onPress={() => { AudioEngine.stopMulti(); setArchivePlayingItem(null); }}>
                   <Text style={archiveStyles.stopAllBtn}>[STOP]</Text>
                 </TouchableOpacity>
               </View>
             )}
 
-            {/* Result Count */}
-            <Text style={archiveStyles.resultCount}>
-              SHOWING {filteredArchive.length} OF {FREQUENCY_ARCHIVE.length} CONDITIONS
-            </Text>
+            {/* CODEX VIEW - Category List */}
+            {archiveViewMode === 'codex' && !selectedCodex && (
+              <ScrollView style={archiveStyles.codexScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
+                {ARCHIVE_CATEGORIES.filter(cat => cat.id !== 'all').map((cat) => {
+                  const entryCount = FREQUENCY_ARCHIVE.filter(f => f.category === cat.id).length;
+                  return (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={archiveStyles.codexRow}
+                      onPress={() => setSelectedCodex(cat.id)}
+                    >
+                      <View style={archiveStyles.codexIconWrap}>
+                        <Text style={archiveStyles.codexIcon}>{cat.icon}</Text>
+                      </View>
+                      <View style={archiveStyles.codexInfo}>
+                        <Text style={archiveStyles.codexName}>{cat.latinName}</Text>
+                        <Text style={archiveStyles.codexEntryCount}>{entryCount} ENTRIES</Text>
+                      </View>
+                      <Text style={archiveStyles.codexArrow}>▶</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
 
-            {/* Frequency List */}
-            <FlatList
-              data={filteredArchive}
-              keyExtractor={(item, index) => `${item.name}-${index}`}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: insets.bottom + 90, paddingHorizontal: 16 }}
-              renderItem={({ item }) => {
-                const isPlaying = archivePlayingItem === item.name;
-                return (
-                  <View style={[archiveStyles.archiveCard, isPlaying && archiveStyles.archiveCardActive]}>
-                    <View style={archiveStyles.archiveCardHeader}>
-                      <View style={archiveStyles.archiveCardInfo}>
-                        <Text style={archiveStyles.archiveCardName}>
-                          {item.icon ? `${item.icon} ` : ''}{item.name}
-                        </Text>
-                        <Text style={archiveStyles.archiveCardCategory}>
-                          {item.category.toUpperCase()} | {item.frequencies.length} freq{item.frequencies.length > 1 ? 's' : ''}
-                        </Text>
+            {/* CODEX VIEW - Selected Category Entries */}
+            {archiveViewMode === 'codex' && selectedCodex && (
+              <>
+                <TouchableOpacity style={archiveStyles.backBtn} onPress={() => setSelectedCodex(null)}>
+                  <Text style={archiveStyles.backBtnText}>◀ BACK TO CODEX</Text>
+                </TouchableOpacity>
+                <FlatList
+                  data={FREQUENCY_ARCHIVE.filter(f => f.category === selectedCodex && (archiveSearch.length === 0 || f.name.toLowerCase().includes(archiveSearch.toLowerCase())))}
+                  keyExtractor={(item, index) => `${item.name}-${index}`}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ paddingBottom: insets.bottom + 90, paddingHorizontal: 16 }}
+                  renderItem={({ item }) => {
+                    const isPlaying = archivePlayingItem === item.name;
+                    return (
+                      <View style={[archiveStyles.archiveCard, isPlaying && archiveStyles.archiveCardActive]}>
+                        <View style={archiveStyles.archiveCardHeader}>
+                          <View style={archiveStyles.archiveCardInfo}>
+                            <Text style={archiveStyles.archiveCardName}>{item.name}</Text>
+                            <Text style={archiveStyles.archiveCardCategory}>{item.frequencies.length} FREQUENCIES</Text>
+                          </View>
+                        </View>
+                        <View style={archiveStyles.freqChipRow}>
+                          {item.frequencies.slice(0, 6).map((f, i) => (
+                            <Text key={i} style={archiveStyles.freqChip}>{f} Hz</Text>
+                          ))}
+                          {item.frequencies.length > 6 && <Text style={archiveStyles.freqChip}>+{item.frequencies.length - 6}</Text>}
+                        </View>
+                        <View style={archiveStyles.actionRow}>
+                          <TouchableOpacity
+                            style={[archiveStyles.playBtn, isPlaying && archiveStyles.playBtnActive]}
+                            onPress={() => handleArchivePlayFrequency(item.name, item.frequencies)}
+                          >
+                            <Text style={[archiveStyles.playBtnText, isPlaying && archiveStyles.playBtnTextActive]}>
+                              {isPlaying ? '■ STOP' : '▶ PLAY'}
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={archiveStyles.loadBtn} onPress={() => handleArchiveLoadFrequency(item)}>
+                            <Text style={archiveStyles.loadBtnText}>LOAD → LAB</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  }}
+                />
+              </>
+            )}
+
+            {/* A-Z VIEW - Alphabetical List */}
+            {archiveViewMode === 'a-z' && (
+              <FlatList
+                data={filteredArchive.sort((a, b) => a.name.localeCompare(b.name))}
+                keyExtractor={(item, index) => `${item.name}-${index}`}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: insets.bottom + 90, paddingHorizontal: 16 }}
+                renderItem={({ item }) => {
+                  const isPlaying = archivePlayingItem === item.name;
+                  return (
+                    <View style={[archiveStyles.archiveCard, isPlaying && archiveStyles.archiveCardActive]}>
+                      <View style={archiveStyles.archiveCardHeader}>
+                        <View style={archiveStyles.archiveCardInfo}>
+                          <Text style={archiveStyles.archiveCardName}>{item.name}</Text>
+                          <Text style={archiveStyles.archiveCardCategory}>{item.category.toUpperCase()} · {item.frequencies.length} FREQ</Text>
+                        </View>
+                      </View>
+                      <View style={archiveStyles.freqChipRow}>
+                        {item.frequencies.slice(0, 6).map((f, i) => (
+                          <Text key={i} style={archiveStyles.freqChip}>{f} Hz</Text>
+                        ))}
+                        {item.frequencies.length > 6 && <Text style={archiveStyles.freqChip}>+{item.frequencies.length - 6}</Text>}
+                      </View>
+                      <View style={archiveStyles.actionRow}>
+                        <TouchableOpacity
+                          style={[archiveStyles.playBtn, isPlaying && archiveStyles.playBtnActive]}
+                          onPress={() => handleArchivePlayFrequency(item.name, item.frequencies)}
+                        >
+                          <Text style={[archiveStyles.playBtnText, isPlaying && archiveStyles.playBtnTextActive]}>
+                            {isPlaying ? '■ STOP' : '▶ PLAY'}
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={archiveStyles.loadBtn} onPress={() => handleArchiveLoadFrequency(item)}>
+                          <Text style={archiveStyles.loadBtnText}>LOAD → LAB</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
-                    {/* Frequency chips */}
-                    <View style={archiveStyles.freqChipRow}>
-                      {item.frequencies.map((f, i) => (
-                        <Text key={i} style={archiveStyles.freqChip}>{f} Hz</Text>
-                      ))}
-                    </View>
-                    {/* Action buttons */}
-                    <View style={archiveStyles.actionRow}>
+                  );
+                }}
+              />
+            )}
+
+            {/* LAB VIEW - Recent & Favorites */}
+            {archiveViewMode === 'lab' && (
+              <ScrollView style={archiveStyles.labScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
+                {/* Recent Frequencies */}
+                {freqHistory.length > 0 && (
+                  <View style={archiveStyles.labSection}>
+                    <Text style={archiveStyles.labSectionTitle}>RECENT FREQUENCIES</Text>
+                    {freqHistory.slice(0, 8).map((item: any, idx: number) => (
                       <TouchableOpacity
-                        style={[archiveStyles.playBtn, isPlaying && archiveStyles.playBtnActive]}
-                        onPress={() => handleArchivePlayFrequency(item.name, item.frequencies)}
+                        key={idx}
+                        style={archiveStyles.labRow}
+                        onPress={() => {
+                          const entry = FREQUENCY_ARCHIVE.find(f => f.name === item.name);
+                          if (entry) handleArchiveLoadFrequency(entry);
+                          else {
+                            updateLayerFrequency(layers[0].id, item.frequency);
+                            setArchiveModalVisible(false);
+                          }
+                        }}
                       >
-                        <Text style={[archiveStyles.playBtnText, isPlaying && archiveStyles.playBtnTextActive]}>
-                          {isPlaying ? '[ STOP ]' : '[ PLAY ]'}
-                        </Text>
+                        <Text style={archiveStyles.labRowFreq}>{item.frequency} Hz</Text>
+                        <Text style={archiveStyles.labRowName}>{item.name}</Text>
+                        <Text style={archiveStyles.labRowArrow}>▶</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        style={archiveStyles.loadBtn}
-                        onPress={() => handleArchiveLoadFrequency(item)}
-                      >
-                        <Text style={archiveStyles.loadBtnText}>[ LOAD → LAYER ]</Text>
-                      </TouchableOpacity>
-                    </View>
-                    {isPlaying && (
-                      <View style={archiveStyles.transmitBar}>
-                        <View style={archiveStyles.transmitDot} />
-                        <Text style={archiveStyles.transmitText}>TRANSMITTING</Text>
-                      </View>
-                    )}
+                    ))}
                   </View>
-                );
-              }}
-            />
+                )}
+                
+                {/* Quick Access Presets */}
+                <View style={archiveStyles.labSection}>
+                  <Text style={archiveStyles.labSectionTitle}>SOLFEGGIO SACRUM</Text>
+                  {FREQUENCY_ARCHIVE.filter(f => f.category === 'solfeggio').slice(0, 6).map((item, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      style={archiveStyles.labRow}
+                      onPress={() => handleArchiveLoadFrequency(item)}
+                    >
+                      <Text style={archiveStyles.labRowFreq}>{item.frequencies[0]} Hz</Text>
+                      <Text style={archiveStyles.labRowName}>{item.name}</Text>
+                      <Text style={archiveStyles.labRowArrow}>▶</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            )}
           </View>
         </View>
       </Modal>
@@ -1937,7 +2019,7 @@ const slabStyles = StyleSheet.create({
   },
 });
 
-// ═══════ FREQUENCY ARCHIVE MODAL STYLES ═══════
+// ═══════ CODES ARCHIVE MODAL STYLES ═══════
 const archiveStyles = StyleSheet.create({
   modalContainer: {
     flex: 1,
@@ -1946,152 +2028,134 @@ const archiveStyles = StyleSheet.create({
   modalSafeArea: {
     flex: 1,
   },
-  modalHeader: {
+  headerDecoration: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  headerDiamond: {
+    color: '#ff0a0a',
+    fontSize: 10,
+  },
+  headerLine: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#ff0a0a',
+    marginHorizontal: 8,
+  },
+  modalHeader: {
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#1a0808',
-  },
-  modalHeaderLeft: {
-    flex: 1,
+    position: 'relative',
   },
   modalTitle: {
     color: '#ff0a0a',
-    fontSize: 16,
+    fontSize: 22,
     fontWeight: '900',
-    letterSpacing: 3,
+    letterSpacing: 4,
+    fontFamily: 'TerminatorRealNFI',
+    textAlign: 'center',
   },
   modalSubtitle: {
     color: '#5a1a1a',
     fontSize: 9,
     fontWeight: '600',
     letterSpacing: 2,
-    marginTop: 2,
+    marginTop: 6,
+    fontFamily: 'TerminatorRealNFI',
+  },
+  modalStats: {
+    color: '#3a1010',
+    fontSize: 8,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+    marginTop: 4,
+    fontFamily: 'TerminatorRealNFI',
   },
   modalCloseBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#ff0a0a40',
-    borderRadius: 4,
+    position: 'absolute',
+    top: 0,
+    right: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   modalCloseBtnText: {
     color: '#ff0a0a',
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 18,
+    fontWeight: '300',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 16,
     borderWidth: 1,
     borderColor: '#2a0a0a',
     backgroundColor: '#0a0303',
-    paddingHorizontal: 12,
-    borderRadius: 4,
+    paddingHorizontal: 14,
+    borderRadius: 0,
   },
-  searchPrompt: {
+  searchIcon: {
     color: '#ff0a0a',
-    fontSize: 14,
-    fontWeight: '800',
-    marginRight: 8,
+    fontSize: 16,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
     color: '#ff3040',
     fontSize: 13,
-    fontWeight: '500',
-    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
-    letterSpacing: 1,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
+    letterSpacing: 0.5,
   },
   clearBtn: {
     color: '#ff0a0a',
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 14,
     paddingHorizontal: 8,
   },
-  categoryScroll: {
-    maxHeight: 40,
-    marginTop: 10,
+  tabRow: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 14,
+    gap: 0,
   },
-  categoryContainer: {
-    paddingHorizontal: 16,
-    gap: 6,
-  },
-  categoryTab: {
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+  tabBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#1a0808',
-    borderRadius: 4,
+    borderColor: '#2a0a0a',
     backgroundColor: '#050202',
   },
-  categoryTabActive: {
+  tabBtnActive: {
     borderColor: '#ff0a0a',
-    backgroundColor: '#1a0505',
+    backgroundColor: '#0f0505',
   },
-  categoryLabel: {
-    color: '#3a1010',
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: 1.5,
-  },
-  categoryLabelActive: {
-    color: '#ff0a0a',
-  },
-  recentSection: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a0808',
-  },
-  recentTitle: {
-    color: '#ff0a0a',
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 2,
-    marginBottom: 8,
-    fontFamily: 'TerminatorRealNFI',
-  },
-  recentChip: {
-    backgroundColor: '#0d0303',
-    borderWidth: 1,
-    borderColor: '#ff0a0a30',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 4,
-    minWidth: 80,
-    alignItems: 'center',
-  },
-  recentChipFreq: {
-    color: '#ff0a0a',
+  tabBtnText: {
+    color: '#5a1a1a',
     fontSize: 11,
     fontWeight: '700',
+    letterSpacing: 2,
     fontFamily: 'TerminatorRealNFI',
   },
-  recentChipName: {
-    color: '#5a1a1a',
-    fontSize: 7,
-    letterSpacing: 1,
-    marginTop: 2,
-    fontFamily: 'TerminatorRealNFI',
-    maxWidth: 80,
+  tabBtnTextActive: {
+    color: '#ff0a0a',
   },
   nowPlaying: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginTop: 10,
+    marginTop: 12,
     backgroundColor: '#0a0303',
     borderWidth: 1,
     borderColor: '#ff0a0a40',
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 4,
+    paddingVertical: 10,
     gap: 8,
   },
   nowPlayingDot: {
@@ -2103,29 +2167,130 @@ const archiveStyles = StyleSheet.create({
   nowPlayingText: {
     flex: 1,
     color: '#ff3040',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1,
+    fontFamily: 'TerminatorRealNFI',
   },
   stopAllBtn: {
     color: '#ff0a0a',
     fontSize: 10,
     fontWeight: '800',
+    fontFamily: 'TerminatorRealNFI',
   },
-  resultCount: {
-    color: '#3a1010',
-    fontSize: 8,
+  // CODEX VIEW STYLES
+  codexScroll: {
+    flex: 1,
+    marginTop: 12,
+  },
+  codexRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#1a0808',
+    backgroundColor: '#050202',
+    marginBottom: 2,
+  },
+  codexIconWrap: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  codexIcon: {
+    color: '#ff0a0a',
+    fontSize: 20,
+  },
+  codexInfo: {
+    flex: 1,
+  },
+  codexName: {
+    color: '#ff0a0a',
+    fontSize: 14,
     fontWeight: '700',
     letterSpacing: 2,
-    paddingHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 6,
+    fontFamily: 'TerminatorRealNFI',
   },
+  codexEntryCount: {
+    color: '#5a1a1a',
+    fontSize: 9,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+    marginTop: 3,
+    fontFamily: 'TerminatorRealNFI',
+  },
+  codexArrow: {
+    color: '#3a1010',
+    fontSize: 10,
+  },
+  backBtn: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+    paddingVertical: 10,
+  },
+  backBtnText: {
+    color: '#ff0a0a',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    fontFamily: 'TerminatorRealNFI',
+  },
+  // LAB VIEW STYLES
+  labScroll: {
+    flex: 1,
+    marginTop: 12,
+  },
+  labSection: {
+    marginHorizontal: 16,
+    marginBottom: 20,
+  },
+  labSectionTitle: {
+    color: '#ff0a0a',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 2,
+    marginBottom: 10,
+    fontFamily: 'TerminatorRealNFI',
+  },
+  labRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#1a0808',
+    backgroundColor: '#050202',
+    marginBottom: 2,
+  },
+  labRowFreq: {
+    color: '#ff0a0a',
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: 'TerminatorRealNFI',
+    width: 70,
+  },
+  labRowName: {
+    flex: 1,
+    color: '#5a1a1a',
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1,
+    fontFamily: 'TerminatorRealNFI',
+  },
+  labRowArrow: {
+    color: '#3a1010',
+    fontSize: 10,
+  },
+  // ARCHIVE CARD STYLES
   archiveCard: {
     backgroundColor: '#0a0303',
     borderWidth: 1,
     borderColor: '#1a0808',
-    borderRadius: 6,
     padding: 14,
     marginBottom: 8,
   },
@@ -2148,31 +2313,32 @@ const archiveStyles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
     marginBottom: 3,
+    fontFamily: 'TerminatorRealNFI',
   },
   archiveCardCategory: {
-    color: '#3a1010',
+    color: '#5a1a1a',
     fontSize: 8,
     fontWeight: '700',
     letterSpacing: 2,
+    fontFamily: 'TerminatorRealNFI',
   },
   freqChipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 5,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   freqChip: {
     color: '#ff0a0a',
     fontSize: 9,
     fontWeight: '700',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderWidth: 1,
     borderColor: '#ff0a0a30',
-    borderRadius: 3,
     backgroundColor: '#0f0303',
     letterSpacing: 0.5,
-    overflow: 'hidden',
+    fontFamily: 'TerminatorRealNFI',
   },
   actionRow: {
     flexDirection: 'row',
@@ -2182,10 +2348,9 @@ const archiveStyles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 9,
+    paddingVertical: 12,
     borderWidth: 1,
     borderColor: '#ff0a0a50',
-    borderRadius: 4,
     backgroundColor: '#0a0303',
     minHeight: 44,
   },
@@ -2198,6 +2363,7 @@ const archiveStyles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 2,
+    fontFamily: 'TerminatorRealNFI',
   },
   playBtnTextActive: {
     color: '#000000',
@@ -2206,10 +2372,9 @@ const archiveStyles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 9,
+    paddingVertical: 12,
     borderWidth: 1,
     borderColor: '#3a1010',
-    borderRadius: 4,
     backgroundColor: '#050202',
     minHeight: 44,
   },
@@ -2218,23 +2383,6 @@ const archiveStyles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 1,
-  },
-  transmitBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    gap: 6,
-  },
-  transmitDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#ff0a0a',
-  },
-  transmitText: {
-    color: '#ff0a0a',
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: 3,
+    fontFamily: 'TerminatorRealNFI',
   },
 });
