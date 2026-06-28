@@ -549,8 +549,10 @@ export default function TerminalScreen() {
           {/* ══════ HERO ══════ */}
           <View style={styles.heroSection}>
             <Text style={styles.heroTitle} adjustsFontSizeToFit numberOfLines={1}>MIRRORS 96</Text>
+            <Text style={styles.heroArtist}>by VINCE SINNOTT</Text>
+            <Text style={styles.heroBrand}>GODMODE SOUND</Text>
+            <Text style={styles.heroTagline}>The Future. Now.</Text>
             <View style={styles.heroRow}>
-              <Text style={styles.heroSub}>FUNCTIONAL SOUND {'\u00B7'} VINCE SINNOTT</Text>
               <TouchableOpacity style={styles.libraryBtn} onPress={() => router.push('/library')}>
                 <Text style={styles.libraryBtnText}>LIBRARY</Text>
               </TouchableOpacity>
@@ -1191,6 +1193,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 28,
     paddingBottom: 16,
+    alignItems: 'center',
   },
   heroContent: { flex: 1 },
   heroTitle: {
@@ -1199,12 +1202,37 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontFamily: 'TerminatorRealNFI',
     letterSpacing: 4,
+    textAlign: 'center',
+  },
+  heroArtist: {
+    color: '#5a1a1a',
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 2,
+    marginTop: 6,
+    fontFamily: 'TerminatorRealNFI',
+  },
+  heroBrand: {
+    color: '#ff0a0a',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 3,
+    marginTop: 12,
+    fontFamily: 'TerminatorRealNFI',
+  },
+  heroTagline: {
+    color: '#5a1a1a',
+    fontSize: 9,
+    fontWeight: '500',
+    letterSpacing: 1.5,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   heroRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 14,
   },
   heroSub: {
     color: '#ff0a0a55',
