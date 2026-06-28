@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // 7 chakras mapped to tabs — cymatic sacred geometry icons + traditional colors
 const TABS = [
   { icon: '◆', label: 'HOME', color: '#E0301E' },
-  { icon: '⬡', label: 'ARCHIVE', color: '#FF8C00' },
+  { icon: '⬡', label: 'CODES ARCHIVE', color: '#FF8C00' },
   { icon: '✹', label: 'SOUND', color: '#FFD700' },
   { icon: '✿', label: 'BI-NAURAL', color: '#2ECC40' },
   { icon: '◈', label: 'BRAIN', color: '#0074D9' },
@@ -105,6 +105,7 @@ const styles = StyleSheet.create({
     fontSize: 7,
     fontWeight: '700',
     letterSpacing: 1,
+    fontFamily: 'TerminatorRealNFI',
   },
   activeLine: {
     position: 'absolute',

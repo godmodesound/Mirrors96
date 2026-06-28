@@ -626,7 +626,7 @@ export default function TerminalScreen() {
           {/* Tone Layers - Analog Style */}
           <View style={styles.section}>
             <View style={styles.toneLayerHeaderRow}>
-              <Text style={styles.sectionTitle}>&gt; CODES_LAB [MONO]</Text>
+              <Text style={styles.sectionTitle}>&gt; CODES_LAB</Text>
               <TouchableOpacity
                 style={styles.archiveBubble}
                 onPress={() => setArchiveModalVisible(true)}
