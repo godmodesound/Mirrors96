@@ -550,14 +550,32 @@ export default function TerminalScreen() {
 
           {/* ══════ HERO ══════ */}
           <View style={styles.heroSection}>
-            <Text style={styles.heroTitle} adjustsFontSizeToFit numberOfLines={1}>MIRRORS 96</Text>
-            <Text style={styles.heroArtist}>by VINCE SINNOTT</Text>
-            <Text style={styles.heroBrand}>GODMODE SOUND</Text>
-            <Text style={styles.heroTagline}>The Future. Now.</Text>
-            <View style={styles.heroRow}>
-              <TouchableOpacity style={styles.libraryBtn} onPress={() => router.push('/library')}>
-                <Text style={styles.libraryBtnText}>LIBRARY</Text>
-              </TouchableOpacity>
+            {/* Matrix Background */}
+            <Image
+              source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/r6qqamvs_MIRRORS%2096%20MATRIX.jpg' }}
+              style={styles.heroBackground}
+              resizeMode="cover"
+            />
+            <View style={styles.heroOverlay} />
+            
+            {/* 96 Infinity Logo */}
+            <Image
+              source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/1em5fjvw_96%20Mirrors%20Logo%20Icon.jpg' }}
+              style={styles.hero96Logo}
+              resizeMode="contain"
+            />
+            
+            {/* Text Content */}
+            <View style={styles.heroContent}>
+              <Text style={styles.heroTitle} adjustsFontSizeToFit numberOfLines={1}>MIRRORS 96</Text>
+              <Text style={styles.heroArtist}>by VINCE SINNOTT</Text>
+              <Text style={styles.heroBrand}>GODMODE SOUND</Text>
+              <Text style={styles.heroTagline}>The Future. Now.</Text>
+              <View style={styles.heroRow}>
+                <TouchableOpacity style={styles.libraryBtn} onPress={() => router.push('/library')}>
+                  <Text style={styles.libraryBtnText}>LIBRARY</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
 
@@ -1222,12 +1240,41 @@ const styles = StyleSheet.create({
 
   // ── HERO ──
   heroSection: {
-    paddingHorizontal: 20,
-    paddingTop: 28,
-    paddingBottom: 16,
+    position: 'relative',
+    paddingTop: 20,
+    paddingBottom: 20,
     alignItems: 'center',
+    minHeight: 280,
+    overflow: 'hidden',
   },
-  heroContent: { flex: 1 },
+  heroBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+    opacity: 0.4,
+  },
+  heroOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  hero96Logo: {
+    width: 180,
+    height: 140,
+    marginBottom: 10,
+    zIndex: 1,
+  },
+  heroContent: { 
+    alignItems: 'center',
+    zIndex: 1,
+  },
   heroTitle: {
     color: '#ff0a0a',
     fontSize: 26,
@@ -1235,9 +1282,12 @@ const styles = StyleSheet.create({
     fontFamily: 'TerminatorRealNFI',
     letterSpacing: 4,
     textAlign: 'center',
+    textShadowColor: '#ff0a0a',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   heroArtist: {
-    color: '#5a1a1a',
+    color: '#8a3a3a',
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 2,
@@ -1253,7 +1303,7 @@ const styles = StyleSheet.create({
     fontFamily: 'TerminatorRealNFI',
   },
   heroTagline: {
-    color: '#5a1a1a',
+    color: '#8a3a3a',
     fontSize: 9,
     fontWeight: '500',
     letterSpacing: 1.5,
