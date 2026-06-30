@@ -134,6 +134,32 @@ class CodesMute(BaseModel):
     user_id: str
 
 # ═══════════════════════════════════
+# MIRRORS I.D. CONTACTS MODELS
+# ═══════════════════════════════════
+
+class MirrorsIdRegister(BaseModel):
+    display_name: str
+    device_id: str = ""
+
+class MirrorsIdLookup(BaseModel):
+    mirrors_id: str
+
+class ContactAdd(BaseModel):
+    mirrors_id: str
+    nickname: str = ""
+
+class ContactRemove(BaseModel):
+    mirrors_id: str
+
+class DirectChirp(BaseModel):
+    to_mirrors_id: str
+    from_mirrors_id: str
+    from_display_name: str
+    audio_base64: str = ""
+    text: str = ""
+    duration: float = 0
+
+# ═══════════════════════════════════
 # STORE MODELS
 # ═══════════════════════════════════
 
@@ -1444,6 +1470,313 @@ async def codes_websocket(websocket: WebSocket, channel_id: str):
         })
     except Exception:
         codes_manager.disconnect(channel_id, websocket)
+
+# ═══════════════════════════════════
+# MIRRORS I.D. CONTACTS SYSTEM
+# ═══════════════════════════════════
+
+def generate_mirrors_id():
+    """Generate a unique 6-character MIRRORS I.D."""
+    import random
+    import string
+    chars = string.ascii_uppercase + string.digits
+    return ''.join(random.choices(chars, k=6))
+
+# Store for direct message websocket connections
+direct_connections: dict = {}  # mirrors_id -> websocket
+
+@api_router.post("/mirrors/register")
+async def register_mirrors_id(data: MirrorsIdRegister):
+    """Register a new MIRRORS I.D. or get existing one for device."""
+    # Check if device already has an ID
+    if data.device_id:
+        existing = await db.mirrors_ids.find_one({"device_id": data.device_id})
+        if existing:
+            return {
+                "mirrors_id": existing["_id"],
+                "display_name": existing["display_name"],
+                "created_at": existing["created_at"],
+                "contacts": existing.get("contacts", []),
+            }
+    
+    # Generate new unique MIRRORS I.D.
+    while True:
+        new_id = generate_mirrors_id()
+        existing = await db.mirrors_ids.find_one({"_id": new_id})
+        if not existing:
+            break
+    
+    doc = {
+        "_id": new_id,
+        "display_name": data.display_name or f"USER_{new_id}",
+        "device_id": data.device_id,
+        "contacts": [],
+        "blocked": [],
+        "created_at": datetime.utcnow().isoformat(),
+        "last_active": datetime.utcnow().isoformat(),
+    }
+    await db.mirrors_ids.insert_one(doc)
+    
+    return {
+        "mirrors_id": new_id,
+        "display_name": doc["display_name"],
+        "created_at": doc["created_at"],
+        "contacts": [],
+    }
+
+@api_router.get("/mirrors/profile/{mirrors_id}")
+async def get_mirrors_profile(mirrors_id: str):
+    """Get a MIRRORS I.D. profile by ID."""
+    profile = await db.mirrors_ids.find_one({"_id": mirrors_id.upper()})
+    if not profile:
+        raise HTTPException(status_code=404, detail="MIRRORS I.D. not found")
+    
+    return {
+        "mirrors_id": profile["_id"],
+        "display_name": profile["display_name"],
+        "created_at": profile["created_at"],
+        "is_online": mirrors_id.upper() in direct_connections,
+    }
+
+@api_router.post("/mirrors/lookup")
+async def lookup_mirrors_id(data: MirrorsIdLookup):
+    """Look up a user by their MIRRORS I.D."""
+    profile = await db.mirrors_ids.find_one({"_id": data.mirrors_id.upper()})
+    if not profile:
+        raise HTTPException(status_code=404, detail="MIRRORS I.D. not found")
+    
+    return {
+        "mirrors_id": profile["_id"],
+        "display_name": profile["display_name"],
+        "is_online": data.mirrors_id.upper() in direct_connections,
+    }
+
+@api_router.post("/mirrors/{mirrors_id}/contacts/add")
+async def add_contact(mirrors_id: str, data: ContactAdd):
+    """Add a contact to your MIRRORS I.D."""
+    # Verify both users exist
+    my_profile = await db.mirrors_ids.find_one({"_id": mirrors_id.upper()})
+    if not my_profile:
+        raise HTTPException(status_code=404, detail="Your MIRRORS I.D. not found")
+    
+    contact_profile = await db.mirrors_ids.find_one({"_id": data.mirrors_id.upper()})
+    if not contact_profile:
+        raise HTTPException(status_code=404, detail="Contact MIRRORS I.D. not found")
+    
+    # Check if already a contact
+    existing_contacts = my_profile.get("contacts", [])
+    for c in existing_contacts:
+        if c["mirrors_id"] == data.mirrors_id.upper():
+            return {"status": "already_exists", "contacts": existing_contacts}
+    
+    # Add contact
+    new_contact = {
+        "mirrors_id": data.mirrors_id.upper(),
+        "display_name": contact_profile["display_name"],
+        "nickname": data.nickname or contact_profile["display_name"],
+        "added_at": datetime.utcnow().isoformat(),
+    }
+    
+    await db.mirrors_ids.update_one(
+        {"_id": mirrors_id.upper()},
+        {"$push": {"contacts": new_contact}}
+    )
+    
+    # Get updated contacts
+    updated = await db.mirrors_ids.find_one({"_id": mirrors_id.upper()})
+    
+    return {
+        "status": "added",
+        "contact": new_contact,
+        "contacts": updated.get("contacts", []),
+    }
+
+@api_router.post("/mirrors/{mirrors_id}/contacts/remove")
+async def remove_contact(mirrors_id: str, data: ContactRemove):
+    """Remove a contact from your MIRRORS I.D."""
+    await db.mirrors_ids.update_one(
+        {"_id": mirrors_id.upper()},
+        {"$pull": {"contacts": {"mirrors_id": data.mirrors_id.upper()}}}
+    )
+    
+    updated = await db.mirrors_ids.find_one({"_id": mirrors_id.upper()})
+    return {
+        "status": "removed",
+        "contacts": updated.get("contacts", []) if updated else [],
+    }
+
+@api_router.get("/mirrors/{mirrors_id}/contacts")
+async def get_contacts(mirrors_id: str):
+    """Get all contacts for a MIRRORS I.D."""
+    profile = await db.mirrors_ids.find_one({"_id": mirrors_id.upper()})
+    if not profile:
+        raise HTTPException(status_code=404, detail="MIRRORS I.D. not found")
+    
+    contacts = profile.get("contacts", [])
+    # Add online status to each contact
+    for contact in contacts:
+        contact["is_online"] = contact["mirrors_id"] in direct_connections
+    
+    return {"contacts": contacts}
+
+@api_router.put("/mirrors/{mirrors_id}/display_name")
+async def update_display_name(mirrors_id: str, display_name: str):
+    """Update display name for a MIRRORS I.D."""
+    result = await db.mirrors_ids.update_one(
+        {"_id": mirrors_id.upper()},
+        {"$set": {"display_name": display_name}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="MIRRORS I.D. not found")
+    return {"status": "updated", "display_name": display_name}
+
+@api_router.post("/mirrors/chirp")
+async def send_direct_chirp(data: DirectChirp):
+    """Send a direct chirp to a specific MIRRORS I.D."""
+    # Verify sender exists
+    sender = await db.mirrors_ids.find_one({"_id": data.from_mirrors_id.upper()})
+    if not sender:
+        raise HTTPException(status_code=404, detail="Sender MIRRORS I.D. not found")
+    
+    # Verify recipient exists
+    recipient = await db.mirrors_ids.find_one({"_id": data.to_mirrors_id.upper()})
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient MIRRORS I.D. not found")
+    
+    # Check if blocked
+    if data.from_mirrors_id.upper() in recipient.get("blocked", []):
+        return {"status": "blocked", "delivered": False}
+    
+    # Create message record
+    message_id = str(uuid.uuid4())
+    doc = {
+        "_id": message_id,
+        "from_mirrors_id": data.from_mirrors_id.upper(),
+        "to_mirrors_id": data.to_mirrors_id.upper(),
+        "from_display_name": data.from_display_name or sender["display_name"],
+        "audio_base64": data.audio_base64,
+        "text": data.text,
+        "duration": data.duration,
+        "status": "sent",
+        "created_at": datetime.utcnow().isoformat(),
+    }
+    await db.mirrors_chirps.insert_one(doc)
+    
+    # Try to deliver in real-time if recipient is online
+    delivered_realtime = False
+    to_id = data.to_mirrors_id.upper()
+    if to_id in direct_connections:
+        try:
+            ws = direct_connections[to_id]
+            await ws.send_json({
+                "type": "incoming_chirp",
+                "message_id": message_id,
+                "from_mirrors_id": data.from_mirrors_id.upper(),
+                "from_display_name": doc["from_display_name"],
+                "audio_base64": data.audio_base64,
+                "text": data.text,
+                "duration": data.duration,
+                "created_at": doc["created_at"],
+            })
+            delivered_realtime = True
+            await db.mirrors_chirps.update_one(
+                {"_id": message_id},
+                {"$set": {"status": "delivered"}}
+            )
+        except:
+            pass
+    
+    # Update last active
+    await db.mirrors_ids.update_one(
+        {"_id": data.from_mirrors_id.upper()},
+        {"$set": {"last_active": datetime.utcnow().isoformat()}}
+    )
+    
+    return {
+        "status": "sent",
+        "delivered": delivered_realtime,
+        "message_id": message_id,
+    }
+
+@api_router.get("/mirrors/{mirrors_id}/chirps")
+async def get_chirp_history(mirrors_id: str, limit: int = 50):
+    """Get chirp history for a MIRRORS I.D."""
+    chirps = await db.mirrors_chirps.find({
+        "$or": [
+            {"from_mirrors_id": mirrors_id.upper()},
+            {"to_mirrors_id": mirrors_id.upper()}
+        ]
+    }).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    result = []
+    for c in chirps:
+        result.append({
+            "id": c["_id"],
+            "from_mirrors_id": c["from_mirrors_id"],
+            "to_mirrors_id": c["to_mirrors_id"],
+            "from_display_name": c.get("from_display_name", ""),
+            "text": c.get("text", ""),
+            "duration": c.get("duration", 0),
+            "status": c.get("status", "sent"),
+            "created_at": c.get("created_at", ""),
+            "has_audio": bool(c.get("audio_base64")),
+        })
+    result.reverse()
+    return {"chirps": result}
+
+# WebSocket for direct MIRRORS I.D. communication
+@app.websocket("/api/mirrors/live/{mirrors_id}")
+async def mirrors_websocket(websocket: WebSocket, mirrors_id: str):
+    """Real-time connection for MIRRORS I.D. direct messaging."""
+    await websocket.accept()
+    mid = mirrors_id.upper()
+    direct_connections[mid] = websocket
+    
+    # Update online status
+    await db.mirrors_ids.update_one(
+        {"_id": mid},
+        {"$set": {"last_active": datetime.utcnow().isoformat()}}
+    )
+    
+    try:
+        # Send connection confirmation
+        await websocket.send_json({
+            "type": "connected",
+            "mirrors_id": mid,
+        })
+        
+        while True:
+            data = await websocket.receive_text()
+            msg = json.loads(data)
+            
+            if msg.get("type") == "ping":
+                await websocket.send_json({"type": "pong"})
+            elif msg.get("type") == "chirp":
+                # Direct chirp through websocket
+                to_id = msg.get("to_mirrors_id", "").upper()
+                if to_id in direct_connections:
+                    try:
+                        await direct_connections[to_id].send_json({
+                            "type": "incoming_chirp",
+                            "from_mirrors_id": mid,
+                            "from_display_name": msg.get("from_display_name", ""),
+                            "audio_base64": msg.get("audio_base64", ""),
+                            "text": msg.get("text", ""),
+                            "duration": msg.get("duration", 0),
+                            "created_at": datetime.utcnow().isoformat(),
+                        })
+                        await websocket.send_json({"type": "chirp_delivered", "to": to_id})
+                    except:
+                        await websocket.send_json({"type": "chirp_failed", "to": to_id})
+                else:
+                    await websocket.send_json({"type": "recipient_offline", "to": to_id})
+                    
+    except WebSocketDisconnect:
+        if mid in direct_connections:
+            del direct_connections[mid]
+    except Exception:
+        if mid in direct_connections:
+            del direct_connections[mid]
 
 # ═══════════════════════════════════
 # EXISTING ROUTES
