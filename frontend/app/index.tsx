@@ -513,13 +513,13 @@ export default function TerminalScreen() {
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
           {/* ══════ TOP NAV BAR ══════ */}
           <View style={styles.topNav}>
-            {/* LEFT — GODMODE Box (redirects to Google Earth) */}
-            <TouchableOpacity 
-              onPress={() => Linking.openURL('https://earth.google.com/web/')} 
-              activeOpacity={0.8}
-              style={styles.godmodeBox}
-            >
-              <Text style={styles.godmodeText}>GODMODE</Text>
+            {/* LEFT — MIRRORS ID Logo */}
+            <TouchableOpacity onPress={() => router.push('/chirpconnect')} activeOpacity={0.8}>
+              <Image
+                source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/x7wgp9g9_MIRRORS%20ID.jpeg' }}
+                style={styles.navLogoLeft}
+                resizeMode="contain"
+              />
             </TouchableOpacity>
 
             {/* CENTER — Nav Pills */}
@@ -530,8 +530,8 @@ export default function TerminalScreen() {
               <TouchableOpacity style={styles.navPill} onPress={() => router.push('/sound')}>
                 <Text style={styles.navPillText}>90.6</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.navPill} onPress={() => router.push('/chirpconnect')}>
-                <Text style={styles.navPillText}>CODES</Text>
+              <TouchableOpacity style={styles.navPill} onPress={() => Linking.openURL('https://earth.google.com/web/')}>
+                <Text style={styles.navPillText}>GODMODE</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.navPill} onPress={() => Linking.openURL('https://soundcloud.com/codes-godmode/sets/dj-sets')}>
                 <Text style={styles.navPillText}>DJ SETS</Text>
@@ -539,7 +539,7 @@ export default function TerminalScreen() {
             </View>
 
             {/* RIGHT — 96 Logo */}
-            <TouchableOpacity onPress={() => router.push('/chirpconnect')} activeOpacity={0.8}>
+            <TouchableOpacity onPress={() => Linking.openURL('https://earth.google.com/web/')} activeOpacity={0.8}>
               <Image
                 source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/c5jwbmte_MIRRORS_1024x1024.jpg' }}
                 style={styles.navLogoRight}
