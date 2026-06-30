@@ -4,14 +4,11 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   Platform,
   Animated,
   Vibration,
-  TextInput,
-  KeyboardAvoidingView,
-  Alert,
   AppState,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -28,60 +25,37 @@ const API_BASE =
   process.env.EXPO_PUBLIC_BACKEND_URL ||
   '';
 const WS_BASE = API_BASE.replace(/^https?/, 'wss');
-
-const CHANNEL_CODE = 'code-direct';
-const CHANNEL_MIRRORS = 'mirrors-fleet';
+const CHANNEL_ID = 'codes-chirp';
 
 // ═══════════════════════════════════
-// TYPES
-// ═══════════════════════════════════
-interface Dispatch {
-  id: string;
-  sender_name: string;
-  sender_id: string;
-  text?: string;
-  audio_base64?: string;
-  duration: number;
-  created_at: string;
-  status: string;
-}
-
-// ═══════════════════════════════════
-// COMPONENT
+// NEXTEL-STYLE CODES I.D.
 // ═══════════════════════════════════
 export default function ChirpConnect() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  // State
-  const [activeChannel, setActiveChannel] = useState<'code' | 'mirrors'>('code');
+  // Core state
+  const [isTransmitting, setIsTransmitting] = useState(false);
+  const [isReceiving, setIsReceiving] = useState(false);
+  const [transmitDuration, setTransmitDuration] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState<'offline' | 'connecting' | 'online'>('offline');
   const [onlineCount, setOnlineCount] = useState(0);
-  const [isTransmitting, setIsTransmitting] = useState(false);
-  const [transmitDuration, setTransmitDuration] = useState(0);
-  const [dispatches, setDispatches] = useState<Dispatch[]>([]);
-  const [textMessage, setTextMessage] = useState('');
-  const [mode, setMode] = useState<'voice' | 'text'>('text');
-  const [hasAudioPermission, setHasAudioPermission] = useState(false);
-  const [isPlaying, setIsPlaying] = useState<string | null>(null);
-  const [someoneTransmitting, setSomeoneTransmitting] = useState<string | null>(null);
-  const [userId] = useState(() => `user-${Date.now()}`);
-  const [userName] = useState('OPERATOR');
+  const [hasPermission, setHasPermission] = useState(false);
+  const [lastChirpTime, setLastChirpTime] = useState<string | null>(null);
+  const [receiverName, setReceiverName] = useState<string | null>(null);
 
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
-  const pttStartSoundRef = useRef<Audio.Sound | null>(null);
-  const pttEndSoundRef = useRef<Audio.Sound | null>(null);
   const transmitTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const scrollRef = useRef<ScrollView>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
   const ringAnim = useRef(new Animated.Value(0)).current;
+  const receiveAnim = useRef(new Animated.Value(0)).current;
 
   // ═══════════════════════════════════
   // AUDIO PERMISSION
@@ -91,91 +65,71 @@ export default function ChirpConnect() {
       if (Platform.OS !== 'web') {
         try {
           const { status } = await Audio.requestPermissionsAsync();
-          setHasAudioPermission(status === 'granted');
+          setHasPermission(status === 'granted');
           if (status === 'granted') {
             await Audio.setAudioModeAsync({
               allowsRecordingIOS: true,
               playsInSilentModeIOS: true,
             });
-            setMode('voice');
           }
         } catch {
-          setHasAudioPermission(false);
+          setHasPermission(false);
         }
       }
     })();
   }, []);
 
   // ═══════════════════════════════════
-  // PTT AUDIO FEEDBACK - Chirp sounds
+  // CHIRP SOUND FEEDBACK
   // ═══════════════════════════════════
-  const playPttStartSound = async () => {
+  const playChirpStart = async () => {
     try {
-      // Play ascending chirp tone for press
       if (Platform.OS !== 'web') {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       }
-      
-      // Create a quick chirp using synthesized audio
-      if (pttStartSoundRef.current) {
-        await pttStartSoundRef.current.unloadAsync();
-      }
-      
-      // Use a simple beep sound (base64 encoded short tone)
-      // This is a short 100ms 800Hz beep
-      const chirpTone = 'UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
-      try {
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: `data:audio/wav;base64,${chirpTone}` },
-          { shouldPlay: true, volume: 0.7 }
-        );
-        pttStartSoundRef.current = sound;
-      } catch {
-        // Fallback to vibration only
-        Vibration.vibrate([0, 50, 30, 50]);
-      }
+      // Classic Nextel "bleep-bleep" pattern
+      Vibration.vibrate([0, 60, 40, 60]);
     } catch {
-      // Fallback haptic
       Vibration.vibrate(50);
     }
   };
 
-  const playPttEndSound = async () => {
+  const playChirpEnd = async () => {
     try {
-      // Play descending chirp tone for release
       if (Platform.OS !== 'web') {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-      
-      if (pttEndSoundRef.current) {
-        await pttEndSoundRef.current.unloadAsync();
-      }
-      
-      // Double beep for end
       Vibration.vibrate([0, 30, 50, 30]);
     } catch {
       Vibration.vibrate(30);
     }
   };
 
+  const playIncomingChirp = async () => {
+    try {
+      if (Platform.OS !== 'web') {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+      // Distinctive incoming chirp pattern
+      Vibration.vibrate([0, 100, 50, 100, 50, 100]);
+    } catch {
+      Vibration.vibrate(100);
+    }
+  };
+
   // ═══════════════════════════════════
   // WEBSOCKET CONNECTION
   // ═══════════════════════════════════
-  const channelId = activeChannel === 'code' ? CHANNEL_CODE : CHANNEL_MIRRORS;
-
   const connectWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     setConnectionStatus('connecting');
 
     try {
-      const ws = new WebSocket(
-        `${WS_BASE}/api/codes/live/${channelId}?user_id=${userId}&user_name=${userName}`
-      );
+      const ws = new WebSocket(`${WS_BASE}/api/codes/live/${CHANNEL_ID}`);
 
       ws.onopen = () => {
         setConnectionStatus('online');
-        // Start ping interval
         const pingInterval = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'ping' }));
@@ -184,29 +138,45 @@ export default function ChirpConnect() {
         (ws as any)._pingInterval = pingInterval;
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = async (event) => {
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'presence') {
             setOnlineCount(data.online_count || 0);
           } else if (data.type === 'new_message') {
-            const newDispatch: Dispatch = {
-              id: data.message_id,
-              sender_name: data.sender_name,
-              sender_id: data.sender_id,
-              text: data.text,
-              audio_base64: data.audio_base64,
-              duration: data.duration,
-              created_at: data.created_at,
-              status: 'delivered',
-            };
-            setDispatches(prev => [...prev, newDispatch]);
-            Vibration.vibrate(50);
-            setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+            // Incoming chirp!
+            await playIncomingChirp();
+            setIsReceiving(true);
+            setReceiverName(data.sender_name || 'CODES');
+            
+            // Animate receive
+            Animated.sequence([
+              Animated.timing(receiveAnim, { toValue: 1, duration: 200, useNativeDriver: false }),
+              Animated.delay(2000),
+              Animated.timing(receiveAnim, { toValue: 0, duration: 300, useNativeDriver: false }),
+            ]).start(() => {
+              setIsReceiving(false);
+              setReceiverName(null);
+            });
+
+            // Play audio if present
+            if (data.audio_base64 && !data.audio_base64.startsWith('TEXT:')) {
+              try {
+                if (soundRef.current) {
+                  await soundRef.current.unloadAsync();
+                }
+                const { sound } = await Audio.Sound.createAsync(
+                  { uri: `data:audio/m4a;base64,${data.audio_base64}` },
+                  { shouldPlay: true }
+                );
+                soundRef.current = sound;
+              } catch {}
+            }
           } else if (data.type === 'user_transmitting') {
-            setSomeoneTransmitting(data.sender_name);
+            setIsReceiving(true);
+            setReceiverName(data.sender_name || 'CODES');
           } else if (data.type === 'user_stopped') {
-            setSomeoneTransmitting(null);
+            // Will clear after audio plays
           }
         } catch {}
       };
@@ -215,7 +185,6 @@ export default function ChirpConnect() {
         clearInterval((ws as any)._pingInterval);
         setConnectionStatus('offline');
         setOnlineCount(0);
-        // Auto-reconnect after 3s
         reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
       };
 
@@ -228,53 +197,30 @@ export default function ChirpConnect() {
       setConnectionStatus('offline');
       reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
     }
-  }, [channelId, userId, userName]);
+  }, []);
 
   const disconnectWebSocket = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-    }
+    if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
     if (wsRef.current) {
       clearInterval((wsRef.current as any)._pingInterval);
       wsRef.current.close();
       wsRef.current = null;
     }
     setConnectionStatus('offline');
-    setOnlineCount(0);
   }, []);
 
-  // Connect on mount / channel change
   useEffect(() => {
     connectWebSocket();
-    loadDispatchHistory();
     return () => disconnectWebSocket();
-  }, [channelId]);
+  }, []);
 
-  // Handle app state
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        connectWebSocket();
-      } else if (state === 'background') {
-        disconnectWebSocket();
-      }
+      if (state === 'active') connectWebSocket();
+      else if (state === 'background') disconnectWebSocket();
     });
     return () => sub.remove();
   }, [connectWebSocket, disconnectWebSocket]);
-
-  // ═══════════════════════════════════
-  // DISPATCH HISTORY
-  // ═══════════════════════════════════
-  const loadDispatchHistory = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/codes/messages/${channelId}?limit=50`);
-      const data = await res.json();
-      if (data.messages) {
-        setDispatches(data.messages);
-        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 200);
-      }
-    } catch {}
-  };
 
   // ═══════════════════════════════════
   // TRANSMIT ANIMATIONS
@@ -282,14 +228,14 @@ export default function ChirpConnect() {
   const startTransmitAnimation = () => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.15, duration: 400, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.08, duration: 300, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
       ])
     ).start();
-    Animated.timing(glowAnim, { toValue: 1, duration: 300, useNativeDriver: false }).start();
+    Animated.timing(glowAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start();
     Animated.loop(
       Animated.sequence([
-        Animated.timing(ringAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
+        Animated.timing(ringAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
         Animated.timing(ringAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
       ])
     ).start();
@@ -299,90 +245,60 @@ export default function ChirpConnect() {
     pulseAnim.stopAnimation();
     glowAnim.stopAnimation();
     ringAnim.stopAnimation();
-    Animated.timing(pulseAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
-    Animated.timing(glowAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start();
-    Animated.timing(ringAnim, { toValue: 0, duration: 0, useNativeDriver: true }).start();
+    Animated.timing(pulseAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+    Animated.timing(glowAnim, { toValue: 0, duration: 150, useNativeDriver: false }).start();
   };
 
   // ═══════════════════════════════════
-  // PTT — VOICE RECORDING
+  // PTT TRANSMIT
   // ═══════════════════════════════════
-  const startVoiceTransmit = async () => {
-    if (!hasAudioPermission) {
-      Alert.alert('PERMISSION DENIED', 'Microphone access required for voice dispatch.');
+  const startTransmit = async () => {
+    if (!hasPermission) {
+      Vibration.vibrate([0, 100, 50, 100]);
       return;
     }
 
     setIsTransmitting(true);
     setTransmitDuration(0);
-    
-    // Play PTT start sound with haptic feedback
-    await playPttStartSound();
+    await playChirpStart();
     startTransmitAnimation();
 
-    // Notify others
+    // Notify network
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'transmitting',
-        sender_name: userName,
-        sender_id: userId,
-      }));
+      wsRef.current.send(JSON.stringify({ type: 'transmitting', sender_name: 'CODES' }));
     }
 
-    // Start duration timer
+    // Duration timer
     transmitTimerRef.current = setInterval(() => {
       setTransmitDuration(prev => prev + 0.1);
     }, 100);
 
+    // Start recording
     try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
       const recording = new Audio.Recording();
       await recording.prepareToRecordAsync({
-        android: {
-          extension: '.m4a',
-          outputFormat: 3, // MPEG_4
-          audioEncoder: 3, // AAC
-          sampleRate: 22050,
-          numberOfChannels: 1,
-          bitRate: 64000,
-        },
-        ios: {
-          extension: '.m4a',
-          outputFormat: 'aac' as any,
-          audioQuality: 0x60, // medium
-          sampleRate: 22050,
-          numberOfChannels: 1,
-          bitRate: 64000,
-        },
-        web: {
-          mimeType: 'audio/webm',
-          bitsPerSecond: 64000,
-        },
+        android: { extension: '.m4a', outputFormat: 3, audioEncoder: 3, sampleRate: 22050, numberOfChannels: 1, bitRate: 64000 },
+        ios: { extension: '.m4a', outputFormat: 'aac' as any, audioQuality: 0x60, sampleRate: 22050, numberOfChannels: 1, bitRate: 64000 },
+        web: { mimeType: 'audio/webm', bitsPerSecond: 64000 },
       });
       await recording.startAsync();
       recordingRef.current = recording;
-    } catch (err: any) {
-      console.warn('Recording start failed:', err);
-      stopVoiceTransmit(true);
+    } catch {
+      stopTransmit(true);
     }
   };
 
-  const stopVoiceTransmit = async (cancelled = false) => {
+  const stopTransmit = async (cancelled = false) => {
     setIsTransmitting(false);
     stopTransmitAnimation();
-    
-    // Play PTT end sound with haptic feedback
-    await playPttEndSound();
+    await playChirpEnd();
 
     if (transmitTimerRef.current) {
       clearInterval(transmitTimerRef.current);
       transmitTimerRef.current = null;
     }
 
-    // Notify stopped
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'stopped' }));
     }
@@ -398,416 +314,158 @@ export default function ChirpConnect() {
       recordingRef.current = null;
 
       if (uri && transmitDuration > 0.3) {
-        // Read file as base64
         let base64Audio = '';
         if (Platform.OS !== 'web') {
-          base64Audio = await FileSystem.readAsStringAsync(uri, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
+          base64Audio = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
         }
 
-        // Send via HTTP POST
-        const payload = {
-          channel_id: channelId,
-          sender_name: userName,
-          sender_id: userId,
-          audio_base64: base64Audio,
-          duration: Math.round(transmitDuration * 10) / 10,
-        };
-
-        const res = await fetch(`${API_BASE}/api/codes/transmit`, {
+        await fetch(`${API_BASE}/api/codes/transmit`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            channel_id: CHANNEL_ID,
+            sender_name: 'CODES',
+            sender_id: 'codes-user',
+            audio_base64: base64Audio,
+            duration: Math.round(transmitDuration * 10) / 10,
+          }),
         });
 
-        if (res.ok) {
-          const result = await res.json();
-          // Add to local dispatches
-          const localDispatch: Dispatch = {
-            id: result.message_id,
-            sender_name: userName,
-            sender_id: userId,
-            audio_base64: base64Audio,
-            duration: payload.duration,
-            created_at: new Date().toISOString(),
-            status: 'delivered',
-          };
-          setDispatches(prev => [...prev, localDispatch]);
-          setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-        }
+        setLastChirpTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       }
-    } catch (err: any) {
-      console.warn('Transmit failed:', err);
-    }
+    } catch {}
 
     setTransmitDuration(0);
   };
 
   // ═══════════════════════════════════
-  // TEXT DISPATCH
+  // ANIMATED VALUES
   // ═══════════════════════════════════
-  const sendTextDispatch = async () => {
-    if (!textMessage.trim()) return;
-
-    const payload = {
-      channel_id: channelId,
-      sender_name: userName,
-      sender_id: userId,
-      audio_base64: `TEXT:${textMessage.trim()}`,
-      duration: 0,
-    };
-
-    try {
-      Vibration.vibrate(20);
-      const res = await fetch(`${API_BASE}/api/codes/transmit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        const result = await res.json();
-        const localDispatch: Dispatch = {
-          id: result.message_id,
-          sender_name: userName,
-          sender_id: userId,
-          text: textMessage.trim(),
-          audio_base64: `TEXT:${textMessage.trim()}`,
-          duration: 0,
-          created_at: new Date().toISOString(),
-          status: 'delivered',
-        };
-        setDispatches(prev => [...prev, localDispatch]);
-        setTextMessage('');
-        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-      }
-    } catch (err: any) {
-      Alert.alert('DISPATCH FAILED', 'Could not send message. Check connection.');
-    }
-  };
-
-  // ═══════════════════════════════════
-  // AUDIO PLAYBACK
-  // ═══════════════════════════════════
-  const playAudio = async (base64: string, dispatchId: string) => {
-    if (isPlaying === dispatchId) {
-      await soundRef.current?.stopAsync();
-      setIsPlaying(null);
-      return;
-    }
-
-    try {
-      if (soundRef.current) {
-        await soundRef.current.unloadAsync();
-      }
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: `data:audio/m4a;base64,${base64}` },
-        { shouldPlay: true }
-      );
-      soundRef.current = sound;
-      setIsPlaying(dispatchId);
-      sound.setOnPlaybackStatusUpdate((status: any) => {
-        if (status.didJustFinish) {
-          setIsPlaying(null);
-        }
-      });
-    } catch {
-      // Fallback: text message
-    }
-  };
-
-  // ═══════════════════════════════════
-  // HELPERS
-  // ═══════════════════════════════════
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const formatTimestamp = (iso: string) => {
-    try {
-      const d = new Date(iso);
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return '';
-    }
-  };
-
-  const isTextMessage = (d: Dispatch) => {
-    return d.audio_base64?.startsWith('TEXT:');
-  };
-
-  const getTextContent = (d: Dispatch) => {
-    if (d.text) return d.text;
-    if (d.audio_base64?.startsWith('TEXT:')) return d.audio_base64.slice(5);
-    return '';
-  };
-
-  const isOwnMessage = (d: Dispatch) => d.sender_id === userId;
-
-  // Animated glow color
   const glowColor = glowAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['rgba(255, 10, 10, 0)', 'rgba(255, 10, 10, 0.6)'],
+    outputRange: ['rgba(255, 10, 10, 0)', 'rgba(255, 10, 10, 0.4)'],
   });
 
   const ringScale = ringAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 2.5],
+    outputRange: [1, 2],
   });
 
   const ringOpacity = ringAnim.interpolate({
-    inputRange: [0, 0.8, 1],
-    outputRange: [0.6, 0.1, 0],
+    inputRange: [0, 0.7, 1],
+    outputRange: [0.5, 0.1, 0],
   });
+
+  const receiveGlow = receiveAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(0, 255, 68, 0)', 'rgba(0, 255, 68, 0.3)'],
+  });
+
+  const formatDuration = (s: number) => {
+    const mins = Math.floor(s / 60);
+    const secs = Math.floor(s % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // ═══════════════════════════════════
   // RENDER
   // ═══════════════════════════════════
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* ═══ HEADER ═══ */}
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>{'<'}</Text>
+          <Text style={styles.backText}>{'◀'}</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>CODES : I.D.</Text>
-          <Text style={styles.headerSub}>DIRECT CONNECT</Text>
+          <Text style={styles.headerTitle}>CODES</Text>
+          <Text style={styles.headerSub}>I.D.</Text>
         </View>
-        <View style={styles.statusDot}>
-          <View style={[
-            styles.dot,
-            connectionStatus === 'online' && styles.dotOnline,
-            connectionStatus === 'connecting' && styles.dotConnecting,
-            connectionStatus === 'offline' && styles.dotOffline,
-          ]} />
-          <Text style={styles.statusText}>
-            {connectionStatus === 'online' ? 'LIVE' : connectionStatus === 'connecting' ? '...' : 'OFF'}
-          </Text>
+        <View style={styles.statusArea}>
+          <View style={[styles.statusDot, connectionStatus === 'online' && styles.statusDotOnline]} />
+          <Text style={styles.statusText}>{connectionStatus === 'online' ? 'LIVE' : 'OFF'}</Text>
         </View>
       </View>
 
-      {/* ═══ NETWORK BAR ═══ */}
+      {/* Network Status */}
       <View style={styles.networkBar}>
         <View style={styles.signalBars}>
           {[1, 2, 3, 4, 5].map(i => (
-            <View
-              key={i}
-              style={[
-                styles.signalBar,
-                { height: 4 + i * 3 },
-                onlineCount >= i ? styles.signalBarActive : styles.signalBarInactive,
-              ]}
-            />
+            <View key={i} style={[styles.signalBar, { height: 4 + i * 2 }, onlineCount >= i && styles.signalBarActive]} />
           ))}
         </View>
-        <Text style={styles.networkLabel}>GODMODE NETWORK</Text>
-        <Text style={styles.onlineText}>{onlineCount} ONLINE</Text>
+        <Text style={styles.networkText}>GODMODE NETWORK</Text>
+        <Text style={styles.onlineCount}>{onlineCount}</Text>
       </View>
 
-      {/* ═══ CHANNEL SELECTOR ═══ */}
-      <View style={styles.channelRow}>
-        <TouchableOpacity
-          style={[styles.channelBtn, activeChannel === 'code' && styles.channelBtnActive]}
-          onPress={() => setActiveChannel('code')}
-        >
-          <Text style={[styles.channelBtnText, activeChannel === 'code' && styles.channelBtnTextActive]}>
-            CODE
-          </Text>
-          <Text style={styles.channelBtnSub}>Direct</Text>
-        </TouchableOpacity>
-        <View style={styles.channelDivider} />
-        <TouchableOpacity
-          style={[styles.channelBtn, activeChannel === 'mirrors' && styles.channelBtnActive]}
-          onPress={() => setActiveChannel('mirrors')}
-        >
-          <Text style={[styles.channelBtnText, activeChannel === 'mirrors' && styles.channelBtnTextActive]}>
-            MIRRORS
-          </Text>
-          <Text style={styles.channelBtnSub}>Fleet</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Main PTT Area */}
+      <View style={styles.mainArea}>
+        {/* Incoming chirp indicator */}
+        {isReceiving && (
+          <Animated.View style={[styles.receiveIndicator, { backgroundColor: receiveGlow }]}>
+            <Text style={styles.receiveText}>◉ INCOMING</Text>
+            {receiverName && <Text style={styles.receiverName}>{receiverName}</Text>}
+          </Animated.View>
+        )}
 
-      {/* ═══ SOMEONE TRANSMITTING INDICATOR ═══ */}
-      {someoneTransmitting && (
-        <View style={styles.receivingBar}>
-          <View style={styles.receivingDot} />
-          <Text style={styles.receivingText}>
-            {someoneTransmitting} IS TRANSMITTING...
-          </Text>
-        </View>
-      )}
-
-      {/* ═══ DISPATCH FEED ═══ */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.feedContainer}
-        keyboardVerticalOffset={insets.top + 50}
-      >
-        <ScrollView
-          ref={scrollRef}
-          style={styles.feed}
-          contentContainerStyle={styles.feedContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {dispatches.length === 0 ? (
-            <View style={styles.emptyFeed}>
-              <Text style={styles.emptyIcon}>{'///'}</Text>
-              <Text style={styles.emptyText}>NO DISPATCHES</Text>
-              <Text style={styles.emptySubText}>
-                {mode === 'voice' ? 'Hold the PTT button to transmit' : 'Type a message below'}
-              </Text>
-            </View>
-          ) : (
-            dispatches.map((d) => (
-              <View
-                key={d.id}
-                style={[
-                  styles.dispatchItem,
-                  isOwnMessage(d) && styles.dispatchItemOwn,
-                ]}
-              >
-                <View style={styles.dispatchHeader}>
-                  <Text style={[
-                    styles.dispatchSender,
-                    isOwnMessage(d) && styles.dispatchSenderOwn,
-                  ]}>
-                    {isOwnMessage(d) ? 'YOU' : d.sender_name}
-                  </Text>
-                  <Text style={styles.dispatchTime}>{formatTimestamp(d.created_at)}</Text>
-                </View>
-
-                {isTextMessage(d) ? (
-                  <Text style={styles.dispatchText}>{getTextContent(d)}</Text>
-                ) : d.audio_base64 && !d.audio_base64.startsWith('TEXT:') ? (
-                  <TouchableOpacity
-                    style={styles.audioBtn}
-                    onPress={() => playAudio(d.audio_base64!, d.id)}
-                  >
-                    <Text style={styles.audioBtnIcon}>
-                      {isPlaying === d.id ? '||' : '\u25B6'}
-                    </Text>
-                    <View style={styles.audioWaveform}>
-                      {Array.from({ length: 12 }).map((_, i) => (
-                        <View
-                          key={i}
-                          style={[
-                            styles.waveBar,
-                            {
-                              height: 4 + Math.random() * 14,
-                              backgroundColor: isPlaying === d.id ? '#ff0a0a' : '#444',
-                            },
-                          ]}
-                        />
-                      ))}
-                    </View>
-                    <Text style={styles.audioDuration}>{d.duration}s</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <Text style={styles.dispatchText}>[Dispatch]</Text>
-                )}
-              </View>
-            ))
-          )}
-        </ScrollView>
-
-        {/* ═══ PTT / TEXT INPUT AREA ═══ */}
-        <View style={[styles.inputArea, { paddingBottom: Math.max(insets.bottom, 16) + 60 }]}>
-          {/* Mode toggle */}
-          <View style={styles.modeRow}>
-            <TouchableOpacity
-              style={[styles.modeBtn, mode === 'voice' && styles.modeBtnActive]}
-              onPress={() => {
-                if (!hasAudioPermission && Platform.OS !== 'web') {
-                  Alert.alert('MIC REQUIRED', 'Enable microphone access in Settings.');
-                  return;
-                }
-                setMode('voice');
-              }}
-            >
-              <Text style={[styles.modeBtnText, mode === 'voice' && styles.modeBtnTextActive]}>
-                VOICE
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modeBtn, mode === 'text' && styles.modeBtnActive]}
-              onPress={() => setMode('text')}
-            >
-              <Text style={[styles.modeBtnText, mode === 'text' && styles.modeBtnTextActive]}>
-                TEXT
-              </Text>
-            </TouchableOpacity>
+        {/* Transmission status */}
+        {isTransmitting && (
+          <View style={styles.transmitStatus}>
+            <Text style={styles.transmitLabel}>TRANSMITTING</Text>
+            <Text style={styles.transmitTimer}>{formatDuration(transmitDuration)}</Text>
           </View>
+        )}
 
-          {mode === 'voice' ? (
-            /* ═══ VOICE PTT BUTTON ═══ */
-            <View style={styles.pttContainer}>
-              {/* Animated expanding ring */}
-              {isTransmitting && (
-                <Animated.View
-                  style={[
-                    styles.pttRing,
-                    {
-                      transform: [{ scale: ringScale }],
-                      opacity: ringOpacity,
-                    },
-                  ]}
-                />
-              )}
-
-              <Animated.View
-                style={[
-                  styles.pttGlow,
-                  { backgroundColor: glowColor },
-                ]}
-              />
-
-              <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-                <TouchableOpacity
-                  style={[styles.pttButton, isTransmitting && styles.pttButtonActive]}
-                  onPressIn={startVoiceTransmit}
-                  onPressOut={() => stopVoiceTransmit(false)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.pttIcon}>
-                    {isTransmitting ? '\u25CF' : '\u25B2'}
-                  </Text>
-                  <Text style={styles.pttLabel}>
-                    {isTransmitting ? 'TRANSMITTING' : 'HOLD TO TALK'}
-                  </Text>
-                  {isTransmitting && (
-                    <Text style={styles.pttTimer}>{formatTime(transmitDuration)}</Text>
-                  )}
-                </TouchableOpacity>
-              </Animated.View>
-            </View>
-          ) : (
-            /* ═══ TEXT INPUT ═══ */
-            <View style={styles.textInputRow}>
-              <TextInput
-                style={styles.textInput}
-                value={textMessage}
-                onChangeText={setTextMessage}
-                placeholder="TYPE DISPATCH..."
-                placeholderTextColor="#555"
-                returnKeyType="send"
-                onSubmitEditing={sendTextDispatch}
-                maxLength={500}
-              />
-              <TouchableOpacity
-                style={[styles.sendBtn, !textMessage.trim() && styles.sendBtnDisabled]}
-                onPress={sendTextDispatch}
-                disabled={!textMessage.trim()}
-              >
-                <Text style={styles.sendBtnText}>TX</Text>
-              </TouchableOpacity>
-            </View>
+        {/* THE BUTTON */}
+        <View style={styles.pttWrapper}>
+          {/* Expanding ring animation */}
+          {isTransmitting && (
+            <Animated.View
+              style={[styles.pttRing, { transform: [{ scale: ringScale }], opacity: ringOpacity }]}
+            />
           )}
+
+          {/* Glow */}
+          <Animated.View style={[styles.pttGlow, { backgroundColor: glowColor }]} />
+
+          {/* Main button */}
+          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            <TouchableOpacity
+              style={[styles.pttButton, isTransmitting && styles.pttButtonActive]}
+              onPressIn={startTransmit}
+              onPressOut={() => stopTransmit(false)}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.pttIcon}>◉</Text>
+              <Text style={styles.pttMainText}>CODES</Text>
+              <Text style={styles.pttSubText}>{isTransmitting ? 'RELEASE TO SEND' : 'HOLD TO CHIRP'}</Text>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
-      </KeyboardAvoidingView>
+
+        {/* Last chirp time */}
+        {lastChirpTime && !isTransmitting && (
+          <Text style={styles.lastChirp}>Last chirp: {lastChirpTime}</Text>
+        )}
+      </View>
+
+      {/* Action Button Setup Guide */}
+      <View style={styles.footer}>
+        <Text style={styles.footerTitle}>iPHONE ACTION BUTTON</Text>
+        <Text style={styles.footerText}>
+          Settings → Action Button → Shortcut → "Open CODES I.D."
+        </Text>
+        <TouchableOpacity
+          style={styles.settingsBtn}
+          onPress={() => {
+            if (Platform.OS === 'ios') {
+              Linking.openURL('app-settings:');
+            }
+          }}
+        >
+          <Text style={styles.settingsBtnText}>OPEN SETTINGS</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -826,9 +484,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: '#1a0808',
   },
   backBtn: {
     width: 44,
@@ -838,8 +496,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     color: '#ff0a0a',
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 20,
   },
   headerCenter: {
     flex: 1,
@@ -847,382 +504,229 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: '#ff0a0a',
-    fontSize: 18,
+    fontSize: 28,
     fontWeight: '900',
-    letterSpacing: 4,
+    letterSpacing: 8,
+    fontFamily: 'TerminatorRealNFI',
   },
   headerSub: {
-    color: '#666',
-    fontSize: 9,
-    letterSpacing: 6,
+    color: '#5a1a1a',
+    fontSize: 12,
+    letterSpacing: 8,
     marginTop: 2,
+    fontFamily: 'TerminatorRealNFI',
   },
-  statusDot: {
+  statusArea: {
     width: 44,
     alignItems: 'center',
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginBottom: 2,
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#ff0a0a',
+    marginBottom: 4,
   },
-  dotOnline: {
+  statusDotOnline: {
     backgroundColor: '#00ff44',
   },
-  dotConnecting: {
-    backgroundColor: '#ffaa00',
-  },
-  dotOffline: {
-    backgroundColor: '#ff0a0a',
-  },
   statusText: {
-    color: '#555',
+    color: '#5a1a1a',
     fontSize: 8,
     letterSpacing: 2,
+    fontFamily: 'TerminatorRealNFI',
   },
 
-  // Network Bar
+  // Network bar
   networkBar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 8,
-    backgroundColor: '#0a0a0a',
+    paddingVertical: 10,
+    backgroundColor: '#050202',
     borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: '#1a0808',
   },
   signalBars: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 2,
-    marginRight: 10,
+    marginRight: 12,
   },
   signalBar: {
-    width: 3,
+    width: 4,
+    backgroundColor: '#2a0a0a',
     borderRadius: 1,
   },
   signalBarActive: {
     backgroundColor: '#ff0a0a',
   },
-  signalBarInactive: {
-    backgroundColor: '#222',
-  },
-  networkLabel: {
-    color: '#444',
+  networkText: {
+    color: '#3a1010',
     fontSize: 9,
     letterSpacing: 3,
     flex: 1,
+    fontFamily: 'TerminatorRealNFI',
   },
-  onlineText: {
+  onlineCount: {
     color: '#ff0a0a',
-    fontSize: 10,
-    letterSpacing: 2,
-    fontWeight: '700',
-  },
-
-  // Channel Selector
-  channelRow: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#222',
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  channelBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    backgroundColor: '#0a0a0a',
-  },
-  channelBtnActive: {
-    backgroundColor: '#1a0000',
-    borderColor: '#ff0a0a',
-  },
-  channelDivider: {
-    width: 1,
-    backgroundColor: '#222',
-  },
-  channelBtnText: {
-    color: '#444',
     fontSize: 14,
     fontWeight: '900',
-    letterSpacing: 4,
-  },
-  channelBtnTextActive: {
-    color: '#ff0a0a',
-  },
-  channelBtnSub: {
-    color: '#333',
-    fontSize: 8,
-    letterSpacing: 3,
-    marginTop: 2,
+    fontFamily: 'TerminatorRealNFI',
   },
 
-  // Receiving indicator
-  receivingBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  // Main PTT area
+  mainArea: {
+    flex: 1,
     justifyContent: 'center',
-    paddingVertical: 8,
-    backgroundColor: '#1a0500',
-    marginHorizontal: 16,
-    marginTop: 8,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#ff0a0a33',
-  },
-  receivingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#ff0a0a',
-    marginRight: 8,
-  },
-  receivingText: {
-    color: '#ff0a0a',
-    fontSize: 10,
-    letterSpacing: 2,
-    fontWeight: '700',
-  },
-
-  // Feed
-  feedContainer: {
-    flex: 1,
-  },
-  feed: {
-    flex: 1,
-  },
-  feedContent: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
-  },
-  emptyFeed: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-  },
-  emptyIcon: {
-    color: '#222',
-    fontSize: 40,
-    fontWeight: '900',
-    marginBottom: 12,
-  },
-  emptyText: {
-    color: '#333',
-    fontSize: 14,
-    letterSpacing: 4,
-    fontWeight: '700',
-  },
-  emptySubText: {
-    color: '#222',
-    fontSize: 11,
-    marginTop: 8,
-    letterSpacing: 1,
-  },
-
-  // Dispatch items
-  dispatchItem: {
-    marginBottom: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 6,
-    backgroundColor: '#0a0a0a',
-    borderWidth: 1,
-    borderColor: '#1a1a1a',
-    borderLeftWidth: 3,
-    borderLeftColor: '#333',
-  },
-  dispatchItemOwn: {
-    borderLeftColor: '#ff0a0a',
-    backgroundColor: '#0d0000',
-  },
-  dispatchHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  dispatchSender: {
-    color: '#666',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 3,
-  },
-  dispatchSenderOwn: {
-    color: '#ff0a0a',
-  },
-  dispatchTime: {
-    color: '#333',
-    fontSize: 9,
-    letterSpacing: 1,
-  },
-  dispatchText: {
-    color: '#ccc',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-
-  // Audio playback
-  audioBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#111',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    gap: 10,
-  },
-  audioBtnIcon: {
-    color: '#ff0a0a',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  audioWaveform: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    flex: 1,
-    height: 20,
-  },
-  waveBar: {
-    width: 3,
-    borderRadius: 2,
-  },
-  audioDuration: {
-    color: '#555',
-    fontSize: 10,
-    letterSpacing: 1,
-  },
-
-  // Input area
-  inputArea: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#1a1a1a',
-    backgroundColor: '#000',
-  },
-
-  // Mode toggle
-  modeRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 12,
-    gap: 8,
-  },
-  modeBtn: {
     paddingHorizontal: 20,
-    paddingVertical: 6,
-    borderRadius: 12,
+  },
+
+  // Receive indicator
+  receiveIndicator: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    right: 20,
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#222',
+    borderColor: '#00ff4440',
   },
-  modeBtnActive: {
-    borderColor: '#ff0a0a',
-    backgroundColor: '#1a0000',
+  receiveText: {
+    color: '#00ff44',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 4,
+    fontFamily: 'TerminatorRealNFI',
   },
-  modeBtnText: {
-    color: '#444',
+  receiverName: {
+    color: '#00ff44',
     fontSize: 10,
-    letterSpacing: 3,
-    fontWeight: '700',
+    letterSpacing: 2,
+    marginTop: 4,
+    opacity: 0.7,
+    fontFamily: 'TerminatorRealNFI',
   },
-  modeBtnTextActive: {
+
+  // Transmit status
+  transmitStatus: {
+    position: 'absolute',
+    top: 40,
+    alignItems: 'center',
+  },
+  transmitLabel: {
     color: '#ff0a0a',
+    fontSize: 12,
+    letterSpacing: 6,
+    fontFamily: 'TerminatorRealNFI',
+  },
+  transmitTimer: {
+    color: '#ff0a0a',
+    fontSize: 32,
+    fontWeight: '900',
+    marginTop: 8,
+    fontFamily: 'TerminatorRealNFI',
   },
 
   // PTT Button
-  pttContainer: {
+  pttWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 140,
-    position: 'relative',
+    width: 220,
+    height: 220,
   },
   pttRing: {
     position: 'absolute',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
     borderWidth: 2,
     borderColor: '#ff0a0a',
   },
   pttGlow: {
     position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
   },
   pttButton: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#111',
-    borderWidth: 3,
-    borderColor: '#333',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: '#0a0303',
+    borderWidth: 4,
+    borderColor: '#2a0a0a',
     justifyContent: 'center',
     alignItems: 'center',
   },
   pttButtonActive: {
-    backgroundColor: '#2a0000',
+    backgroundColor: '#1a0505',
     borderColor: '#ff0a0a',
   },
   pttIcon: {
     color: '#ff0a0a',
+    fontSize: 40,
+    marginBottom: 8,
+  },
+  pttMainText: {
+    color: '#ff0a0a',
     fontSize: 24,
     fontWeight: '900',
-    marginBottom: 4,
+    letterSpacing: 6,
+    fontFamily: 'TerminatorRealNFI',
   },
-  pttLabel: {
-    color: '#888',
-    fontSize: 8,
+  pttSubText: {
+    color: '#5a1a1a',
+    fontSize: 9,
     letterSpacing: 2,
-    fontWeight: '700',
-  },
-  pttTimer: {
-    color: '#ff0a0a',
-    fontSize: 12,
-    fontWeight: '900',
-    marginTop: 4,
-    letterSpacing: 2,
+    marginTop: 8,
+    fontFamily: 'TerminatorRealNFI',
   },
 
-  // Text Input
-  textInputRow: {
-    flexDirection: 'row',
-    gap: 10,
+  lastChirp: {
+    color: '#3a1010',
+    fontSize: 10,
+    letterSpacing: 1,
+    marginTop: 30,
+    fontFamily: 'TerminatorRealNFI',
+  },
+
+  // Footer - Action Button Guide
+  footer: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#1a0808',
     alignItems: 'center',
   },
-  textInput: {
-    flex: 1,
-    backgroundColor: '#0a0a0a',
+  footerTitle: {
+    color: '#ff0a0a',
+    fontSize: 10,
+    letterSpacing: 3,
+    marginBottom: 8,
+    fontFamily: 'TerminatorRealNFI',
+  },
+  footerText: {
+    color: '#3a1010',
+    fontSize: 10,
+    textAlign: 'center',
+    lineHeight: 16,
+    marginBottom: 12,
+  },
+  settingsBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderWidth: 1,
-    borderColor: '#222',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    color: '#ccc',
-    fontSize: 14,
-    letterSpacing: 0.5,
+    borderColor: '#2a0a0a',
+    borderRadius: 4,
   },
-  sendBtn: {
-    backgroundColor: '#ff0a0a',
-    width: 52,
-    height: 48,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sendBtnDisabled: {
-    backgroundColor: '#1a0000',
-  },
-  sendBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '900',
+  settingsBtnText: {
+    color: '#5a1a1a',
+    fontSize: 10,
     letterSpacing: 2,
+    fontFamily: 'TerminatorRealNFI',
   },
 });
