@@ -513,13 +513,13 @@ export default function TerminalScreen() {
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
           {/* ══════ TOP NAV BAR ══════ */}
           <View style={styles.topNav}>
-            {/* LEFT — MIRRORS ID Logo */}
-            <TouchableOpacity onPress={() => router.push('/chirpconnect')} activeOpacity={0.8}>
-              <Image
-                source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/x7wgp9g9_MIRRORS%20ID.jpeg' }}
-                style={styles.navLogoLeft}
-                resizeMode="contain"
-              />
+            {/* LEFT — GODMODE Box (redirects to Google Earth) */}
+            <TouchableOpacity 
+              onPress={() => Linking.openURL('https://earth.google.com/web/')} 
+              activeOpacity={0.8}
+              style={styles.godmodeBox}
+            >
+              <Text style={styles.godmodeText}>GODMODE</Text>
             </TouchableOpacity>
 
             {/* CENTER — Nav Pills */}
@@ -539,7 +539,7 @@ export default function TerminalScreen() {
             </View>
 
             {/* RIGHT — 96 Logo */}
-            <TouchableOpacity onPress={() => Linking.openURL('https://earth.google.com/web/')} activeOpacity={0.8}>
+            <TouchableOpacity onPress={() => router.push('/chirpconnect')} activeOpacity={0.8}>
               <Image
                 source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/c5jwbmte_MIRRORS_1024x1024.jpg' }}
                 style={styles.navLogoRight}
@@ -1174,6 +1174,20 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#1a0505',
+  },
+  godmodeBox: {
+    borderWidth: 1,
+    borderColor: '#ff0a0a',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: '#0a0303',
+  },
+  godmodeText: {
+    color: '#ff0a0a',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 2,
+    fontFamily: 'TerminatorRealNFI',
   },
   navLogoLeft: {
     width: 40,
