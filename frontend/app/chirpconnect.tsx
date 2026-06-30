@@ -9,13 +9,20 @@ import {
   Vibration,
   AppState,
   Linking,
+  Modal,
+  ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
+import * as Sharing from 'expo-sharing';
+import ViewShot from 'react-native-view-shot';
 import Constants from 'expo-constants';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ═══════════════════════════════════
 // CONFIG
@@ -44,12 +51,19 @@ export default function ChirpConnect() {
   const [lastChirpTime, setLastChirpTime] = useState<string | null>(null);
   const [receiverName, setReceiverName] = useState<string | null>(null);
 
+  // Share modal state
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [recordedAudioUri, setRecordedAudioUri] = useState<string | null>(null);
+  const [recordedDuration, setRecordedDuration] = useState(0);
+  const [isSharing, setIsSharing] = useState(false);
+
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
   const transmitTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const viewShotRef = useRef<ViewShot>(null);
 
   // Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -314,28 +328,76 @@ export default function ChirpConnect() {
       recordingRef.current = null;
 
       if (uri && transmitDuration > 0.3) {
-        let base64Audio = '';
-        if (Platform.OS !== 'web') {
-          base64Audio = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-        }
-
-        await fetch(`${API_BASE}/api/codes/transmit`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            channel_id: CHANNEL_ID,
-            sender_name: 'CODES',
-            sender_id: 'codes-user',
-            audio_base64: base64Audio,
-            duration: Math.round(transmitDuration * 10) / 10,
-          }),
-        });
-
+        // Store the recorded audio for sharing
+        setRecordedAudioUri(uri);
+        setRecordedDuration(transmitDuration);
+        setShowShareModal(true);
         setLastChirpTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       }
     } catch {}
 
     setTransmitDuration(0);
+  };
+
+  // ═══════════════════════════════════
+  // SHARE CHIRP
+  // ═══════════════════════════════════
+  const handleShareChirp = async () => {
+    if (!recordedAudioUri || !viewShotRef.current?.capture) return;
+
+    setIsSharing(true);
+    try {
+      // Capture the LCD visual as an image
+      const imageUri = await viewShotRef.current.capture();
+
+      // Check if sharing is available
+      const isAvailable = await Sharing.isAvailableAsync();
+
+      if (isAvailable) {
+        // Share the audio file with the visual
+        await Sharing.shareAsync(recordedAudioUri, {
+          mimeType: 'audio/m4a',
+          dialogTitle: 'CODES Chirp',
+          UTI: 'public.audio',
+        });
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+    } finally {
+      setIsSharing(false);
+      setShowShareModal(false);
+    }
+  };
+
+  const handleBroadcastOnly = async () => {
+    if (!recordedAudioUri) {
+      setShowShareModal(false);
+      return;
+    }
+
+    setIsSharing(true);
+    try {
+      let base64Audio = '';
+      if (Platform.OS !== 'web') {
+        base64Audio = await FileSystem.readAsStringAsync(recordedAudioUri, { encoding: FileSystem.EncodingType.Base64 });
+      }
+
+      // Broadcast to network
+      await fetch(`${API_BASE}/api/codes/transmit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel_id: CHANNEL_ID,
+          sender_name: 'CODES',
+          sender_id: 'codes-user',
+          audio_base64: base64Audio,
+          duration: Math.round(recordedDuration * 10) / 10,
+        }),
+      });
+    } catch {}
+
+    setIsSharing(false);
+    setShowShareModal(false);
   };
 
   // ═══════════════════════════════════
@@ -366,6 +428,8 @@ export default function ChirpConnect() {
     const secs = Math.floor(s % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '.');
 
   // ═══════════════════════════════════
   // RENDER
@@ -466,12 +530,113 @@ export default function ChirpConnect() {
           <Text style={styles.settingsBtnText}>OPEN SETTINGS</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ═══════ SHARE CHIRP MODAL ═══════ */}
+      <Modal
+        visible={showShareModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowShareModal(false)}
+      >
+        <View style={modalStyles.overlay}>
+          <View style={[modalStyles.modalContainer, { paddingTop: insets.top + 20 }]}>
+            {/* Header */}
+            <View style={modalStyles.header}>
+              <Text style={modalStyles.headerTitle}>CHIRP RECORDED</Text>
+              <Text style={modalStyles.headerSub}>Duration: {formatDuration(recordedDuration)}</Text>
+            </View>
+
+            {/* LCD Card Preview - This gets captured */}
+            <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
+              <View style={modalStyles.lcdOuter}>
+                <View style={modalStyles.lcdInner}>
+                  {/* MIRRORS ASCII Art */}
+                  <View style={modalStyles.lcdAsciiRow}>
+                    <Text style={modalStyles.lcdAscii}>M̲I̲R̲R̲O̲R̲S̲</Text>
+                  </View>
+
+                  {/* Identification Program */}
+                  <View style={modalStyles.lcdIdSection}>
+                    <Text style={modalStyles.lcdIdTitle}>IDENTIFICATION</Text>
+                    <Text style={modalStyles.lcdIdSub}>PROGRAM</Text>
+                  </View>
+
+                  {/* Voice Message Indicator */}
+                  <View style={modalStyles.lcdVoiceSection}>
+                    <Text style={modalStyles.lcdVoiceLabel}>VOICE CHIRP</Text>
+                    <View style={modalStyles.lcdWaveform}>
+                      {[...Array(12)].map((_, i) => (
+                        <View 
+                          key={i} 
+                          style={[
+                            modalStyles.lcdWaveBar, 
+                            { height: 8 + Math.sin(i * 0.8) * 12 + Math.random() * 6 }
+                          ]} 
+                        />
+                      ))}
+                    </View>
+                    <Text style={modalStyles.lcdDuration}>{formatDuration(recordedDuration)}</Text>
+                  </View>
+
+                  {/* Footer */}
+                  <View style={modalStyles.lcdFooter}>
+                    <Text style={modalStyles.lcdFooterText}>
+                      godmodesound.com // MIRRORS 96 ▊
+                    </Text>
+                    <Text style={modalStyles.lcdTimestamp}>{timestamp}</Text>
+                  </View>
+                </View>
+              </View>
+            </ViewShot>
+
+            {/* Action Buttons */}
+            <View style={modalStyles.actionRow}>
+              <TouchableOpacity 
+                style={modalStyles.broadcastBtn} 
+                onPress={handleBroadcastOnly}
+                disabled={isSharing}
+              >
+                {isSharing ? (
+                  <ActivityIndicator color="#ff0a0a" size="small" />
+                ) : (
+                  <Text style={modalStyles.broadcastBtnText}>◉ BROADCAST</Text>
+                )}
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[modalStyles.shareBtn, isSharing && modalStyles.shareBtnDisabled]} 
+                onPress={handleShareChirp}
+                disabled={isSharing}
+              >
+                {isSharing ? (
+                  <ActivityIndicator color="#000" size="small" />
+                ) : (
+                  <Text style={modalStyles.shareBtnText}>▶ SHARE</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Cancel */}
+            <TouchableOpacity 
+              style={modalStyles.cancelBtn} 
+              onPress={() => setShowShareModal(false)}
+            >
+              <Text style={modalStyles.cancelBtnText}>CANCEL</Text>
+            </TouchableOpacity>
+
+            {/* Info text */}
+            <Text style={modalStyles.infoText}>
+              BROADCAST sends to all CODES users • SHARE via Messages, AirDrop
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 // ═══════════════════════════════════
-// STYLES
+// MAIN STYLES
 // ═══════════════════════════════════
 const styles = StyleSheet.create({
   container: {
@@ -728,5 +893,201 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 2,
     fontFamily: 'TerminatorRealNFI',
+  },
+});
+
+// ═══════════════════════════════════
+// MODAL STYLES
+// ═══════════════════════════════════
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: SCREEN_WIDTH - 32,
+    maxWidth: 400,
+    backgroundColor: '#0a0505',
+    borderWidth: 1,
+    borderColor: '#ff0a0a30',
+    padding: 20,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  headerTitle: {
+    color: '#ff0a0a',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 4,
+    fontFamily: 'TerminatorRealNFI',
+  },
+  headerSub: {
+    color: '#5a1a1a',
+    fontSize: 10,
+    letterSpacing: 1,
+    marginTop: 6,
+    fontFamily: 'TerminatorRealNFI',
+  },
+
+  // LCD Screen Styles
+  lcdOuter: {
+    backgroundColor: '#1a1a1a',
+    padding: 12,
+    borderRadius: 4,
+  },
+  lcdInner: {
+    backgroundColor: '#a89f4c', // Olive/gold LCD color
+    padding: 20,
+    borderRadius: 2,
+    minHeight: 200,
+  },
+  lcdAsciiRow: {
+    marginBottom: 8,
+  },
+  lcdAscii: {
+    color: '#2a2a6a', // Dark blue LCD text
+    fontSize: 28,
+    fontWeight: '900',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    letterSpacing: 2,
+    textDecorationLine: 'underline',
+  },
+  lcdIdSection: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+  },
+  lcdIdTitle: {
+    color: '#2a2a6a',
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    letterSpacing: 1,
+  },
+  lcdIdSub: {
+    color: '#2a2a6a',
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    letterSpacing: 1,
+    marginTop: 8,
+  },
+  lcdVoiceSection: {
+    marginTop: 40,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#2a2a6a20',
+  },
+  lcdVoiceLabel: {
+    color: '#2a2a6a',
+    fontSize: 8,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    letterSpacing: 2,
+    marginBottom: 10,
+  },
+  lcdWaveform: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginBottom: 10,
+  },
+  lcdWaveBar: {
+    width: 6,
+    backgroundColor: '#2a2a6a',
+    borderRadius: 2,
+  },
+  lcdDuration: {
+    color: '#2a2a6a',
+    fontSize: 16,
+    fontWeight: '900',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    textAlign: 'center',
+  },
+  lcdFooter: {
+    marginTop: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  lcdFooterText: {
+    color: '#2a2a6a',
+    fontSize: 9,
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    flex: 1,
+  },
+  lcdTimestamp: {
+    color: '#2a2a6a',
+    fontSize: 8,
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    opacity: 0.7,
+  },
+
+  // Action buttons
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+  broadcastBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: '#ff0a0a',
+    backgroundColor: '#0a0303',
+    minHeight: 48,
+  },
+  broadcastBtnText: {
+    color: '#ff0a0a',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+    fontFamily: 'TerminatorRealNFI',
+  },
+  shareBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    backgroundColor: '#ff0a0a',
+    minHeight: 48,
+  },
+  shareBtnDisabled: {
+    opacity: 0.6,
+  },
+  shareBtnText: {
+    color: '#000',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 2,
+    fontFamily: 'TerminatorRealNFI',
+  },
+  cancelBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 12,
+  },
+  cancelBtnText: {
+    color: '#5a1a1a',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+    fontFamily: 'TerminatorRealNFI',
+  },
+  infoText: {
+    color: '#3a1010',
+    fontSize: 8,
+    textAlign: 'center',
+    marginTop: 12,
+    letterSpacing: 0.5,
   },
 });
