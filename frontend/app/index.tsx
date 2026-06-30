@@ -550,25 +550,15 @@ export default function TerminalScreen() {
 
           {/* ══════ HERO ══════ */}
           <View style={styles.heroSection}>
-            {/* Matrix Background */}
+            {/* Single Clean Hero Image */}
             <Image
-              source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/r6qqamvs_MIRRORS%2096%20MATRIX.jpg' }}
-              style={styles.heroBackground}
-              resizeMode="cover"
-            />
-            <View style={styles.heroOverlay} />
-            
-            {/* 96 Infinity Logo */}
-            <Image
-              source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/1em5fjvw_96%20Mirrors%20Logo%20Icon.jpg' }}
-              style={styles.hero96Logo}
+              source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/bac8r24y_12F6498E-3CF0-4954-9AD3-E53F93083CD4.png' }}
+              style={styles.heroImage}
               resizeMode="contain"
             />
             
-            {/* Text Content */}
+            {/* Text Content Below Image */}
             <View style={styles.heroContent}>
-              <Text style={styles.heroTitle} adjustsFontSizeToFit numberOfLines={1}>MIRRORS 96</Text>
-              <Text style={styles.heroArtist}>by VINCE SINNOTT</Text>
               <Text style={styles.heroBrand}>GODMODE SOUND</Text>
               <Text style={styles.heroTagline}>The Future. Now.</Text>
               <View style={styles.heroRow}>
@@ -1240,40 +1230,16 @@ const styles = StyleSheet.create({
 
   // ── HERO ──
   heroSection: {
-    position: 'relative',
-    paddingTop: 20,
-    paddingBottom: 20,
     alignItems: 'center',
-    minHeight: 280,
-    overflow: 'hidden',
+    paddingVertical: 10,
   },
-  heroBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  heroImage: {
     width: '100%',
-    height: '100%',
-    opacity: 0.4,
-  },
-  heroOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  hero96Logo: {
-    width: 180,
-    height: 140,
-    marginBottom: 10,
-    zIndex: 1,
+    height: 200,
   },
   heroContent: { 
     alignItems: 'center',
-    zIndex: 1,
+    paddingTop: 8,
   },
   heroTitle: {
     color: '#ff0a0a',
@@ -1282,9 +1248,6 @@ const styles = StyleSheet.create({
     fontFamily: 'TerminatorRealNFI',
     letterSpacing: 4,
     textAlign: 'center',
-    textShadowColor: '#ff0a0a',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
   },
   heroArtist: {
     color: '#8a3a3a',
@@ -1299,7 +1262,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 3,
-    marginTop: 12,
     fontFamily: 'TerminatorRealNFI',
   },
   heroTagline: {
