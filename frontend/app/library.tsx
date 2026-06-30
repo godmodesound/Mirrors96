@@ -9,6 +9,7 @@ import { AudioEngine } from '../src/AudioEngine';
 import { FREQUENCY_ARCHIVE, FrequencyEntry } from '../src/FrequencyArchiveData';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
+import CodesLabShared, { loadFrequencyToLab } from '../src/CodesLabShared';
 
 // ═══════════════════════════════════════════════
 // VATICAN ARCHIVE — CATEGORY CODEX
@@ -48,6 +49,8 @@ export default function LibraryScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>('archive');
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [activeAlpha, setActiveAlpha] = useState<string | null>(null);
+  const [showCodesLab, setShowCodesLab] = useState(true);
+  const [codesLabKey, setCodesLabKey] = useState(0); // Force refresh
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -128,17 +131,14 @@ export default function LibraryScreen() {
     });
   };
 
-  const handleLoadToTerminal = (entry: FrequencyEntry) => {
+  const handleLoadToTerminal = async (entry: FrequencyEntry) => {
     AudioEngine.stopMulti();
     AudioEngine.stopAll();
     setPlayingItem(null);
-    router.push({
-      pathname: '/',
-      params: {
-        freqs: entry.frequencies.join(','),
-        fname: entry.name,
-      },
-    });
+    // Load to shared storage and refresh the lab
+    await loadFrequencyToLab(entry.frequencies, entry.name);
+    setCodesLabKey(prev => prev + 1); // Force refresh
+    setShowCodesLab(true);
   };
 
   // ═══ RENDER HELPERS ═══
@@ -183,7 +183,7 @@ export default function LibraryScreen() {
           onPress={() => handleLoadToTerminal(entry)}
           activeOpacity={0.7}
         >
-          <Text style={s.loadBtnText}>LOAD → TERMINAL</Text>
+          <Text style={s.loadBtnText}>LOAD → LAB</Text>
         </TouchableOpacity>
       </View>
     );
@@ -239,7 +239,7 @@ export default function LibraryScreen() {
             <Text style={s.headerDot}>◆</Text>
             <View style={s.headerDash} />
           </View>
-          <Text style={s.headerTitle}>FREQUENCY ARCHIVE</Text>
+          <Text style={s.headerTitle}>CODES ARCHIVE</Text>
           <Text style={s.headerSub}>CONSOLIDATED ANNOTATED FREQUENCY LIST</Text>
           <View style={s.headerStats}>
             <Text style={s.headerStat}>{totalFreqs} FREQUENCIES</Text>
@@ -254,6 +254,21 @@ export default function LibraryScreen() {
             <View style={s.headerDash} />
           </View>
         </View>
+
+        {/* ═══ CODES LAB TOGGLE ═══ */}
+        <TouchableOpacity 
+          style={s.labToggle}
+          onPress={() => setShowCodesLab(!showCodesLab)}
+        >
+          <Text style={s.labToggleText}>
+            {showCodesLab ? '▾ HIDE CODES LAB' : '▸ SHOW CODES LAB'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* ═══ CODES LAB (Synced) ═══ */}
+        {showCodesLab && (
+          <CodesLabShared key={codesLabKey} compact={true} />
+        )}
 
         {/* ═══ SEARCH ═══ */}
         <View style={s.searchBar}>
@@ -461,11 +476,30 @@ const s = StyleSheet.create({
   headerOrnament: { flexDirection: 'row', alignItems: 'center', gap: 8, width: '100%', marginVertical: 4 },
   headerDash: { flex: 1, height: 1, backgroundColor: '#2a0a0a' },
   headerDot: { color: '#ff0a0a', fontSize: 6 },
-  headerTitle: { color: '#ff0a0a', fontSize: 18, fontWeight: '700', letterSpacing: 4, marginTop: 4 },
-  headerSub: { color: '#5a1a1a', fontSize: 8, letterSpacing: 2, marginTop: 2 },
+  headerTitle: { color: '#ff0a0a', fontSize: 18, fontWeight: '700', letterSpacing: 4, marginTop: 4, fontFamily: 'TerminatorRealNFI' },
+  headerSub: { color: '#5a1a1a', fontSize: 8, letterSpacing: 2, marginTop: 2, fontFamily: 'TerminatorRealNFI' },
   headerStats: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  headerStat: { color: '#3a1010', fontSize: 8, letterSpacing: 1 },
+  headerStat: { color: '#3a1010', fontSize: 8, letterSpacing: 1, fontFamily: 'TerminatorRealNFI' },
   headerStatDiv: { color: '#2a0a0a', fontSize: 8 },
+
+  // Lab Toggle
+  labToggle: {
+    marginHorizontal: 16,
+    marginVertical: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#050303',
+    borderWidth: 1,
+    borderColor: '#ff0a0a40',
+    alignItems: 'center',
+  },
+  labToggleText: {
+    color: '#ff0a0a',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+    fontFamily: 'TerminatorRealNFI',
+  },
 
   // Search
   searchBar: {
