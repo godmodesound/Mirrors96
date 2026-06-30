@@ -561,74 +561,6 @@ export default function TerminalScreen() {
             </View>
           </View>
 
-          {/* ══════ SOUND LAB ══════ */}
-          <View style={slabStyles.container}>
-            <View style={slabStyles.headerRow}>
-              <View style={slabStyles.headerLeft}>
-                <View style={slabStyles.headerDot} />
-                <Text style={slabStyles.headerTitle}>SOUND LAB</Text>
-              </View>
-              <Text style={slabStyles.headerMeta}>{ALBUMS.length} albums {'\u00B7'} {ALBUMS.reduce((acc, a) => acc + a.tracks.length, 0)} tracks</Text>
-            </View>
-
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={slabStyles.albumScroll} contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingRight: 20 }}>
-              {ALBUMS.map((album) => {
-                const isExpanded = slExpandedAlbum === album.id;
-                const hasTracks = album.tracks.length > 0;
-                return (
-                  <View key={album.id} style={[slabStyles.albumCard, isExpanded && slabStyles.albumCardExpanded]}>
-                    <TouchableOpacity onPress={() => setSlExpandedAlbum(isExpanded ? null : album.id)} activeOpacity={0.8}>
-                      <Image source={{ uri: album.coverUrl }} style={slabStyles.albumCover} />
-                      <Text style={slabStyles.albumName} numberOfLines={1}>{album.name.toUpperCase()}</Text>
-                      <Text style={slabStyles.albumMeta}>{hasTracks ? `${album.tracks.length} tracks` : 'Album'}</Text>
-                    </TouchableOpacity>
-
-                    {isExpanded && hasTracks && (
-                      <View style={slabStyles.trackList}>
-                        {album.tracks.map((track) => {
-                          const trackKey = `${album.name}-${track.number}`;
-                          const isPlaying = slPlayingTrack === trackKey;
-                          return (
-                            <View key={track.number} style={slabStyles.trackRow}>
-                              <TouchableOpacity style={slabStyles.trackPlayBtn} onPress={() => slPlayPreview(track, album.name)}>
-                                <Text style={[slabStyles.trackPlayIcon, isPlaying && slabStyles.trackPlayIconActive]}>
-                                  {isPlaying ? '\u25A0' : '\u25B6'}
-                                </Text>
-                              </TouchableOpacity>
-                              <Text style={[slabStyles.trackName, isPlaying && slabStyles.trackNameActive]} numberOfLines={1}>{track.name}</Text>
-                              <View style={slabStyles.trackFreeTag}>
-                                <Text style={slabStyles.trackFreeText}>FREE</Text>
-                              </View>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </ScrollView>
-
-            {/* Support Discography - All Music Free */}
-            <TouchableOpacity
-              style={slabStyles.discographyBtn}
-              onPress={() => slHandleCheckout('album', 'GODMODE DISCOGRAPHY', '', 'VINCE SINNOTT')}
-            >
-              <Text style={slabStyles.discographyText}>DISCOGRAPHY</Text>
-            </TouchableOpacity>
-            <Text style={slabStyles.freeAccessText}>ALL MUSIC FREE · STREAMING ENABLED</Text>
-
-            {slPlayingTrack && (
-              <View style={slabStyles.nowPlayingBar}>
-                <View style={slabStyles.npDot} />
-                <Text style={slabStyles.npLabel} numberOfLines={1}>PREVIEW: {slPlayingTrack.toUpperCase()}</Text>
-                <TouchableOpacity onPress={slStopPreview}>
-                  <Text style={slabStyles.npStopBtn}>{'\u25A0'} STOP</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-
           {/* Tone Layers - Analog Style */}
           <View style={styles.section}>
             <View style={styles.toneLayerHeaderRow}>
@@ -741,6 +673,74 @@ export default function TerminalScreen() {
                 {isPlaying ? '[ ■ STOP ]' : '[ ▶ EXECUTE ]'}
               </Text>
             </TouchableOpacity>
+          </View>
+
+          {/* ══════ SOUND LAB ══════ */}
+          <View style={slabStyles.container}>
+            <View style={slabStyles.headerRow}>
+              <View style={slabStyles.headerLeft}>
+                <View style={slabStyles.headerDot} />
+                <Text style={slabStyles.headerTitle}>SOUND LAB</Text>
+              </View>
+              <Text style={slabStyles.headerMeta}>{ALBUMS.length} albums {'\u00B7'} {ALBUMS.reduce((acc, a) => acc + a.tracks.length, 0)} tracks</Text>
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={slabStyles.albumScroll} contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingRight: 20 }}>
+              {ALBUMS.map((album) => {
+                const isExpanded = slExpandedAlbum === album.id;
+                const hasTracks = album.tracks.length > 0;
+                return (
+                  <View key={album.id} style={[slabStyles.albumCard, isExpanded && slabStyles.albumCardExpanded]}>
+                    <TouchableOpacity onPress={() => setSlExpandedAlbum(isExpanded ? null : album.id)} activeOpacity={0.8}>
+                      <Image source={{ uri: album.coverUrl }} style={slabStyles.albumCover} />
+                      <Text style={slabStyles.albumName} numberOfLines={1}>{album.name.toUpperCase()}</Text>
+                      <Text style={slabStyles.albumMeta}>{hasTracks ? `${album.tracks.length} tracks` : 'Album'}</Text>
+                    </TouchableOpacity>
+
+                    {isExpanded && hasTracks && (
+                      <View style={slabStyles.trackList}>
+                        {album.tracks.map((track) => {
+                          const trackKey = `${album.name}-${track.number}`;
+                          const isPlaying = slPlayingTrack === trackKey;
+                          return (
+                            <View key={track.number} style={slabStyles.trackRow}>
+                              <TouchableOpacity style={slabStyles.trackPlayBtn} onPress={() => slPlayPreview(track, album.name)}>
+                                <Text style={[slabStyles.trackPlayIcon, isPlaying && slabStyles.trackPlayIconActive]}>
+                                  {isPlaying ? '\u25A0' : '\u25B6'}
+                                </Text>
+                              </TouchableOpacity>
+                              <Text style={[slabStyles.trackName, isPlaying && slabStyles.trackNameActive]} numberOfLines={1}>{track.name}</Text>
+                              <View style={slabStyles.trackFreeTag}>
+                                <Text style={slabStyles.trackFreeText}>FREE</Text>
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </ScrollView>
+
+            {/* Support Discography - All Music Free */}
+            <TouchableOpacity
+              style={slabStyles.discographyBtn}
+              onPress={() => slHandleCheckout('album', 'GODMODE DISCOGRAPHY', '', 'VINCE SINNOTT')}
+            >
+              <Text style={slabStyles.discographyText}>DISCOGRAPHY</Text>
+            </TouchableOpacity>
+            <Text style={slabStyles.freeAccessText}>ALL MUSIC FREE · STREAMING ENABLED</Text>
+
+            {slPlayingTrack && (
+              <View style={slabStyles.nowPlayingBar}>
+                <View style={slabStyles.npDot} />
+                <Text style={slabStyles.npLabel} numberOfLines={1}>PREVIEW: {slPlayingTrack.toUpperCase()}</Text>
+                <TouchableOpacity onPress={slStopPreview}>
+                  <Text style={slabStyles.npStopBtn}>{'\u25A0'} STOP</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           {/* ══════ FREQUENCY LAB / MERKABA ══════ */}
