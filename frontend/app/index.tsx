@@ -28,6 +28,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
 import { FrequencyMap } from '../src/FrequencyMap';
+import SendCodesModal from '../src/SendCodesModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const API_URL =
@@ -127,6 +128,7 @@ export default function TerminalScreen() {
   const [loadedArchiveName, setLoadedArchiveName] = useState<string | null>(null);
   const [archiveViewMode, setArchiveViewMode] = useState<'codex' | 'a-z' | 'lab'>('codex');
   const [selectedCodex, setSelectedCodex] = useState<string | null>(null);
+  const [sendCodesModalVisible, setSendCodesModalVisible] = useState(false);
 
   // ═══ LOAD FREQUENCIES FROM ARCHIVE (via route params) ═══
   useEffect(() => {
@@ -631,13 +633,21 @@ export default function TerminalScreen() {
           <View style={styles.section}>
             <View style={styles.toneLayerHeaderRow}>
               <Text style={styles.sectionTitle}>&gt; CODES_LAB</Text>
-              <TouchableOpacity
-                style={styles.archiveBubble}
-                onPress={() => setArchiveModalVisible(true)}
-              >
-                <View style={styles.archiveBubbleDot} />
-                <Text style={styles.archiveBubbleText}>CODES ARCHIVE</Text>
-              </TouchableOpacity>
+              <View style={styles.headerBtnRow}>
+                <TouchableOpacity
+                  style={styles.sendCodesBubble}
+                  onPress={() => setSendCodesModalVisible(true)}
+                >
+                  <Text style={styles.sendCodesBubbleText}>SEND CODES</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.archiveBubble}
+                  onPress={() => setArchiveModalVisible(true)}
+                >
+                  <View style={styles.archiveBubbleDot} />
+                  <Text style={styles.archiveBubbleText}>CODES ARCHIVE</Text>
+                </TouchableOpacity>
+              </View>
             </View>
             {loadedArchiveName && (
               <View style={styles.loadedBanner}>
@@ -1138,6 +1148,14 @@ export default function TerminalScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ═══════ SEND CODES MODAL ═══════ */}
+      <SendCodesModal
+        visible={sendCodesModalVisible}
+        onClose={() => setSendCodesModalVisible(false)}
+        layers={layers}
+        loadedArchiveName={loadedArchiveName}
+      />
     </View>
   );
 }
@@ -1682,6 +1700,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 4,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  headerBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sendCodesBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ff0a0a',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  sendCodesBubbleText: {
+    color: '#000',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.5,
   },
   archiveBubble: {
     flexDirection: 'row',
