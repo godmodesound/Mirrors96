@@ -10,6 +10,7 @@ import {
   Linking,
   Dimensions,
   ActivityIndicator,
+  ImageBackground,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
@@ -22,6 +23,28 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const API_URL =
   Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL ||
   process.env.EXPO_PUBLIC_BACKEND_URL || '';
+
+// Album cover component with loading state
+const AlbumCover = ({ uri, style }: { uri: string; style: any }) => {
+  const [error, setError] = useState(false);
+
+  if (error) {
+    return (
+      <View style={[style, { backgroundColor: '#1a0808', justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: '#ff0a0a', fontSize: 20 }}>◈</Text>
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri, cache: 'force-cache' }}
+      style={style}
+      resizeMode="cover"
+      onError={() => setError(true)}
+    />
+  );
+};
 
 const formatDuration = (seconds: number) => {
   if (!seconds || seconds === 0) return 'FULL';
@@ -206,7 +229,7 @@ export default function SoundScreen() {
                       activeOpacity={0.8}
                     >
                       <View style={[styles.caseBody, isSelected && styles.caseBodySelected]}>
-                        <Image source={{ uri: album.coverUrl }} style={styles.caseCover} resizeMode="cover" />
+                        <AlbumCover uri={album.coverUrl} style={styles.caseCover} />
                         {isSelected && <View style={styles.caseGlow} />}
                       </View>
                       <Text style={[styles.caseLabel, isSelected && styles.caseLabelSelected]} numberOfLines={1}>
@@ -240,7 +263,7 @@ export default function SoundScreen() {
                       activeOpacity={0.8}
                     >
                       <View style={[styles.caseBody, isSelected && styles.caseBodySelected]}>
-                        <Image source={{ uri: album.coverUrl }} style={styles.caseCover} resizeMode="cover" />
+                        <AlbumCover uri={album.coverUrl} style={styles.caseCover} />
                         {isSelected && <View style={styles.caseGlow} />}
                       </View>
                       <Text style={[styles.caseLabel, isSelected && styles.caseLabelSelected]} numberOfLines={1}>
@@ -263,7 +286,7 @@ export default function SoundScreen() {
           {/* Selected Album Detail */}
           <View style={styles.selectedSection}>
             <View style={styles.selectedHeader}>
-              <Image source={{ uri: selectedAlbum.coverUrl }} style={styles.selectedCover} resizeMode="cover" />
+              <AlbumCover uri={selectedAlbum.coverUrl} style={styles.selectedCover} />
               <View style={styles.selectedInfo}>
                 <Text style={styles.selectedBadge}>SELECTED</Text>
                 <Text style={styles.selectedName}>{selectedAlbum.name}</Text>
