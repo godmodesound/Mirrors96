@@ -15,6 +15,7 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -25,11 +26,12 @@ import * as Sharing from 'expo-sharing';
 import ViewShot from 'react-native-view-shot';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { Camera, CameraView } from 'expo-camera';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ═══════════════════════════════════
-// CONFIG
+// CONFIG & LIMITS
 // ═══════════════════════════════════
 const API_BASE =
   Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL ||
@@ -37,12 +39,16 @@ const API_BASE =
   '';
 const WS_BASE = API_BASE.replace(/^https?/, 'wss');
 
+const VOICE_CHIRP_LIMIT = 33; // seconds
+const VIDEO_CHIRP_LIMIT = 96; // seconds
+
 const STORAGE_KEYS = {
   MIRRORS_ID: 'mirrors_id',
   DISPLAY_NAME: 'mirrors_display_name',
   DEVICE_ID: 'mirrors_device_id',
   CONTACTS: 'mirrors_contacts',
   SELECTED_CONTACT: 'mirrors_selected_contact',
+  CHIRP_HISTORY: 'chirp_history',
 };
 
 // ═══════════════════════════════════
@@ -54,6 +60,18 @@ interface Contact {
   nickname: string;
   is_online?: boolean;
   added_at?: string;
+}
+
+interface ChirpMessage {
+  id: string;
+  type: 'voice' | 'video';
+  from_mirrors_id: string;
+  to_mirrors_id: string;
+  from_display_name: string;
+  duration: number;
+  timestamp: string;
+  is_outgoing: boolean;
+  played?: boolean;
 }
 
 // ═══════════════════════════════════
@@ -69,8 +87,13 @@ export default function ChirpConnect() {
   const [transmitDuration, setTransmitDuration] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState<'offline' | 'connecting' | 'online'>('offline');
   const [hasPermission, setHasPermission] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState(false);
   const [lastChirpTime, setLastChirpTime] = useState<string | null>(null);
   const [incomingFrom, setIncomingFrom] = useState<string | null>(null);
+
+  // Chirp mode: voice or video
+  const [chirpMode, setChirpMode] = useState<'voice' | 'video'>('voice');
+  const [isRecordingVideo, setIsRecordingVideo] = useState(false);
 
   // MIRRORS I.D. state
   const [mirrorsId, setMirrorsId] = useState<string | null>(null);
@@ -79,8 +102,11 @@ export default function ChirpConnect() {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
 
+  // Message history
+  const [chirpHistory, setChirpHistory] = useState<ChirpMessage[]>([]);
+
   // Modal states
-  const [activeTab, setActiveTab] = useState<'chirp' | 'contacts' | 'settings'>('chirp');
+  const [activeTab, setActiveTab] = useState<'chirp' | 'messages' | 'contacts' | 'settings'>('chirp');
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContactId, setNewContactId] = useState('');
   const [lookupResult, setLookupResult] = useState<any>(null);
@@ -99,6 +125,7 @@ export default function ChirpConnect() {
   const transmitTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const viewShotRef = useRef<ViewShot>(null);
+  const cameraRef = useRef<CameraView>(null);
 
   // Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -111,11 +138,11 @@ export default function ChirpConnect() {
   // ═══════════════════════════════════
   useEffect(() => {
     initializeMirrorsId();
+    loadChirpHistory();
   }, []);
 
   const initializeMirrorsId = async () => {
     try {
-      // Check for existing MIRRORS I.D.
       const storedId = await AsyncStorage.getItem(STORAGE_KEYS.MIRRORS_ID);
       const storedName = await AsyncStorage.getItem(STORAGE_KEYS.DISPLAY_NAME);
       const storedContacts = await AsyncStorage.getItem(STORAGE_KEYS.CONTACTS);
@@ -127,7 +154,6 @@ export default function ChirpConnect() {
         if (storedContacts) setContacts(JSON.parse(storedContacts));
         if (storedSelected) setSelectedContact(JSON.parse(storedSelected));
       } else {
-        // Register new MIRRORS I.D.
         await registerMirrorsId();
       }
     } catch (error) {
@@ -138,7 +164,6 @@ export default function ChirpConnect() {
   const registerMirrorsId = async () => {
     setIsRegistering(true);
     try {
-      // Generate device ID if not exists
       let deviceId = await AsyncStorage.getItem(STORAGE_KEYS.DEVICE_ID);
       if (!deviceId) {
         deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -148,10 +173,7 @@ export default function ChirpConnect() {
       const response = await fetch(`${API_BASE}/api/mirrors/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          display_name: '',
-          device_id: deviceId,
-        }),
+        body: JSON.stringify({ display_name: '', device_id: deviceId }),
       });
 
       if (response.ok) {
@@ -171,21 +193,34 @@ export default function ChirpConnect() {
     setIsRegistering(false);
   };
 
+  const loadChirpHistory = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEYS.CHIRP_HISTORY);
+      if (stored) setChirpHistory(JSON.parse(stored));
+    } catch {}
+  };
+
+  const saveChirpToHistory = async (chirp: ChirpMessage) => {
+    const updated = [chirp, ...chirpHistory].slice(0, 50); // Keep last 50
+    setChirpHistory(updated);
+    await AsyncStorage.setItem(STORAGE_KEYS.CHIRP_HISTORY, JSON.stringify(updated));
+  };
+
   // ═══════════════════════════════════
-  // AUDIO PERMISSION
+  // PERMISSIONS
   // ═══════════════════════════════════
   useEffect(() => {
     (async () => {
       if (Platform.OS !== 'web') {
         try {
-          const { status } = await Audio.requestPermissionsAsync();
-          setHasPermission(status === 'granted');
-          if (status === 'granted') {
-            await Audio.setAudioModeAsync({
-              allowsRecordingIOS: true,
-              playsInSilentModeIOS: true,
-            });
+          const { status: audioStatus } = await Audio.requestPermissionsAsync();
+          setHasPermission(audioStatus === 'granted');
+          if (audioStatus === 'granted') {
+            await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
           }
+
+          const { status: cameraStatus } = await Camera.requestCameraPermissionsAsync();
+          setHasCameraPermission(cameraStatus === 'granted');
         } catch {
           setHasPermission(false);
         }
@@ -258,6 +293,20 @@ export default function ChirpConnect() {
             setIsReceiving(true);
             setIncomingFrom(data.from_display_name || data.from_mirrors_id);
 
+            // Add to history
+            const newChirp: ChirpMessage = {
+              id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              type: data.chirp_type || 'voice',
+              from_mirrors_id: data.from_mirrors_id,
+              to_mirrors_id: mirrorsId || '',
+              from_display_name: data.from_display_name,
+              duration: data.duration || 0,
+              timestamp: new Date().toISOString(),
+              is_outgoing: false,
+              played: false,
+            };
+            saveChirpToHistory(newChirp);
+
             Animated.sequence([
               Animated.timing(receiveAnim, { toValue: 1, duration: 200, useNativeDriver: false }),
               Animated.delay(2000),
@@ -267,12 +316,9 @@ export default function ChirpConnect() {
               setIncomingFrom(null);
             });
 
-            // Play audio if present
             if (data.audio_base64) {
               try {
-                if (soundRef.current) {
-                  await soundRef.current.unloadAsync();
-                }
+                if (soundRef.current) await soundRef.current.unloadAsync();
                 const { sound } = await Audio.Sound.createAsync(
                   { uri: `data:audio/m4a;base64,${data.audio_base64}` },
                   { shouldPlay: true }
@@ -290,9 +336,7 @@ export default function ChirpConnect() {
         reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
       };
 
-      ws.onerror = () => {
-        setConnectionStatus('offline');
-      };
+      ws.onerror = () => setConnectionStatus('offline');
 
       wsRef.current = ws;
     } catch {
@@ -312,9 +356,7 @@ export default function ChirpConnect() {
   }, []);
 
   useEffect(() => {
-    if (mirrorsId) {
-      connectWebSocket();
-    }
+    if (mirrorsId) connectWebSocket();
     return () => disconnectWebSocket();
   }, [mirrorsId]);
 
@@ -360,10 +402,7 @@ export default function ChirpConnect() {
       const response = await fetch(`${API_BASE}/api/mirrors/${mirrorsId}/contacts/add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mirrors_id: lookupResult.mirrors_id,
-          nickname: lookupResult.display_name,
-        }),
+        body: JSON.stringify({ mirrors_id: lookupResult.mirrors_id, nickname: lookupResult.display_name }),
       });
 
       if (response.ok) {
@@ -374,21 +413,17 @@ export default function ChirpConnect() {
         setNewContactId('');
         setLookupResult(null);
       }
-    } catch (error) {
-      console.error('Error adding contact:', error);
-    }
+    } catch {}
   };
 
   const removeContact = async (contactId: string) => {
     if (!mirrorsId) return;
-
     try {
       const response = await fetch(`${API_BASE}/api/mirrors/${mirrorsId}/contacts/remove`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mirrors_id: contactId }),
       });
-
       if (response.ok) {
         const data = await response.json();
         setContacts(data.contacts);
@@ -451,7 +486,7 @@ export default function ChirpConnect() {
   };
 
   // ═══════════════════════════════════
-  // PTT TRANSMIT
+  // PTT TRANSMIT - VOICE
   // ═══════════════════════════════════
   const startTransmit = async () => {
     if (!hasPermission) {
@@ -464,8 +499,16 @@ export default function ChirpConnect() {
     await playChirpStart();
     startTransmitAnimation();
 
+    const limit = chirpMode === 'voice' ? VOICE_CHIRP_LIMIT : VIDEO_CHIRP_LIMIT;
+
     transmitTimerRef.current = setInterval(() => {
-      setTransmitDuration(prev => prev + 0.1);
+      setTransmitDuration(prev => {
+        if (prev >= limit - 1) {
+          stopTransmit(false); // Auto-stop at limit
+          return prev;
+        }
+        return prev + 0.1;
+      });
     }, 100);
 
     try {
@@ -530,8 +573,23 @@ export default function ChirpConnect() {
         base64Audio = await FileSystem.readAsStringAsync(recordedAudioUri, { encoding: FileSystem.EncodingType.Base64 });
       }
 
+      const toId = selectedContact?.mirrors_id || 'broadcast';
+      const toName = selectedContact?.nickname || selectedContact?.display_name || 'BROADCAST';
+
+      // Add to outgoing history
+      const outgoingChirp: ChirpMessage = {
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        type: chirpMode,
+        from_mirrors_id: mirrorsId,
+        to_mirrors_id: toId,
+        from_display_name: displayName,
+        duration: recordedDuration,
+        timestamp: new Date().toISOString(),
+        is_outgoing: true,
+      };
+      saveChirpToHistory(outgoingChirp);
+
       if (selectedContact) {
-        // Direct chirp to selected contact
         await fetch(`${API_BASE}/api/mirrors/chirp`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -541,10 +599,10 @@ export default function ChirpConnect() {
             from_display_name: displayName,
             audio_base64: base64Audio,
             duration: Math.round(recordedDuration * 10) / 10,
+            chirp_type: chirpMode,
           }),
         });
       } else {
-        // Broadcast to all (using the old channel system)
         await fetch(`${API_BASE}/api/codes/transmit`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -565,7 +623,6 @@ export default function ChirpConnect() {
 
   const handleShareChirp = async () => {
     if (!recordedAudioUri) return;
-
     setIsSharing(true);
     try {
       const isAvailable = await Sharing.isAvailableAsync();
@@ -586,23 +643,13 @@ export default function ChirpConnect() {
   // ═══════════════════════════════════
   const glowColor = glowAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['rgba(255, 10, 10, 0)', 'rgba(255, 10, 10, 0.4)'],
+    outputRange: [chirpMode === 'voice' ? 'rgba(255, 10, 10, 0)' : 'rgba(10, 100, 255, 0)', 
+                  chirpMode === 'voice' ? 'rgba(255, 10, 10, 0.4)' : 'rgba(10, 100, 255, 0.4)'],
   });
 
-  const ringScale = ringAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 2],
-  });
-
-  const ringOpacity = ringAnim.interpolate({
-    inputRange: [0, 0.7, 1],
-    outputRange: [0.5, 0.1, 0],
-  });
-
-  const receiveGlow = receiveAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['rgba(0, 255, 68, 0)', 'rgba(0, 255, 68, 0.3)'],
-  });
+  const ringScale = ringAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 2] });
+  const ringOpacity = ringAnim.interpolate({ inputRange: [0, 0.7, 1], outputRange: [0.5, 0.1, 0] });
+  const receiveGlow = receiveAnim.interpolate({ inputRange: [0, 1], outputRange: ['rgba(0, 255, 68, 0)', 'rgba(0, 255, 68, 0.3)'] });
 
   const formatDuration = (s: number) => {
     const mins = Math.floor(s / 60);
@@ -610,13 +657,25 @@ export default function ChirpConnect() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '.');
+  const formatTimestamp = (ts: string) => {
+    const date = new Date(ts);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    
+    if (diff < 60000) return 'Just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    return date.toLocaleDateString();
+  };
+
+  const limit = chirpMode === 'voice' ? VOICE_CHIRP_LIMIT : VIDEO_CHIRP_LIMIT;
+  const progressPct = (transmitDuration / limit) * 100;
 
   // ═══════════════════════════════════
   // RENDER
   // ═══════════════════════════════════
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>  
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -641,43 +700,60 @@ export default function ChirpConnect() {
 
       {/* Tab Navigation */}
       <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'chirp' && styles.tabActive]}
-          onPress={() => setActiveTab('chirp')}
-        >
+        <TouchableOpacity style={[styles.tab, activeTab === 'chirp' && styles.tabActive]} onPress={() => setActiveTab('chirp')}>
           <Text style={[styles.tabText, activeTab === 'chirp' && styles.tabTextActive]}>CHIRP</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'contacts' && styles.tabActive]}
-          onPress={() => { setActiveTab('contacts'); refreshContacts(); }}
-        >
+        <TouchableOpacity style={[styles.tab, activeTab === 'messages' && styles.tabActive]} onPress={() => setActiveTab('messages')}>
+          <Text style={[styles.tabText, activeTab === 'messages' && styles.tabTextActive]}>MESSAGES</Text>
+          {chirpHistory.filter(c => !c.played && !c.is_outgoing).length > 0 && (
+            <View style={styles.badge}><Text style={styles.badgeText}>{chirpHistory.filter(c => !c.played && !c.is_outgoing).length}</Text></View>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.tab, activeTab === 'contacts' && styles.tabActive]} onPress={() => { setActiveTab('contacts'); refreshContacts(); }}>
           <Text style={[styles.tabText, activeTab === 'contacts' && styles.tabTextActive]}>CONTACTS</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'settings' && styles.tabActive]}
-          onPress={() => setActiveTab('settings')}
-        >
-          <Text style={[styles.tabText, activeTab === 'settings' && styles.tabTextActive]}>SETTINGS</Text>
+        <TouchableOpacity style={[styles.tab, activeTab === 'settings' && styles.tabActive]} onPress={() => setActiveTab('settings')}>
+          <Text style={[styles.tabText, activeTab === 'settings' && styles.tabTextActive]}>⚙</Text>
         </TouchableOpacity>
       </View>
 
       {/* CHIRP TAB */}
       {activeTab === 'chirp' && (
         <View style={styles.mainArea}>
+          {/* Mode Toggle */}
+          <View style={styles.modeToggle}>
+            <TouchableOpacity style={[styles.modeBtn, chirpMode === 'voice' && styles.modeBtnActive]} onPress={() => setChirpMode('voice')}>
+              <Text style={[styles.modeBtnText, chirpMode === 'voice' && styles.modeBtnTextActive]}>🎤 VOICE</Text>
+              <Text style={styles.modeLimit}>{VOICE_CHIRP_LIMIT}s limit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.modeBtn, chirpMode === 'video' && styles.modeBtnActiveVideo]} onPress={() => setChirpMode('video')}>
+              <Text style={[styles.modeBtnText, chirpMode === 'video' && styles.modeBtnTextActive]}>📹 VIDEO</Text>
+              <Text style={styles.modeLimit}>{VIDEO_CHIRP_LIMIT}s limit</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Selected Contact Display */}
           {selectedContact ? (
             <View style={styles.selectedContactBar}>
               <Text style={styles.selectedLabel}>CHIRPING TO:</Text>
               <Text style={styles.selectedName}>{selectedContact.nickname || selectedContact.display_name}</Text>
               <Text style={styles.selectedId}>{selectedContact.mirrors_id}</Text>
-              <TouchableOpacity onPress={() => selectContact(null)}>
-                <Text style={styles.clearSelected}>✕</Text>
-              </TouchableOpacity>
+              <TouchableOpacity onPress={() => selectContact(null)}><Text style={styles.clearSelected}>✕</Text></TouchableOpacity>
             </View>
           ) : (
             <View style={styles.broadcastBar}>
               <Text style={styles.broadcastText}>◉ BROADCAST MODE</Text>
               <Text style={styles.broadcastSub}>Tap CONTACTS to select recipient</Text>
+            </View>
+          )}
+
+          {/* Progress indicator when recording */}
+          {isTransmitting && (
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: `${progressPct}%` }, chirpMode === 'video' && styles.progressFillVideo]} />
+              </View>
+              <Text style={styles.progressText}>{formatDuration(transmitDuration)} / {formatDuration(limit)}</Text>
             </View>
           )}
 
@@ -689,56 +765,75 @@ export default function ChirpConnect() {
             </Animated.View>
           )}
 
-          {/* Transmit status */}
-          {isTransmitting && (
-            <View style={styles.transmitStatus}>
-              <Text style={styles.transmitLabel}>TRANSMITTING</Text>
-              <Text style={styles.transmitTimer}>{formatDuration(transmitDuration)}</Text>
-            </View>
-          )}
-
           {/* THE BUTTON */}
           <View style={styles.pttWrapper}>
             {isTransmitting && (
-              <Animated.View style={[styles.pttRing, { transform: [{ scale: ringScale }], opacity: ringOpacity }]} />
+              <Animated.View style={[styles.pttRing, { transform: [{ scale: ringScale }], opacity: ringOpacity }, chirpMode === 'video' && styles.pttRingVideo]} />
             )}
             <Animated.View style={[styles.pttGlow, { backgroundColor: glowColor }]} />
             <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
               <TouchableOpacity
-                style={[styles.pttButton, isTransmitting && styles.pttButtonActive]}
+                style={[styles.pttButton, isTransmitting && styles.pttButtonActive, chirpMode === 'video' && styles.pttButtonVideo]}
                 onPressIn={startTransmit}
                 onPressOut={() => stopTransmit(false)}
                 activeOpacity={0.9}
               >
-                <Text style={styles.pttIcon}>◉</Text>
-                <Text style={styles.pttMainText}>CODES</Text>
-                <Text style={styles.pttSubText}>{isTransmitting ? 'RELEASE TO SEND' : 'HOLD TO CHIRP'}</Text>
+                <Text style={styles.pttIcon}>{isTransmitting ? 'Ω' : 'Α'}</Text>
+                <Text style={[styles.pttMainText, chirpMode === 'video' && styles.pttMainTextVideo]}>
+                  {chirpMode === 'voice' ? 'VOICE' : 'VIDEO'}
+                </Text>
+                <Text style={styles.pttSubText}>{isTransmitting ? 'Ω RELEASE' : 'Α HOLD'}</Text>
               </TouchableOpacity>
             </Animated.View>
           </View>
 
-          {lastChirpTime && !isTransmitting && (
-            <Text style={styles.lastChirp}>Last chirp: {lastChirpTime}</Text>
-          )}
+          {lastChirpTime && !isTransmitting && <Text style={styles.lastChirp}>Last chirp: {lastChirpTime}</Text>}
         </View>
+      )}
+
+      {/* MESSAGES TAB */}
+      {activeTab === 'messages' && (
+        <FlatList
+          data={chirpHistory}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ padding: 16, paddingBottom: 20 }}
+          ListEmptyComponent={<Text style={styles.noMessages}>No messages yet. Send or receive a chirp!</Text>}
+          renderItem={({ item }) => (
+            <View style={[styles.messageRow, item.is_outgoing && styles.messageRowOutgoing]}>
+              <View style={styles.messageIcon}>
+                <Text style={styles.messageIconText}>{item.type === 'voice' ? '🎤' : '📹'}</Text>
+              </View>
+              <View style={styles.messageContent}>
+                <View style={styles.messageHeader}>
+                  <Text style={styles.messageName}>
+                    {item.is_outgoing ? `→ ${item.to_mirrors_id === 'broadcast' ? 'BROADCAST' : item.to_mirrors_id}` : item.from_display_name}
+                  </Text>
+                  <Text style={styles.messageTime}>{formatTimestamp(item.timestamp)}</Text>
+                </View>
+                <View style={styles.messageBody}>
+                  <View style={styles.waveform}>
+                    {[...Array(20)].map((_, i) => (
+                      <View key={i} style={[styles.waveBar, { height: 4 + Math.random() * 12 }]} />
+                    ))}
+                  </View>
+                  <Text style={styles.messageDuration}>{formatDuration(item.duration)}</Text>
+                </View>
+                <Text style={styles.messageType}>{item.type.toUpperCase()} CHIRP</Text>
+              </View>
+            </View>
+          )}
+        />
       )}
 
       {/* CONTACTS TAB */}
       {activeTab === 'contacts' && (
         <ScrollView style={styles.contactsArea} contentContainerStyle={{ paddingBottom: 20 }}>
-          {/* Add Contact Button */}
           <TouchableOpacity style={styles.addContactBtn} onPress={() => setShowAddContact(true)}>
             <Text style={styles.addContactText}>+ ADD CONTACT BY MIRRORS I.D.</Text>
           </TouchableOpacity>
 
-          {/* Broadcast Option */}
-          <TouchableOpacity
-            style={[styles.contactRow, !selectedContact && styles.contactRowSelected]}
-            onPress={() => selectContact(null)}
-          >
-            <View style={styles.contactIcon}>
-              <Text style={styles.contactIconText}>◉</Text>
-            </View>
+          <TouchableOpacity style={[styles.contactRow, !selectedContact && styles.contactRowSelected]} onPress={() => selectContact(null)}>
+            <View style={styles.contactIcon}><Text style={styles.contactIconText}>◉</Text></View>
             <View style={styles.contactInfo}>
               <Text style={styles.contactName}>BROADCAST</Text>
               <Text style={styles.contactId}>Send to all CODES users</Text>
@@ -746,21 +841,16 @@ export default function ChirpConnect() {
             {!selectedContact && <Text style={styles.contactCheck}>✓</Text>}
           </TouchableOpacity>
 
-          {/* Contact List */}
           {contacts.map((contact) => (
             <TouchableOpacity
               key={contact.mirrors_id}
               style={[styles.contactRow, selectedContact?.mirrors_id === contact.mirrors_id && styles.contactRowSelected]}
               onPress={() => selectContact(contact)}
               onLongPress={() => {
-                Alert.alert(
-                  'Remove Contact',
-                  `Remove ${contact.nickname || contact.display_name}?`,
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Remove', style: 'destructive', onPress: () => removeContact(contact.mirrors_id) },
-                  ]
-                );
+                Alert.alert('Remove Contact', `Remove ${contact.nickname || contact.display_name}?`, [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Remove', style: 'destructive', onPress: () => removeContact(contact.mirrors_id) },
+                ]);
               }}
             >
               <View style={[styles.contactIcon, contact.is_online && styles.contactIconOnline]}>
@@ -770,15 +860,11 @@ export default function ChirpConnect() {
                 <Text style={styles.contactName}>{contact.nickname || contact.display_name}</Text>
                 <Text style={styles.contactId}>{contact.mirrors_id}</Text>
               </View>
-              {selectedContact?.mirrors_id === contact.mirrors_id && (
-                <Text style={styles.contactCheck}>✓</Text>
-              )}
+              {selectedContact?.mirrors_id === contact.mirrors_id && <Text style={styles.contactCheck}>✓</Text>}
             </TouchableOpacity>
           ))}
 
-          {contacts.length === 0 && (
-            <Text style={styles.noContacts}>No contacts yet. Add someone by their MIRRORS I.D.</Text>
-          )}
+          {contacts.length === 0 && <Text style={styles.noContacts}>No contacts yet. Add someone by their MIRRORS I.D.</Text>}
         </ScrollView>
       )}
 
@@ -805,9 +891,7 @@ export default function ChirpConnect() {
                 await AsyncStorage.setItem(STORAGE_KEYS.DISPLAY_NAME, displayName);
                 if (mirrorsId) {
                   try {
-                    await fetch(`${API_BASE}/api/mirrors/${mirrorsId}/display_name?display_name=${encodeURIComponent(displayName)}`, {
-                      method: 'PUT',
-                    });
+                    await fetch(`${API_BASE}/api/mirrors/${mirrorsId}/display_name?display_name=${encodeURIComponent(displayName)}`, { method: 'PUT' });
                   } catch {}
                 }
               }}
@@ -815,16 +899,17 @@ export default function ChirpConnect() {
           </View>
 
           <View style={styles.settingSection}>
+            <Text style={styles.settingSectionTitle}>CHIRP LIMITS</Text>
+            <View style={styles.limitsInfo}>
+              <View style={styles.limitRow}><Text style={styles.limitLabel}>🎤 Voice:</Text><Text style={styles.limitValue}>{VOICE_CHIRP_LIMIT} seconds</Text></View>
+              <View style={styles.limitRow}><Text style={styles.limitLabel}>📹 Video:</Text><Text style={styles.limitValue}>{VIDEO_CHIRP_LIMIT} seconds</Text></View>
+            </View>
+          </View>
+
+          <View style={styles.settingSection}>
             <Text style={styles.settingSectionTitle}>iPHONE ACTION BUTTON</Text>
             <Text style={styles.settingHint}>Settings → Action Button → Shortcut → "Open CODES I.D."</Text>
-            <TouchableOpacity
-              style={styles.settingBtn}
-              onPress={() => {
-                if (Platform.OS === 'ios') {
-                  Linking.openURL('app-settings:');
-                }
-              }}
-            >
+            <TouchableOpacity style={styles.settingBtn} onPress={() => { if (Platform.OS === 'ios') Linking.openURL('app-settings:'); }}>
               <Text style={styles.settingBtnText}>OPEN SETTINGS</Text>
             </TouchableOpacity>
           </View>
@@ -837,44 +922,21 @@ export default function ChirpConnect() {
           <View style={modalStyles.container}>
             <Text style={modalStyles.title}>ADD CONTACT</Text>
             <Text style={modalStyles.subtitle}>Enter their MIRRORS I.D.</Text>
-
-            <TextInput
-              style={modalStyles.input}
-              value={newContactId}
-              onChangeText={setNewContactId}
-              placeholder="e.g. ABC123"
-              placeholderTextColor="#3a1010"
-              autoCapitalize="characters"
-              maxLength={6}
-            />
-
+            <TextInput style={modalStyles.input} value={newContactId} onChangeText={setNewContactId} placeholder="e.g. ABC123" placeholderTextColor="#3a1010" autoCapitalize="characters" maxLength={6} />
             <TouchableOpacity style={modalStyles.lookupBtn} onPress={lookupContact} disabled={isLookingUp}>
-              {isLookingUp ? (
-                <ActivityIndicator color="#ff0a0a" size="small" />
-              ) : (
-                <Text style={modalStyles.lookupBtnText}>LOOKUP</Text>
-              )}
+              {isLookingUp ? <ActivityIndicator color="#ff0a0a" size="small" /> : <Text style={modalStyles.lookupBtnText}>LOOKUP</Text>}
             </TouchableOpacity>
-
             {lookupResult && (
               <View style={modalStyles.resultBox}>
-                {lookupResult.error ? (
-                  <Text style={modalStyles.errorText}>{lookupResult.error}</Text>
-                ) : (
+                {lookupResult.error ? <Text style={modalStyles.errorText}>{lookupResult.error}</Text> : (
                   <>
                     <Text style={modalStyles.resultName}>{lookupResult.display_name}</Text>
                     <Text style={modalStyles.resultId}>{lookupResult.mirrors_id}</Text>
-                    <View style={[modalStyles.onlineIndicator, lookupResult.is_online && modalStyles.onlineIndicatorActive]}>
-                      <Text style={modalStyles.onlineText}>{lookupResult.is_online ? 'ONLINE' : 'OFFLINE'}</Text>
-                    </View>
-                    <TouchableOpacity style={modalStyles.addBtn} onPress={addContact}>
-                      <Text style={modalStyles.addBtnText}>+ ADD TO CONTACTS</Text>
-                    </TouchableOpacity>
+                    <TouchableOpacity style={modalStyles.addBtn} onPress={addContact}><Text style={modalStyles.addBtnText}>+ ADD TO CONTACTS</Text></TouchableOpacity>
                   </>
                 )}
               </View>
             )}
-
             <TouchableOpacity style={modalStyles.cancelBtn} onPress={() => { setShowAddContact(false); setNewContactId(''); setLookupResult(null); }}>
               <Text style={modalStyles.cancelBtnText}>CANCEL</Text>
             </TouchableOpacity>
@@ -886,39 +948,23 @@ export default function ChirpConnect() {
       <Modal visible={showShareModal} animationType="fade" transparent onRequestClose={() => setShowShareModal(false)}>
         <View style={shareStyles.overlay}>
           <View style={shareStyles.container}>
-            <Text style={shareStyles.title}>CHIRP RECORDED</Text>
+            <Text style={shareStyles.title}>{chirpMode === 'voice' ? '🎤 VOICE' : '📹 VIDEO'} CHIRP RECORDED</Text>
             <Text style={shareStyles.duration}>{formatDuration(recordedDuration)}</Text>
-
-            <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
-              <View style={shareStyles.lcdOuter}>
-                <View style={shareStyles.lcdInner}>
-                  <Text style={shareStyles.lcdTitle}>M̲I̲R̲R̲O̲R̲S̲</Text>
-                  <Text style={shareStyles.lcdIdLabel}>IDENTIFICATION PROGRAM</Text>
-                  <View style={shareStyles.lcdWaveform}>
-                    {[...Array(12)].map((_, i) => (
-                      <View key={i} style={[shareStyles.lcdWaveBar, { height: 8 + Math.sin(i * 0.8) * 12 + Math.random() * 6 }]} />
-                    ))}
-                  </View>
-                  <Text style={shareStyles.lcdFrom}>{selectedContact ? `TO: ${selectedContact.mirrors_id}` : 'BROADCAST'}</Text>
-                  <Text style={shareStyles.lcdFooter}>godmodesound.com // MIRRORS 96</Text>
-                </View>
-              </View>
-            </ViewShot>
-
+            <View style={shareStyles.waveformLarge}>
+              {[...Array(30)].map((_, i) => (
+                <View key={i} style={[shareStyles.waveBarLarge, { height: 10 + Math.sin(i * 0.5) * 20 + Math.random() * 10 }]} />
+              ))}
+            </View>
+            <Text style={shareStyles.toText}>{selectedContact ? `TO: ${selectedContact.nickname || selectedContact.mirrors_id}` : 'BROADCAST TO ALL'}</Text>
             <View style={shareStyles.actionRow}>
               <TouchableOpacity style={shareStyles.sendBtn} onPress={sendDirectChirp} disabled={isSharing}>
-                {isSharing ? <ActivityIndicator color="#000" size="small" /> : (
-                  <Text style={shareStyles.sendBtnText}>{selectedContact ? '▶ SEND' : '◉ BROADCAST'}</Text>
-                )}
+                {isSharing ? <ActivityIndicator color="#000" size="small" /> : <Text style={shareStyles.sendBtnText}>{selectedContact ? '▶ SEND' : '◉ BROADCAST'}</Text>}
               </TouchableOpacity>
               <TouchableOpacity style={shareStyles.shareBtn} onPress={handleShareChirp} disabled={isSharing}>
                 <Text style={shareStyles.shareBtnText}>SHARE</Text>
               </TouchableOpacity>
             </View>
-
-            <TouchableOpacity style={shareStyles.cancelBtn} onPress={() => setShowShareModal(false)}>
-              <Text style={shareStyles.cancelBtnText}>CANCEL</Text>
-            </TouchableOpacity>
+            <TouchableOpacity style={shareStyles.cancelBtn} onPress={() => setShowShareModal(false)}><Text style={shareStyles.cancelBtnText}>CANCEL</Text></TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -948,46 +994,77 @@ const styles = StyleSheet.create({
   idName: { color: '#5a1a1a', fontSize: 10, marginTop: 2, fontFamily: 'TerminatorRealNFI' },
 
   tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#1a0808' },
-  tab: { flex: 1, paddingVertical: 12, alignItems: 'center', backgroundColor: '#050202' },
+  tab: { flex: 1, paddingVertical: 12, alignItems: 'center', backgroundColor: '#050202', flexDirection: 'row', justifyContent: 'center' },
   tabActive: { backgroundColor: '#0a0505', borderBottomWidth: 2, borderBottomColor: '#ff0a0a' },
-  tabText: { color: '#3a1010', fontSize: 10, fontWeight: '700', letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
+  tabText: { color: '#3a1010', fontSize: 9, fontWeight: '700', letterSpacing: 1, fontFamily: 'TerminatorRealNFI' },
   tabTextActive: { color: '#ff0a0a' },
+  badge: { backgroundColor: '#ff0a0a', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 4 },
+  badgeText: { color: '#000', fontSize: 9, fontWeight: '900' },
 
   mainArea: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
 
-  selectedContactBar: { position: 'absolute', top: 20, alignItems: 'center', backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a40', padding: 12, borderRadius: 4, width: '100%' },
-  selectedLabel: { color: '#3a1010', fontSize: 8, letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
-  selectedName: { color: '#ff0a0a', fontSize: 14, fontWeight: '700', marginTop: 4, fontFamily: 'TerminatorRealNFI' },
-  selectedId: { color: '#5a1a1a', fontSize: 10, marginTop: 2, fontFamily: 'TerminatorRealNFI' },
-  clearSelected: { color: '#ff0a0a', fontSize: 18, marginTop: 8 },
+  modeToggle: { flexDirection: 'row', position: 'absolute', top: 12, gap: 10 },
+  modeBtn: { paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1, borderColor: '#2a0a0a', backgroundColor: '#050202', alignItems: 'center' },
+  modeBtnActive: { borderColor: '#ff0a0a', backgroundColor: '#1a0505' },
+  modeBtnActiveVideo: { borderColor: '#0a64ff', backgroundColor: '#050a1a' },
+  modeBtnText: { color: '#5a1a1a', fontSize: 11, fontWeight: '700', fontFamily: 'TerminatorRealNFI' },
+  modeBtnTextActive: { color: '#fff' },
+  modeLimit: { color: '#3a1010', fontSize: 8, marginTop: 2 },
 
-  broadcastBar: { position: 'absolute', top: 20, alignItems: 'center' },
+  selectedContactBar: { position: 'absolute', top: 60, alignItems: 'center', backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a40', padding: 10, width: '100%' },
+  selectedLabel: { color: '#3a1010', fontSize: 8, letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
+  selectedName: { color: '#ff0a0a', fontSize: 14, fontWeight: '700', marginTop: 2, fontFamily: 'TerminatorRealNFI' },
+  selectedId: { color: '#5a1a1a', fontSize: 10, marginTop: 2, fontFamily: 'TerminatorRealNFI' },
+  clearSelected: { color: '#ff0a0a', fontSize: 16, marginTop: 6 },
+
+  broadcastBar: { position: 'absolute', top: 60, alignItems: 'center' },
   broadcastText: { color: '#ff0a0a', fontSize: 12, fontWeight: '700', letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
   broadcastSub: { color: '#3a1010', fontSize: 9, marginTop: 4 },
 
-  receiveIndicator: { position: 'absolute', top: 80, left: 20, right: 20, paddingVertical: 16, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#00ff4440' },
+  progressContainer: { position: 'absolute', top: 110, width: '100%', alignItems: 'center' },
+  progressBar: { width: '80%', height: 4, backgroundColor: '#1a0808', borderRadius: 2, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: '#ff0a0a' },
+  progressFillVideo: { backgroundColor: '#0a64ff' },
+  progressText: { color: '#ff0a0a', fontSize: 10, marginTop: 4, fontFamily: 'TerminatorRealNFI' },
+
+  receiveIndicator: { position: 'absolute', top: 130, left: 20, right: 20, paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#00ff4440' },
   receiveText: { color: '#00ff44', fontSize: 14, fontWeight: '900', letterSpacing: 4, fontFamily: 'TerminatorRealNFI' },
   receiverName: { color: '#00ff44', fontSize: 10, letterSpacing: 2, marginTop: 4, opacity: 0.7, fontFamily: 'TerminatorRealNFI' },
 
-  transmitStatus: { position: 'absolute', top: 80, alignItems: 'center' },
-  transmitLabel: { color: '#ff0a0a', fontSize: 12, letterSpacing: 6, fontFamily: 'TerminatorRealNFI' },
-  transmitTimer: { color: '#ff0a0a', fontSize: 32, fontWeight: '900', marginTop: 8, fontFamily: 'TerminatorRealNFI' },
-
-  pttWrapper: { alignItems: 'center', justifyContent: 'center', width: 220, height: 220 },
-  pttRing: { position: 'absolute', width: 180, height: 180, borderRadius: 90, borderWidth: 2, borderColor: '#ff0a0a' },
-  pttGlow: { position: 'absolute', width: 200, height: 200, borderRadius: 100 },
-  pttButton: { width: 180, height: 180, borderRadius: 90, backgroundColor: '#0a0303', borderWidth: 4, borderColor: '#2a0a0a', justifyContent: 'center', alignItems: 'center' },
+  pttWrapper: { alignItems: 'center', justifyContent: 'center', width: 200, height: 200 },
+  pttRing: { position: 'absolute', width: 160, height: 160, borderRadius: 80, borderWidth: 2, borderColor: '#ff0a0a' },
+  pttRingVideo: { borderColor: '#0a64ff' },
+  pttGlow: { position: 'absolute', width: 180, height: 180, borderRadius: 90 },
+  pttButton: { width: 160, height: 160, borderRadius: 80, backgroundColor: '#0a0303', borderWidth: 4, borderColor: '#2a0a0a', justifyContent: 'center', alignItems: 'center' },
   pttButtonActive: { backgroundColor: '#1a0505', borderColor: '#ff0a0a' },
-  pttIcon: { color: '#ff0a0a', fontSize: 40, marginBottom: 8 },
-  pttMainText: { color: '#ff0a0a', fontSize: 24, fontWeight: '900', letterSpacing: 6, fontFamily: 'TerminatorRealNFI' },
-  pttSubText: { color: '#5a1a1a', fontSize: 9, letterSpacing: 2, marginTop: 8, fontFamily: 'TerminatorRealNFI' },
+  pttButtonVideo: { borderColor: '#0a2a4a' },
+  pttIcon: { fontSize: 36, marginBottom: 6 },
+  pttMainText: { color: '#ff0a0a', fontSize: 20, fontWeight: '900', letterSpacing: 4, fontFamily: 'TerminatorRealNFI' },
+  pttMainTextVideo: { color: '#0a64ff' },
+  pttSubText: { color: '#5a1a1a', fontSize: 8, letterSpacing: 1, marginTop: 6, fontFamily: 'TerminatorRealNFI' },
 
-  lastChirp: { color: '#3a1010', fontSize: 10, letterSpacing: 1, marginTop: 30, fontFamily: 'TerminatorRealNFI' },
+  lastChirp: { color: '#3a1010', fontSize: 10, letterSpacing: 1, marginTop: 20, fontFamily: 'TerminatorRealNFI' },
 
+  // Messages
+  noMessages: { color: '#3a1010', fontSize: 11, textAlign: 'center', marginTop: 40 },
+  messageRow: { flexDirection: 'row', backgroundColor: '#050202', borderWidth: 1, borderColor: '#1a0808', padding: 12, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#00ff44' },
+  messageRowOutgoing: { borderLeftColor: '#ff0a0a' },
+  messageIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#1a0808', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  messageIconText: { fontSize: 16 },
+  messageContent: { flex: 1 },
+  messageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  messageName: { color: '#ff0a0a', fontSize: 12, fontWeight: '700', fontFamily: 'TerminatorRealNFI' },
+  messageTime: { color: '#3a1010', fontSize: 9 },
+  messageBody: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  waveform: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 },
+  waveBar: { width: 3, backgroundColor: '#ff0a0a40', borderRadius: 1 },
+  messageDuration: { color: '#5a1a1a', fontSize: 10, fontFamily: 'TerminatorRealNFI' },
+  messageType: { color: '#3a1010', fontSize: 8, marginTop: 4, letterSpacing: 1 },
+
+  // Contacts
   contactsArea: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
   addContactBtn: { backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a', paddingVertical: 14, alignItems: 'center', marginBottom: 12 },
   addContactText: { color: '#ff0a0a', fontSize: 11, fontWeight: '700', letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
-
   contactRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#050202', borderWidth: 1, borderColor: '#1a0808', padding: 12, marginBottom: 8 },
   contactRowSelected: { borderColor: '#ff0a0a', backgroundColor: '#0a0505' },
   contactIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#1a0808', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
@@ -999,13 +1076,18 @@ const styles = StyleSheet.create({
   contactCheck: { color: '#ff0a0a', fontSize: 18, marginLeft: 12 },
   noContacts: { color: '#3a1010', fontSize: 11, textAlign: 'center', marginTop: 20 },
 
+  // Settings
   settingsArea: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
-  settingSection: { marginBottom: 24 },
+  settingSection: { marginBottom: 20 },
   settingSectionTitle: { color: '#ff0a0a', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 8, fontFamily: 'TerminatorRealNFI' },
   idCard: { backgroundColor: '#050202', borderWidth: 1, borderColor: '#ff0a0a40', padding: 16, alignItems: 'center' },
   idCardValue: { color: '#ff0a0a', fontSize: 28, fontWeight: '900', letterSpacing: 6, fontFamily: 'TerminatorRealNFI' },
   idCardHint: { color: '#3a1010', fontSize: 9, marginTop: 8, textAlign: 'center' },
   settingInput: { backgroundColor: '#050202', borderWidth: 1, borderColor: '#2a0a0a', color: '#ff0a0a', fontSize: 14, padding: 12 },
+  limitsInfo: { backgroundColor: '#050202', borderWidth: 1, borderColor: '#1a0808', padding: 12 },
+  limitRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
+  limitLabel: { color: '#5a1a1a', fontSize: 12 },
+  limitValue: { color: '#ff0a0a', fontSize: 12, fontFamily: 'TerminatorRealNFI' },
   settingHint: { color: '#3a1010', fontSize: 10, marginBottom: 12 },
   settingBtn: { backgroundColor: '#050202', borderWidth: 1, borderColor: '#2a0a0a', paddingVertical: 12, alignItems: 'center' },
   settingBtnText: { color: '#5a1a1a', fontSize: 10, letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
@@ -1022,9 +1104,6 @@ const modalStyles = StyleSheet.create({
   resultBox: { backgroundColor: '#050202', borderWidth: 1, borderColor: '#ff0a0a40', padding: 16, marginTop: 16, alignItems: 'center' },
   resultName: { color: '#ff0a0a', fontSize: 16, fontWeight: '700', fontFamily: 'TerminatorRealNFI' },
   resultId: { color: '#5a1a1a', fontSize: 12, marginTop: 4, fontFamily: 'TerminatorRealNFI' },
-  onlineIndicator: { marginTop: 8, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: '#1a0808', borderRadius: 4 },
-  onlineIndicatorActive: { backgroundColor: '#0a2a0a' },
-  onlineText: { color: '#5a1a1a', fontSize: 9, letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
   addBtn: { backgroundColor: '#ff0a0a', paddingVertical: 12, paddingHorizontal: 20, marginTop: 12 },
   addBtnText: { color: '#000', fontSize: 11, fontWeight: '900', letterSpacing: 1, fontFamily: 'TerminatorRealNFI' },
   errorText: { color: '#ff0a0a', fontSize: 12, fontFamily: 'TerminatorRealNFI' },
@@ -1034,18 +1113,13 @@ const modalStyles = StyleSheet.create({
 
 const shareStyles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
-  container: { width: SCREEN_WIDTH - 40, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a30', padding: 20 },
-  title: { color: '#ff0a0a', fontSize: 16, fontWeight: '900', letterSpacing: 4, textAlign: 'center', fontFamily: 'TerminatorRealNFI' },
-  duration: { color: '#5a1a1a', fontSize: 24, textAlign: 'center', marginTop: 8, fontFamily: 'TerminatorRealNFI' },
-  lcdOuter: { backgroundColor: '#1a1a1a', padding: 12, marginTop: 16 },
-  lcdInner: { backgroundColor: '#a89f4c', padding: 16, minHeight: 140 },
-  lcdTitle: { color: '#2a2a6a', fontSize: 24, fontWeight: '900', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', textDecorationLine: 'underline' },
-  lcdIdLabel: { color: '#2a2a6a', fontSize: 8, marginTop: 4, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' },
-  lcdWaveform: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, marginTop: 16 },
-  lcdWaveBar: { width: 5, backgroundColor: '#2a2a6a', borderRadius: 2 },
-  lcdFrom: { color: '#2a2a6a', fontSize: 10, marginTop: 12, textAlign: 'center', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' },
-  lcdFooter: { color: '#2a2a6a', fontSize: 8, marginTop: 8, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' },
-  actionRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  container: { width: SCREEN_WIDTH - 40, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a30', padding: 20, alignItems: 'center' },
+  title: { color: '#ff0a0a', fontSize: 14, fontWeight: '900', letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
+  duration: { color: '#fff', fontSize: 36, fontWeight: '300', marginTop: 8, fontFamily: 'TerminatorRealNFI' },
+  waveformLarge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, marginTop: 20, marginBottom: 16 },
+  waveBarLarge: { width: 6, backgroundColor: '#ff0a0a', borderRadius: 3 },
+  toText: { color: '#5a1a1a', fontSize: 10, letterSpacing: 2, marginBottom: 16, fontFamily: 'TerminatorRealNFI' },
+  actionRow: { flexDirection: 'row', gap: 12, width: '100%' },
   sendBtn: { flex: 2, backgroundColor: '#ff0a0a', paddingVertical: 14, alignItems: 'center' },
   sendBtnText: { color: '#000', fontSize: 11, fontWeight: '900', letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
   shareBtn: { flex: 1, backgroundColor: '#050202', borderWidth: 1, borderColor: '#ff0a0a', paddingVertical: 14, alignItems: 'center' },

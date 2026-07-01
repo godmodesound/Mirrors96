@@ -14,6 +14,7 @@
       "backgroundColor": "#000000",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Transmit voice instantly via Direct Connect",
+        "NSCameraUsageDescription": "Record video chirps to share with contacts",
         "UIBackgroundModes": [
           "audio"
         ]
@@ -27,7 +28,8 @@
       "edgeToEdgeEnabled": true,
       "permissions": [
         "RECORD_AUDIO",
-        "VIBRATE"
+        "VIBRATE",
+        "CAMERA"
       ]
     },
     "web": {

@@ -126,7 +126,7 @@ export default function TerminalScreen() {
   const [archiveCategory, setArchiveCategory] = useState('all');
   const [archivePlayingItem, setArchivePlayingItem] = useState<string | null>(null);
   const [loadedArchiveName, setLoadedArchiveName] = useState<string | null>(null);
-  const [archiveViewMode, setArchiveViewMode] = useState<'codex' | 'a-z' | 'lab'>('codex');
+  const [archiveViewMode, setArchiveViewMode] = useState<'codex' | 'a-z' | 'lab'>('a-z');
   const [selectedCodex, setSelectedCodex] = useState<string | null>(null);
   const [sendCodesModalVisible, setSendCodesModalVisible] = useState(false);
 
