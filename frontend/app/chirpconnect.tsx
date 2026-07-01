@@ -16,6 +16,8 @@ import {
   ScrollView,
   Alert,
   FlatList,
+  Image,
+  ImageBackground,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -773,16 +775,24 @@ export default function ChirpConnect() {
             <Animated.View style={[styles.pttGlow, { backgroundColor: glowColor }]} />
             <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
               <TouchableOpacity
-                style={[styles.pttButton, isTransmitting && styles.pttButtonActive, chirpMode === 'video' && styles.pttButtonVideo]}
                 onPressIn={startTransmit}
                 onPressOut={() => stopTransmit(false)}
                 activeOpacity={0.9}
               >
-                <Text style={styles.pttIcon}>{isTransmitting ? 'Ω' : 'Α'}</Text>
-                <Text style={[styles.pttMainText, chirpMode === 'video' && styles.pttMainTextVideo]}>
-                  {chirpMode === 'voice' ? 'VOICE' : 'VIDEO'}
-                </Text>
-                <Text style={styles.pttSubText}>{isTransmitting ? 'Ω RELEASE' : 'Α HOLD'}</Text>
+                <ImageBackground
+                  source={require('../assets/images/chirp-button-bg.jpg')}
+                  style={[styles.pttButton, isTransmitting && styles.pttButtonActive, chirpMode === 'video' && styles.pttButtonVideo]}
+                  imageStyle={styles.pttButtonImage}
+                  resizeMode="cover"
+                >
+                  <View style={styles.pttButtonOverlay}>
+                    <Text style={[styles.pttIcon, { color: isTransmitting ? '#fff' : '#ff0a0a' }]}>{isTransmitting ? 'Ω' : 'Α'}</Text>
+                    <Text style={[styles.pttMainText, chirpMode === 'video' && styles.pttMainTextVideo]}>
+                      {chirpMode === 'voice' ? 'VOICE' : 'VIDEO'}
+                    </Text>
+                    <Text style={[styles.pttSubText, isTransmitting && { color: '#ff6060' }]}>{isTransmitting ? 'Ω RELEASE' : 'Α HOLD'}</Text>
+                  </View>
+                </ImageBackground>
               </TouchableOpacity>
             </Animated.View>
           </View>
@@ -1035,13 +1045,15 @@ const styles = StyleSheet.create({
   pttRing: { position: 'absolute', width: 160, height: 160, borderRadius: 80, borderWidth: 2, borderColor: '#ff0a0a' },
   pttRingVideo: { borderColor: '#0a64ff' },
   pttGlow: { position: 'absolute', width: 180, height: 180, borderRadius: 90 },
-  pttButton: { width: 160, height: 160, borderRadius: 80, backgroundColor: '#0a0303', borderWidth: 4, borderColor: '#2a0a0a', justifyContent: 'center', alignItems: 'center' },
-  pttButtonActive: { backgroundColor: '#1a0505', borderColor: '#ff0a0a' },
+  pttButton: { width: 160, height: 160, borderRadius: 80, overflow: 'hidden', borderWidth: 4, borderColor: '#2a0a0a', justifyContent: 'center', alignItems: 'center' },
+  pttButtonImage: { borderRadius: 76 },
+  pttButtonOverlay: { flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.35)' },
+  pttButtonActive: { borderColor: '#ff0a0a' },
   pttButtonVideo: { borderColor: '#0a2a4a' },
-  pttIcon: { fontSize: 36, marginBottom: 6 },
-  pttMainText: { color: '#ff0a0a', fontSize: 20, fontWeight: '900', letterSpacing: 4, fontFamily: 'TerminatorRealNFI' },
+  pttIcon: { fontSize: 36, marginBottom: 6, color: '#ff0a0a', textShadowColor: '#000', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+  pttMainText: { color: '#fff', fontSize: 20, fontWeight: '900', letterSpacing: 4, fontFamily: 'TerminatorRealNFI', textShadowColor: '#000', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
   pttMainTextVideo: { color: '#0a64ff' },
-  pttSubText: { color: '#5a1a1a', fontSize: 8, letterSpacing: 1, marginTop: 6, fontFamily: 'TerminatorRealNFI' },
+  pttSubText: { color: '#aaa', fontSize: 8, letterSpacing: 1, marginTop: 6, fontFamily: 'TerminatorRealNFI', textShadowColor: '#000', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
 
   lastChirp: { color: '#3a1010', fontSize: 10, letterSpacing: 1, marginTop: 20, fontFamily: 'TerminatorRealNFI' },
 
