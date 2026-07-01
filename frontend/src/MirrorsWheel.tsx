@@ -41,22 +41,6 @@ const SPECTRUM: Record<number, { bright: string; dim: string }> = {
   12: { bright: '#D500F9', dim: '#5A006B' },
 };
 
-// Standard Camelot wheel colors (matching the classic reference image)
-const CAMELOT_COLORS: Record<number, { inner: string; outer: string }> = {
-  1:  { inner: '#e8b4d9', outer: '#a8d8c8' }, // 1A pink / 1B teal
-  2:  { inner: '#d9a8c4', outer: '#8fd4a8' }, // 2A mauve / 2B green
-  3:  { inner: '#c9a8d4', outer: '#a8e8a8' }, // 3A purple / 3B light green
-  4:  { inner: '#b8a8e4', outer: '#c8f0a8' }, // 4A lavender / 4B lime
-  5:  { inner: '#a8b8f4', outer: '#e8f8a8' }, // 5A blue / 5B yellow-green
-  6:  { inner: '#98c8e8', outer: '#f8f8a8' }, // 6A sky / 6B yellow
-  7:  { inner: '#88d0d8', outer: '#f8e8a8' }, // 7A cyan / 7B gold
-  8:  { inner: '#78d8c8', outer: '#f8d0a8' }, // 8A teal / 8B orange
-  9:  { inner: '#88e0b8', outer: '#f8c0a8' }, // 9A green / 9B peach
-  10: { inner: '#a8e8a8', outer: '#f8b0b0' }, // 10A green / 10B pink
-  11: { inner: '#c8e8b8', outer: '#e8a8c0' }, // 11A lime / 11B rose
-  12: { inner: '#e0e8c8', outer: '#d8a8d0' }, // 12A cream / 12B magenta
-};
-
 export const CAMELOT_KEYS: CamelotKey[] = [
   { id: '1A',  num: 1,  letter: 'A', note: 'A♭m',  freq: 406.7,  color: SPECTRUM[1].bright,  colorDim: SPECTRUM[1].dim },
   { id: '2A',  num: 2,  letter: 'A', note: 'E♭m',  freq: 304.4,  color: SPECTRUM[2].bright,  colorDim: SPECTRUM[2].dim },
@@ -84,8 +68,8 @@ export const CAMELOT_KEYS: CamelotKey[] = [
   { id: '12B', num: 12, letter: 'B', note: 'E',    freq: 324.0,  color: SPECTRUM[12].bright, colorDim: SPECTRUM[12].dim },
 ];
 
-// Camelot note names mapping (standard Camelot notation)
-const CAMELOT_NOTES: Record<string, { minor: string; major: string }> = {
+// Note names for the MIRRORS 96 WHEEL (matching the reference image exactly)
+const MIRRORS_WHEEL_NOTES: Record<string, { minor: string; major: string }> = {
   '1':  { minor: 'A-Flat Minor', major: 'B Major' },
   '2':  { minor: 'E-Flat Minor', major: 'F-Sharp Major' },
   '3':  { minor: 'B-Flat Minor', major: 'D-Flat Major' },
@@ -126,18 +110,15 @@ const CY = MAP_H / 2;
 // Generate infinity/butterfly attractor paths
 function generateAttractorPaths(cx: number, cy: number, scale: number) {
   const paths: string[] = [];
-  
   for (let layer = 0; layer < 12; layer++) {
     const layerScale = scale * (0.5 + layer * 0.08);
     const offset = layer * 2;
     let path = '';
-    
     for (let t = 0; t <= 360; t += 2) {
       const rad = (t + offset) * (Math.PI / 180);
       const r = Math.exp(Math.cos(rad)) - 2 * Math.cos(4 * rad) + Math.pow(Math.sin(rad / 12), 5);
       const x = cx + Math.sin(rad) * r * layerScale * 0.6;
       const y = cy - Math.cos(rad) * r * layerScale * 0.45;
-      
       if (t === 0) {
         path = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
       } else {
@@ -147,7 +128,6 @@ function generateAttractorPaths(cx: number, cy: number, scale: number) {
     path += ' Z';
     paths.push(path);
   }
-  
   return paths;
 }
 
@@ -155,21 +135,18 @@ function generateAttractorPaths(cx: number, cy: number, scale: number) {
 function generateLobeSpiral(cx: number, cy: number, startAngle: number, radius: number, turns: number = 2) {
   let path = '';
   const steps = 60;
-  
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
     const angle = startAngle + t * Math.PI * turns;
     const r = radius * (1 - t * 0.7);
     const x = cx + Math.cos(angle) * r;
     const y = cy + Math.sin(angle) * r;
-    
     if (i === 0) {
       path = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
     } else {
       path += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
     }
   }
-  
   return path;
 }
 
@@ -181,7 +158,6 @@ function generateInfinityCore(cx: number, cy: number, width: number, height: num
     const denom = 1 + Math.sin(rad) * Math.sin(rad);
     const x = cx + (width * Math.cos(rad)) / denom;
     const y = cy + (height * Math.sin(rad) * Math.cos(rad)) / denom;
-    
     if (t === 0) {
       path = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
     } else {
@@ -192,11 +168,10 @@ function generateInfinityCore(cx: number, cy: number, width: number, height: num
   return path;
 }
 
-// Generate arc path for Camelot wheel segments
+// Generate arc path for wheel segments
 function describeArc(cx: number, cy: number, innerR: number, outerR: number, startAngle: number, endAngle: number): string {
   const startRad = (startAngle - 90) * Math.PI / 180;
   const endRad = (endAngle - 90) * Math.PI / 180;
-  
   const x1 = cx + innerR * Math.cos(startRad);
   const y1 = cy + innerR * Math.sin(startRad);
   const x2 = cx + outerR * Math.cos(startRad);
@@ -205,42 +180,27 @@ function describeArc(cx: number, cy: number, innerR: number, outerR: number, sta
   const y3 = cy + outerR * Math.sin(endRad);
   const x4 = cx + innerR * Math.cos(endRad);
   const y4 = cy + innerR * Math.sin(endRad);
-  
   const largeArc = endAngle - startAngle > 180 ? 1 : 0;
-  
   return `M ${x1} ${y1} L ${x2} ${y2} A ${outerR} ${outerR} 0 ${largeArc} 1 ${x3} ${y3} L ${x4} ${y4} A ${innerR} ${innerR} 0 ${largeArc} 0 ${x1} ${y1} Z`;
 }
 
-// Positions for keys in MIRRORS mode
+// Positions for keys in butterfly view
 function getKeyPositions() {
   const outerKeys: { key: CamelotKey; x: number; y: number; r: number }[] = [];
   const innerKeys: { key: CamelotKey; x: number; y: number; r: number }[] = [];
-
   const outerR = MAP_W * 0.44;
   const innerR = MAP_W * 0.28;
 
   for (let i = 0; i < 12; i++) {
     const angle = (i * 30 - 90) * (Math.PI / 180);
     const key = CAMELOT_KEYS[i];
-    outerKeys.push({
-      key,
-      x: CX + Math.cos(angle) * outerR,
-      y: CY + Math.sin(angle) * outerR,
-      r: 14,
-    });
+    outerKeys.push({ key, x: CX + Math.cos(angle) * outerR, y: CY + Math.sin(angle) * outerR, r: 14 });
   }
-
   for (let i = 0; i < 12; i++) {
     const angle = (i * 30 - 90 + 15) * (Math.PI / 180);
     const key = CAMELOT_KEYS[12 + i];
-    innerKeys.push({
-      key,
-      x: CX + Math.cos(angle) * innerR,
-      y: CY + Math.sin(angle) * innerR,
-      r: 11,
-    });
+    innerKeys.push({ key, x: CX + Math.cos(angle) * innerR, y: CY + Math.sin(angle) * innerR, r: 11 });
   }
-
   return { outerKeys, innerKeys };
 }
 
@@ -251,11 +211,11 @@ interface Props {
 }
 
 export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
-  const [viewMode, setViewMode] = useState<'mirrors' | 'camelot'>('mirrors');
+  // DEFAULT to 'camelot' (MIRRORS 96 WHEEL) - shows first
+  const [viewMode, setViewMode] = useState<'mirrors' | 'camelot'>('camelot');
   
   const { outerKeys, innerKeys } = useMemo(() => getKeyPositions(), []);
   const allPositions = useMemo(() => [...outerKeys, ...innerKeys], [outerKeys, innerKeys]);
-
   const attractorPaths = useMemo(() => generateAttractorPaths(CX, CY, MAP_W * 0.5), []);
   
   const lobeSpirals = useMemo(() => {
@@ -282,14 +242,8 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
 
   useEffect(() => {
     Animated.loop(
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 60000,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      })
+      Animated.timing(rotateAnim, { toValue: 1, duration: 60000, easing: Easing.linear, useNativeDriver: false })
     ).start();
-
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
@@ -302,25 +256,39 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
   const activeColor = activePos?.key.color || '#ff0a0a';
 
   // ═══════════════════════════════════════════════════════════════
-  // CAMELOT WHEEL VIEW
+  // MIRRORS 96 WHEEL VIEW (Dark Infrared Design - DEFAULT)
   // ═══════════════════════════════════════════════════════════════
-  const renderCamelotWheel = () => {
-    const outerRadius = MAP_W * 0.46;
-    const middleRadius = MAP_W * 0.32;
-    const innerRadius = MAP_W * 0.18;
-    const centerRadius = MAP_W * 0.12;
+  const renderMirrors96Wheel = () => {
+    const outerRadius = MAP_W * 0.48;
+    const middleRadius = MAP_W * 0.35;
+    const innerRadius = MAP_W * 0.22;
+    const centerRadius = MAP_W * 0.15;
 
     return (
       <Svg width={MAP_W} height={MAP_H} viewBox={`0 0 ${MAP_W} ${MAP_H}`}>
         <Defs>
-          <RadialGradient id="camelot-bg" cx="50%" cy="50%" r="70%">
-            <Stop offset="0%" stopColor="#000000" stopOpacity="1" />
+          <RadialGradient id="m96-bg" cx="50%" cy="50%" r="55%">
+            <Stop offset="0%" stopColor="#0a0000" stopOpacity="1" />
             <Stop offset="100%" stopColor="#000000" stopOpacity="1" />
           </RadialGradient>
+          <RadialGradient id="m96-center" cx="50%" cy="50%" r="50%">
+            <Stop offset="0%" stopColor="#1a0808" stopOpacity="1" />
+            <Stop offset="70%" stopColor="#0a0000" stopOpacity="1" />
+            <Stop offset="100%" stopColor="#050000" stopOpacity="1" />
+          </RadialGradient>
+          <LinearGradient id="m96-ring" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor="#ff0a0a" stopOpacity="0.3" />
+            <Stop offset="50%" stopColor="#ffffff" stopOpacity="0.1" />
+            <Stop offset="100%" stopColor="#ff0a0a" stopOpacity="0.3" />
+          </LinearGradient>
         </Defs>
 
         {/* Background */}
-        <Rect x="0" y="0" width={MAP_W} height={MAP_H} fill="url(#camelot-bg)" />
+        <Rect x="0" y="0" width={MAP_W} height={MAP_H} fill="url(#m96-bg)" />
+
+        {/* Outer decorative ring */}
+        <SvgCircle cx={CX} cy={CY} r={outerRadius + 4} fill="none" stroke="#ff0a0a" strokeWidth={2} opacity={0.3} />
+        <SvgCircle cx={CX} cy={CY} r={outerRadius + 8} fill="none" stroke="#ff0a0a" strokeWidth={1} opacity={0.15} />
 
         {/* Outer ring segments (B - Major keys) */}
         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num, i) => {
@@ -331,22 +299,25 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           const level = getHarmonicLevel(activeKey, keyId);
           const isActive = level === 'selected';
           const isPrimary = level === 'primary';
+          const midAngle = startAngle + 15;
+          const labelR = (middleRadius + outerRadius) / 2;
           
           return (
             <G key={`outer-${num}`} onPress={() => key && onKeyPress(key)}>
+              {/* Segment background */}
               <Path
                 d={describeArc(CX, CY, middleRadius, outerRadius, startAngle, endAngle)}
-                fill={CAMELOT_COLORS[num].outer}
-                stroke={isActive ? '#ffffff' : isPrimary ? '#ffff00' : '#000000'}
-                strokeWidth={isActive ? 3 : isPrimary ? 2 : 1}
-                opacity={isActive ? 1 : isPrimary ? 0.95 : 0.85}
+                fill={isActive ? '#2a0808' : isPrimary ? '#1a0505' : '#050000'}
+                stroke="#ff0a0a"
+                strokeWidth={isActive ? 2 : 1}
+                opacity={isActive ? 1 : isPrimary ? 0.9 : 0.8}
               />
               {/* Key ID label */}
               <SvgText
-                x={CX + Math.cos((startAngle + 15 - 90) * Math.PI / 180) * (outerRadius - 20)}
-                y={CY + Math.sin((startAngle + 15 - 90) * Math.PI / 180) * (outerRadius - 20)}
-                fill="#000000"
-                fontSize={11}
+                x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR + 8)}
+                y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR + 8)}
+                fill={isActive ? '#ffffff' : '#ff0a0a'}
+                fontSize={12}
                 fontWeight="900"
                 textAnchor="middle"
                 alignmentBaseline="middle"
@@ -355,27 +326,36 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
               </SvgText>
               {/* Note name */}
               <SvgText
-                x={CX + Math.cos((startAngle + 15 - 90) * Math.PI / 180) * (outerRadius - 35)}
-                y={CY + Math.sin((startAngle + 15 - 90) * Math.PI / 180) * (outerRadius - 35)}
-                fill="#000000"
+                x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR - 10)}
+                y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR - 10)}
+                fill={isActive ? '#ffffff' : '#888888'}
                 fontSize={7}
                 fontWeight="600"
                 textAnchor="middle"
                 alignmentBaseline="middle"
               >
-                {CAMELOT_NOTES[num.toString()].major.split(' ')[0]}
+                {MIRRORS_WHEEL_NOTES[num.toString()].major.replace(' Major', '')}
               </SvgText>
               <SvgText
-                x={CX + Math.cos((startAngle + 15 - 90) * Math.PI / 180) * (outerRadius - 44)}
-                y={CY + Math.sin((startAngle + 15 - 90) * Math.PI / 180) * (outerRadius - 44)}
-                fill="#000000"
-                fontSize={7}
-                fontWeight="600"
+                x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR - 18)}
+                y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR - 18)}
+                fill={isActive ? '#ffffff' : '#666666'}
+                fontSize={6}
                 textAnchor="middle"
                 alignmentBaseline="middle"
               >
                 Major
               </SvgText>
+              {/* Active glow */}
+              {isActive && (
+                <Path
+                  d={describeArc(CX, CY, middleRadius, outerRadius, startAngle, endAngle)}
+                  fill="none"
+                  stroke="#ff0a0a"
+                  strokeWidth={3}
+                  opacity={0.6}
+                />
+              )}
             </G>
           );
         })}
@@ -389,21 +369,24 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           const level = getHarmonicLevel(activeKey, keyId);
           const isActive = level === 'selected';
           const isPrimary = level === 'primary';
+          const midAngle = startAngle + 15;
+          const labelR = (innerRadius + middleRadius) / 2;
           
           return (
             <G key={`inner-${num}`} onPress={() => key && onKeyPress(key)}>
+              {/* Segment background */}
               <Path
                 d={describeArc(CX, CY, innerRadius, middleRadius, startAngle, endAngle)}
-                fill={CAMELOT_COLORS[num].inner}
-                stroke={isActive ? '#ffffff' : isPrimary ? '#ffff00' : '#000000'}
-                strokeWidth={isActive ? 3 : isPrimary ? 2 : 0.5}
-                opacity={isActive ? 1 : isPrimary ? 0.95 : 0.85}
+                fill={isActive ? '#2a0808' : isPrimary ? '#1a0505' : '#080000'}
+                stroke="#ff0a0a"
+                strokeWidth={isActive ? 2 : 0.8}
+                opacity={isActive ? 1 : isPrimary ? 0.9 : 0.7}
               />
               {/* Key ID label */}
               <SvgText
-                x={CX + Math.cos((startAngle + 15 - 90) * Math.PI / 180) * (middleRadius - 16)}
-                y={CY + Math.sin((startAngle + 15 - 90) * Math.PI / 180) * (middleRadius - 16)}
-                fill="#000000"
+                x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR + 5)}
+                y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR + 5)}
+                fill={isActive ? '#ffffff' : '#ff0a0a'}
                 fontSize={10}
                 fontWeight="900"
                 textAnchor="middle"
@@ -413,79 +396,84 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
               </SvgText>
               {/* Note name */}
               <SvgText
-                x={CX + Math.cos((startAngle + 15 - 90) * Math.PI / 180) * (middleRadius - 30)}
-                y={CY + Math.sin((startAngle + 15 - 90) * Math.PI / 180) * (middleRadius - 30)}
-                fill="#000000"
+                x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR - 10)}
+                y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR - 10)}
+                fill={isActive ? '#ffffff' : '#666666'}
                 fontSize={6}
-                fontWeight="600"
                 textAnchor="middle"
                 alignmentBaseline="middle"
               >
-                {CAMELOT_NOTES[num.toString()].minor.split(' ')[0]}
+                {MIRRORS_WHEEL_NOTES[num.toString()].minor.replace(' Minor', '')}
               </SvgText>
               <SvgText
-                x={CX + Math.cos((startAngle + 15 - 90) * Math.PI / 180) * (middleRadius - 38)}
-                y={CY + Math.sin((startAngle + 15 - 90) * Math.PI / 180) * (middleRadius - 38)}
-                fill="#000000"
-                fontSize={6}
-                fontWeight="600"
+                x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR - 17)}
+                y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR - 17)}
+                fill={isActive ? '#ffffff' : '#555555'}
+                fontSize={5}
                 textAnchor="middle"
                 alignmentBaseline="middle"
               >
                 Minor
               </SvgText>
+              {/* Active glow */}
+              {isActive && (
+                <Path
+                  d={describeArc(CX, CY, innerRadius, middleRadius, startAngle, endAngle)}
+                  fill="none"
+                  stroke="#ff0a0a"
+                  strokeWidth={3}
+                  opacity={0.6}
+                />
+              )}
             </G>
           );
         })}
 
-        {/* Center circle */}
-        <SvgCircle
-          cx={CX}
-          cy={CY}
-          r={innerRadius}
-          fill="#ffffff"
-          stroke="#000000"
-          strokeWidth={1}
-        />
+        {/* Center circle with MIRRORS 96 branding */}
+        <SvgCircle cx={CX} cy={CY} r={innerRadius} fill="url(#m96-center)" stroke="#ff0a0a" strokeWidth={2} />
+        <SvgCircle cx={CX} cy={CY} r={innerRadius - 4} fill="none" stroke="#ff0a0a" strokeWidth={0.5} opacity={0.5} />
         
-        {/* Center text */}
-        <SvgText
-          x={CX}
-          y={CY - 8}
-          fill="#000000"
-          fontSize={10}
-          fontWeight="900"
-          textAnchor="middle"
-          alignmentBaseline="middle"
-        >
-          Camelot System
+        {/* Center text - MIRRORS */}
+        <SvgText x={CX} y={CY - 18} fill="#ff0a0a" fontSize={14} fontWeight="900" textAnchor="middle" letterSpacing={3}>
+          MIRRORS
         </SvgText>
-        <SvgText
-          x={CX}
-          y={CY + 8}
-          fill="#666666"
-          fontSize={7}
-          textAnchor="middle"
-          alignmentBaseline="middle"
-        >
-          432Hz Tuned
+        {/* Center text - 96 */}
+        <SvgText x={CX} y={CY + 8} fill="#ff0a0a" fontSize={28} fontWeight="900" textAnchor="middle">
+          96
+        </SvgText>
+        {/* Center text - WHEEL */}
+        <SvgText x={CX} y={CY + 26} fill="#ff0a0a" fontSize={8} fontWeight="700" textAnchor="middle" letterSpacing={4}>
+          ═ WHEEL ═
         </SvgText>
 
+        {/* Radial lines from center */}
+        {[...Array(12)].map((_, i) => {
+          const angle = (i * 30 - 90) * Math.PI / 180;
+          return (
+            <Line
+              key={`radial-${i}`}
+              x1={CX + Math.cos(angle) * innerRadius}
+              y1={CY + Math.sin(angle) * innerRadius}
+              x2={CX + Math.cos(angle) * outerRadius}
+              y2={CY + Math.sin(angle) * outerRadius}
+              stroke="#ff0a0a"
+              strokeWidth={1}
+              opacity={0.4}
+            />
+          );
+        })}
+
         {/* Corner labels */}
-        <SvgText x={6} y={MAP_H - 6} fill="#ff0a0a" fontSize={5} opacity={0.3} letterSpacing={1}>
-          96 MIRRORS
-        </SvgText>
-        <SvgText x={MAP_W - 6} y={MAP_H - 6} fill="#ff0a0a" fontSize={5} opacity={0.3} letterSpacing={1} textAnchor="end">
-          CAMELOT
-        </SvgText>
+        <SvgText x={6} y={MAP_H - 6} fill="#ff0a0a" fontSize={5} opacity={0.3} letterSpacing={1}>96 MIRRORS</SvgText>
+        <SvgText x={MAP_W - 6} y={MAP_H - 6} fill="#ff0a0a" fontSize={5} opacity={0.3} letterSpacing={1} textAnchor="end">432Hz</SvgText>
       </Svg>
     );
   };
 
   // ═══════════════════════════════════════════════════════════════
-  // MIRRORS WHEEL VIEW (Original)
+  // BUTTERFLY ATTRACTOR VIEW (Original MIRRORS view)
   // ═══════════════════════════════════════════════════════════════
-  const renderMirrorsWheel = () => {
+  const renderButterflyWheel = () => {
     return (
       <Svg width={MAP_W} height={MAP_H} viewBox={`0 0 ${MAP_W} ${MAP_H}`}>
         <Defs>
@@ -493,20 +481,17 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
             <Stop offset="0%" stopColor="#0a0000" stopOpacity="1" />
             <Stop offset="100%" stopColor="#000000" stopOpacity="1" />
           </RadialGradient>
-
           <RadialGradient id="center-glow" cx="50%" cy="50%" r="20%">
             <Stop offset="0%" stopColor="#ffffff" stopOpacity={isEmitting ? '1' : '0.8'} />
             <Stop offset="30%" stopColor="#ff6060" stopOpacity={isEmitting ? '0.6' : '0.3'} />
             <Stop offset="60%" stopColor="#ff0a0a" stopOpacity={isEmitting ? '0.3' : '0.1'} />
             <Stop offset="100%" stopColor="#ff0a0a" stopOpacity="0" />
           </RadialGradient>
-
           <RadialGradient id="attractor-glow" cx="50%" cy="50%" r="60%">
             <Stop offset="0%" stopColor="#ff0a0a" stopOpacity="0" />
             <Stop offset="40%" stopColor="#ff0a0a" stopOpacity={isEmitting ? '0.15' : '0.05'} />
             <Stop offset="100%" stopColor="#ff0000" stopOpacity="0" />
           </RadialGradient>
-
           <LinearGradient id="h-beam" x1="0%" y1="50%" x2="100%" y2="50%">
             <Stop offset="0%" stopColor="#ff0a0a" stopOpacity="0" />
             <Stop offset="40%" stopColor="#ffffff" stopOpacity={isEmitting ? '0.4' : '0.2'} />
@@ -514,7 +499,6 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
             <Stop offset="60%" stopColor="#ffffff" stopOpacity={isEmitting ? '0.4' : '0.2'} />
             <Stop offset="100%" stopColor="#ff0a0a" stopOpacity="0" />
           </LinearGradient>
-
           <LinearGradient id="v-beam" x1="50%" y1="0%" x2="50%" y2="100%">
             <Stop offset="0%" stopColor="#ff0a0a" stopOpacity="0" />
             <Stop offset="40%" stopColor="#ffffff" stopOpacity={isEmitting ? '0.3' : '0.15'} />
@@ -522,7 +506,6 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
             <Stop offset="60%" stopColor="#ffffff" stopOpacity={isEmitting ? '0.3' : '0.15'} />
             <Stop offset="100%" stopColor="#ff0a0a" stopOpacity="0" />
           </LinearGradient>
-
           {allPositions.map((p, i) => (
             <RadialGradient key={`ng-${i}`} id={`ng-${i}`} cx="50%" cy="50%" r="50%">
               <Stop offset="0%" stopColor={p.key.color} stopOpacity={activeKey === p.key.id ? '1' : '0.6'} />
@@ -533,17 +516,14 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
         </Defs>
 
         <Rect x="0" y="0" width={MAP_W} height={MAP_H} fill="url(#bg-grad)" />
-
         <Ellipse cx={CX} cy={CY} rx={MAP_W * 0.48} ry={MAP_H * 0.35} fill="url(#attractor-glow)" />
 
         {attractorPaths.map((path, i) => (
           <Path key={`attractor-${i}`} d={path} fill="none" stroke="#ff0a0a" strokeWidth={i < 3 ? 0.3 : 0.5 + (i - 3) * 0.1} opacity={0.08 + i * 0.03} />
         ))}
-
         {infinityPaths.map((path, i) => (
           <Path key={`infinity-${i}`} d={path} fill="none" stroke="#ff0a0a" strokeWidth={0.8 + i * 0.15} opacity={isEmitting ? 0.25 + i * 0.05 : 0.1 + i * 0.03} />
         ))}
-
         {lobeSpirals.map((path, i) => (
           <G key={`lobe-group-${i}`}>
             <Path d={path} fill="none" stroke="#ff0a0a" strokeWidth={4} opacity={isEmitting ? 0.15 : 0.05} strokeLinecap="round" />
@@ -551,7 +531,6 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
             <Path d={path} fill="none" stroke="#ff4040" strokeWidth={1} opacity={isEmitting ? 0.5 : 0.2} strokeLinecap="round" />
           </G>
         ))}
-
         {[0, 1, 2, 3].map((lobeIdx) => {
           const lobeOffset = MAP_W * 0.25;
           const centers = [
@@ -565,14 +544,11 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
             <SvgCircle key={`lobe-circle-${lobeIdx}-${ri}`} cx={c.x} cy={c.y} r={MAP_W * r} fill="none" stroke="#ff0a0a" strokeWidth={0.5} opacity={isEmitting ? 0.2 - ri * 0.05 : 0.08 - ri * 0.02} />
           ));
         })}
-
         <Rect x={0} y={CY - 2} width={MAP_W} height={4} fill="url(#h-beam)" />
         <Rect x={CX - 2} y={0} width={4} height={MAP_H} fill="url(#v-beam)" />
-
         {[0, 45, 90, 135].map((angle) => (
           <Line key={`ray-${angle}`} x1={CX - Math.cos(angle * Math.PI / 180) * MAP_W * 0.5} y1={CY - Math.sin(angle * Math.PI / 180) * MAP_H * 0.4} x2={CX + Math.cos(angle * Math.PI / 180) * MAP_W * 0.5} y2={CY + Math.sin(angle * Math.PI / 180) * MAP_H * 0.4} stroke="#ff0a0a" strokeWidth={0.5} opacity={isEmitting ? 0.15 : 0.05} />
         ))}
-
         <SvgCircle cx={CX} cy={CY} r={MAP_W * 0.12} fill="url(#center-glow)" />
         <SvgCircle cx={CX} cy={CY} r={isEmitting ? 8 : 5} fill="#ffffff" opacity={isEmitting ? 1 : 0.9} />
         <SvgCircle cx={CX} cy={CY} r={isEmitting ? 4 : 2} fill="#ffffff" />
@@ -580,7 +556,6 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
         {activeKey && activePos && (
           <Line x1={activePos.x} y1={activePos.y} x2={CX} y2={CY} stroke={activeColor} strokeWidth={1.5} opacity={0.5} strokeDasharray="4,4" />
         )}
-
         {activeKey && allPositions.map((p, i) => {
           const level = getHarmonicLevel(activeKey, p.key.id);
           if (level === 'none' || level === 'selected') return null;
@@ -594,7 +569,6 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           const isActive = level === 'selected';
           const isPrimary = level === 'primary';
           const nodeR = isActive ? 18 : p.r;
-
           return (
             <G key={`o-${i}`} onPress={() => onKeyPress(p.key)}>
               <SvgCircle cx={p.x} cy={p.y} r={isActive ? nodeR * 2.5 : isPrimary ? nodeR * 1.8 : nodeR * 1.5} fill={`url(#ng-${i})`} opacity={isActive ? 1 : isPrimary ? 0.7 : 0.3} />
@@ -606,14 +580,12 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
             </G>
           );
         })}
-
         {innerKeys.map((p, idx) => {
           const i = idx + 12;
           const level = getHarmonicLevel(activeKey, p.key.id);
           const isActive = level === 'selected';
           const isPrimary = level === 'primary';
           const nodeR = isActive ? 15 : p.r;
-
           return (
             <G key={`i-${idx}`} onPress={() => onKeyPress(p.key)}>
               <SvgCircle cx={p.x} cy={p.y} r={isActive ? nodeR * 2.2 : nodeR * 1.4} fill={`url(#ng-${i})`} opacity={isActive ? 1 : isPrimary ? 0.6 : 0.25} />
@@ -625,7 +597,6 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
             </G>
           );
         })}
-
         <SvgText x={6} y={MAP_H - 6} fill="#ff0a0a" fontSize={5} opacity={0.15} letterSpacing={1}>96 MIRRORS</SvgText>
         <SvgText x={MAP_W - 6} y={MAP_H - 6} fill="#ff0a0a" fontSize={5} opacity={0.15} letterSpacing={1} textAnchor="end">432Hz TUNED</SvgText>
       </Svg>
@@ -642,8 +613,8 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
         <Text style={st.spinButtonText}>◎ SPIN</Text>
       </TouchableOpacity>
 
-      {/* Render appropriate wheel */}
-      {viewMode === 'mirrors' ? renderMirrorsWheel() : renderCamelotWheel()}
+      {/* Render appropriate wheel - CAMELOT (MIRRORS 96) is default */}
+      {viewMode === 'camelot' ? renderMirrors96Wheel() : renderButterflyWheel()}
 
       {/* Active key info overlay */}
       {activeKey && activePos && (
@@ -658,16 +629,16 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
 
       {/* Legend */}
       <View style={st.legend}>
-        {viewMode === 'mirrors' ? (
+        {viewMode === 'camelot' ? (
           <>
-            <Text style={st.legendItem}>◯ OUTER = MINOR (A)</Text>
-            <Text style={st.legendItem}>● INNER = MAJOR (B)</Text>
+            <Text style={st.legendItem}>INNER = MINOR (A)</Text>
+            <Text style={st.legendItem}>OUTER = MAJOR (B)</Text>
             <Text style={st.legendItem}>TAP TO EMIT</Text>
           </>
         ) : (
           <>
-            <Text style={st.legendItem}>INNER = MINOR (A)</Text>
-            <Text style={st.legendItem}>OUTER = MAJOR (B)</Text>
+            <Text style={st.legendItem}>◯ OUTER = MINOR (A)</Text>
+            <Text style={st.legendItem}>● INNER = MAJOR (B)</Text>
             <Text style={st.legendItem}>TAP TO EMIT</Text>
           </>
         )}
