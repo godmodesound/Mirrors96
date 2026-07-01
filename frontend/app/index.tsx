@@ -765,7 +765,7 @@ export default function TerminalScreen() {
           {/* ══════ MIRRORS WHEEL ══════ */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>&gt; MIRRORS_WHEEL</Text>
-            <Text style={styles.sectionSub}>Liquid Metal × Harmonic Mixing Engine — 432Hz — Tap to emit</Text>
+            <Text style={styles.sectionSub}>HARMONIC RESONANCE MIRROR SYSTEM — 432Hz — Tap to emit</Text>
 
             <MirrorsWheel
               activeKey={activeCamelotKey}
