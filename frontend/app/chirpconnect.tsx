@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,53 +18,43 @@ import {
   FlatList,
   Image,
   ImageBackground,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import { Audio } from 'expo-av';
+import { Camera, CameraView, CameraType } from 'expo-camera';
 import ViewShot from 'react-native-view-shot';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
-import { Camera, CameraView } from 'expo-camera';
 import { FREQUENCY_ARCHIVE } from '../src/FrequencyArchiveData';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// ═══════════════════════════════════
-// CONFIG & LIMITS
-// ═══════════════════════════════════
-const API_BASE =
-  Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL ||
-  process.env.EXPO_PUBLIC_BACKEND_URL ||
-  '';
-const WS_BASE = API_BASE.replace(/^https?/, 'wss');
+// ═══════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════
+const VOICE_CHIRP_LIMIT = 33;
+const VIDEO_CHIRP_LIMIT = 96;
 
-const VOICE_CHIRP_LIMIT = 33; // seconds
-const VIDEO_CHIRP_LIMIT = 96; // seconds
+const API_BASE = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || 
+  (Platform.OS === 'web' ? '' : 'https://binaural-preview.preview.emergentagent.com');
+const WS_BASE = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://');
 
 const STORAGE_KEYS = {
-  MIRRORS_ID: 'mirrors_id',
-  DISPLAY_NAME: 'mirrors_display_name',
-  DEVICE_ID: 'mirrors_device_id',
-  CONTACTS: 'mirrors_contacts',
-  SELECTED_CONTACT: 'mirrors_selected_contact',
-  CHIRP_HISTORY: 'chirp_history',
+  MIRRORS_ID: '@mirrors_id',
+  DISPLAY_NAME: '@mirrors_display_name',
+  DEVICE_ID: '@mirrors_device_id',
+  CONTACTS: '@mirrors_contacts',
+  SELECTED_CONTACT: '@mirrors_selected_contact',
+  CHIRP_HISTORY: '@chirp_history',
 };
 
-// ═══════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // TYPES
-// ═══════════════════════════════════
-interface Contact {
-  mirrors_id: string;
-  display_name: string;
-  nickname: string;
-  is_online?: boolean;
-  added_at?: string;
-}
-
+// ═══════════════════════════════════════════════════════════
 interface ChirpMessage {
   id: string;
   type: 'voice' | 'video' | 'codes';
@@ -75,80 +65,130 @@ interface ChirpMessage {
   timestamp: string;
   is_outgoing: boolean;
   played?: boolean;
+  media_uri?: string;
   frequency_name?: string;
   frequencies?: number[];
 }
 
-// ═══════════════════════════════════
-// NEXTEL-STYLE CODES I.D.
-// ═══════════════════════════════════
+interface Contact {
+  mirrors_id: string;
+  display_name: string;
+  nickname?: string;
+  added_at: string;
+}
+
+// ═══════════════════════════════════════════════════════════
+// COMPONENT
+// ═══════════════════════════════════════════════════════════
 export default function ChirpConnect() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
 
-  // Core state
-  const [isTransmitting, setIsTransmitting] = useState(false);
-  const [isReceiving, setIsReceiving] = useState(false);
-  const [transmitDuration, setTransmitDuration] = useState(0);
-  const [connectionStatus, setConnectionStatus] = useState<'offline' | 'connecting' | 'online'>('offline');
-  const [hasPermission, setHasPermission] = useState(false);
-  const [hasCameraPermission, setHasCameraPermission] = useState(false);
-  const [lastChirpTime, setLastChirpTime] = useState<string | null>(null);
-  const [incomingFrom, setIncomingFrom] = useState<string | null>(null);
-
-  // Chirp mode: voice, video, or codes
-  const [chirpMode, setChirpMode] = useState<'voice' | 'video' | 'codes'>('voice');
-  const [isRecordingVideo, setIsRecordingVideo] = useState(false);
-
-  // Codes mode state
-  const [selectedFrequency, setSelectedFrequency] = useState<{ name: string; frequencies: number[]; category: string } | null>(null);
-  const [showFrequencyPicker, setShowFrequencyPicker] = useState(false);
-  const [codesSearchQuery, setCodesSearchQuery] = useState('');
-  const [codesSelectedCategory, setCodesSelectedCategory] = useState<string | null>(null);
-  const [codesHoldProgress, setCodesHoldProgress] = useState(0);
-  const codesHoldIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // MIRRORS I.D. state
+  // Core State
   const [mirrorsId, setMirrorsId] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState<string>('');
+  const [displayName, setDisplayName] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'offline' | 'connecting' | 'online'>('offline');
+
+  // Permissions
+  const [hasAudioPermission, setHasAudioPermission] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState(false);
+  const [hasMicPermission, setHasMicPermission] = useState(false);
+  const [permissionsChecked, setPermissionsChecked] = useState(false);
+
+  // Tabs & Mode
+  const [activeTab, setActiveTab] = useState<'chirp' | 'messages' | 'contacts' | 'settings'>('chirp');
+  const [chirpMode, setChirpMode] = useState<'voice' | 'video' | 'codes'>('voice');
+
+  // Contacts
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  const [isRegistering, setIsRegistering] = useState(false);
-
-  // Message history
-  const [chirpHistory, setChirpHistory] = useState<ChirpMessage[]>([]);
-
-  // Modal states
-  const [activeTab, setActiveTab] = useState<'chirp' | 'messages' | 'contacts' | 'settings'>('chirp');
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContactId, setNewContactId] = useState('');
   const [lookupResult, setLookupResult] = useState<any>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
 
-  // Share modal state
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [recordedAudioUri, setRecordedAudioUri] = useState<string | null>(null);
-  const [recordedDuration, setRecordedDuration] = useState(0);
-  const [isSharing, setIsSharing] = useState(false);
+  // Recording State
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [recordedMedia, setRecordedMedia] = useState<{ uri: string; type: 'voice' | 'video'; duration: number } | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+
+  // Video Recording
+  const [cameraType, setCameraType] = useState<CameraType>('front');
+  const [isVideoRecording, setIsVideoRecording] = useState(false);
+
+  // Codes Mode
+  const [selectedFrequency, setSelectedFrequency] = useState<{ name: string; frequencies: number[]; category: string } | null>(null);
+  const [showFrequencyPicker, setShowFrequencyPicker] = useState(false);
+  const [codesSearchQuery, setCodesSearchQuery] = useState('');
+  const [codesSelectedCategory, setCodesSelectedCategory] = useState<string | null>(null);
+
+  // Messages (Chat Sandbox)
+  const [chirpHistory, setChirpHistory] = useState<ChirpMessage[]>([]);
+  const [isReceiving, setIsReceiving] = useState(false);
+  const [incomingFrom, setIncomingFrom] = useState('');
 
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
-  const transmitTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const viewShotRef = useRef<ViewShot>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cameraRef = useRef<CameraView>(null);
+  const viewShotRef = useRef<ViewShot>(null);
 
   // Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
-  const ringAnim = useRef(new Animated.Value(0)).current;
-  const receiveAnim = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
-  // ═══════════════════════════════════
-  // INITIALIZE MIRRORS I.D.
-  // ═══════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
+  // PERMISSIONS - iOS 26 COMPATIBLE
+  // ═══════════════════════════════════════════════════════════
+  const requestAllPermissions = useCallback(async () => {
+    try {
+      // Audio/Microphone Permission
+      const { status: audioStatus } = await Audio.requestPermissionsAsync();
+      const audioGranted = audioStatus === 'granted';
+      setHasAudioPermission(audioGranted);
+      setHasMicPermission(audioGranted);
+
+      if (audioGranted) {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: true,
+        });
+      }
+
+      // Camera Permission
+      const { status: cameraStatus } = await Camera.requestCameraPermissionsAsync();
+      setHasCameraPermission(cameraStatus === 'granted');
+
+      // Microphone for Camera (separate on iOS)
+      const { status: micStatus } = await Camera.requestMicrophonePermissionsAsync();
+      setHasMicPermission(micStatus === 'granted');
+
+      setPermissionsChecked(true);
+    } catch (error) {
+      console.error('Permission error:', error);
+      setPermissionsChecked(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      requestAllPermissions();
+    } else {
+      setPermissionsChecked(true);
+      setHasAudioPermission(true);
+    }
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════
+  // INITIALIZATION
+  // ═══════════════════════════════════════════════════════════
   useEffect(() => {
     initializeMirrorsId();
     loadChirpHistory();
@@ -170,7 +210,7 @@ export default function ChirpConnect() {
         await registerMirrorsId();
       }
     } catch (error) {
-      console.error('Error initializing MIRRORS I.D.:', error);
+      console.error('Init error:', error);
     }
   };
 
@@ -195,13 +235,13 @@ export default function ChirpConnect() {
         setDisplayName(data.display_name);
         await AsyncStorage.setItem(STORAGE_KEYS.MIRRORS_ID, data.mirrors_id);
         await AsyncStorage.setItem(STORAGE_KEYS.DISPLAY_NAME, data.display_name);
-        if (data.contacts) {
-          setContacts(data.contacts);
-          await AsyncStorage.setItem(STORAGE_KEYS.CONTACTS, JSON.stringify(data.contacts));
-        }
       }
     } catch (error) {
-      console.error('Error registering MIRRORS I.D.:', error);
+      console.error('Registration error:', error);
+      // Generate local fallback ID
+      const fallbackId = Math.random().toString(36).substr(2, 6).toUpperCase();
+      setMirrorsId(fallbackId);
+      await AsyncStorage.setItem(STORAGE_KEYS.MIRRORS_ID, fallbackId);
     }
     setIsRegistering(false);
   };
@@ -214,101 +254,37 @@ export default function ChirpConnect() {
   };
 
   const saveChirpToHistory = async (chirp: ChirpMessage) => {
-    const updated = [chirp, ...chirpHistory].slice(0, 50); // Keep last 50
+    const updated = [chirp, ...chirpHistory].slice(0, 100);
     setChirpHistory(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.CHIRP_HISTORY, JSON.stringify(updated));
   };
 
-  // ═══════════════════════════════════
-  // PERMISSIONS
-  // ═══════════════════════════════════
-  useEffect(() => {
-    (async () => {
-      if (Platform.OS !== 'web') {
-        try {
-          const { status: audioStatus } = await Audio.requestPermissionsAsync();
-          setHasPermission(audioStatus === 'granted');
-          if (audioStatus === 'granted') {
-            await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-          }
-
-          const { status: cameraStatus } = await Camera.requestCameraPermissionsAsync();
-          setHasCameraPermission(cameraStatus === 'granted');
-        } catch {
-          setHasPermission(false);
-        }
-      }
-    })();
-  }, []);
-
-  // ═══════════════════════════════════
-  // CHIRP SOUND FEEDBACK
-  // ═══════════════════════════════════
-  const playChirpStart = async () => {
-    try {
-      if (Platform.OS !== 'web') {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      }
-      Vibration.vibrate([0, 60, 40, 60]);
-    } catch {
-      Vibration.vibrate(50);
-    }
-  };
-
-  const playChirpEnd = async () => {
-    try {
-      if (Platform.OS !== 'web') {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-      Vibration.vibrate([0, 30, 50, 30]);
-    } catch {
-      Vibration.vibrate(30);
-    }
-  };
-
-  const playIncomingChirp = async () => {
-    try {
-      if (Platform.OS !== 'web') {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      }
-      Vibration.vibrate([0, 100, 50, 100, 50, 100]);
-    } catch {
-      Vibration.vibrate(100);
-    }
-  };
-
-  // ═══════════════════════════════════
-  // WEBSOCKET CONNECTION
-  // ═══════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
+  // WEBSOCKET
+  // ═══════════════════════════════════════════════════════════
   const connectWebSocket = useCallback(() => {
     if (!mirrorsId || wsRef.current?.readyState === WebSocket.OPEN) return;
-
     setConnectionStatus('connecting');
 
     try {
       const ws = new WebSocket(`${WS_BASE}/api/mirrors/live/${mirrorsId}`);
-
-      ws.onopen = () => {
-        setConnectionStatus('online');
-        const pingInterval = setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'ping' }));
-          }
-        }, 15000);
-        (ws as any)._pingInterval = pingInterval;
+      ws.onopen = () => setConnectionStatus('online');
+      ws.onclose = () => {
+        setConnectionStatus('offline');
+        reconnectTimeoutRef.current = setTimeout(() => connectWebSocket(), 5000);
       };
-
+      ws.onerror = () => setConnectionStatus('offline');
       ws.onmessage = async (event) => {
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'incoming_chirp') {
-            await playIncomingChirp();
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            Vibration.vibrate([0, 100, 50, 100]);
             setIsReceiving(true);
             setIncomingFrom(data.from_display_name || data.from_mirrors_id);
-
-            // Add to history
+            
             const newChirp: ChirpMessage = {
-              id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              id: `${Date.now()}-incoming`,
               type: data.chirp_type || 'voice',
               from_mirrors_id: data.from_mirrors_id,
               to_mirrors_id: mirrorsId || '',
@@ -316,74 +292,301 @@ export default function ChirpConnect() {
               duration: data.duration || 0,
               timestamp: new Date().toISOString(),
               is_outgoing: false,
-              played: false,
             };
-            saveChirpToHistory(newChirp);
-
-            Animated.sequence([
-              Animated.timing(receiveAnim, { toValue: 1, duration: 200, useNativeDriver: false }),
-              Animated.delay(2000),
-              Animated.timing(receiveAnim, { toValue: 0, duration: 300, useNativeDriver: false }),
-            ]).start(() => {
-              setIsReceiving(false);
-              setIncomingFrom(null);
-            });
-
-            if (data.audio_base64) {
-              try {
-                if (soundRef.current) await soundRef.current.unloadAsync();
-                const { sound } = await Audio.Sound.createAsync(
-                  { uri: `data:audio/m4a;base64,${data.audio_base64}` },
-                  { shouldPlay: true }
-                );
-                soundRef.current = sound;
-              } catch {}
-            }
+            await saveChirpToHistory(newChirp);
+            
+            setTimeout(() => setIsReceiving(false), 3000);
           }
         } catch {}
       };
-
-      ws.onclose = () => {
-        clearInterval((ws as any)._pingInterval);
-        setConnectionStatus('offline');
-        reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
-      };
-
-      ws.onerror = () => setConnectionStatus('offline');
-
       wsRef.current = ws;
     } catch {
       setConnectionStatus('offline');
-      reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
     }
   }, [mirrorsId]);
-
-  const disconnectWebSocket = useCallback(() => {
-    if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-    if (wsRef.current) {
-      clearInterval((wsRef.current as any)._pingInterval);
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    setConnectionStatus('offline');
-  }, []);
 
   useEffect(() => {
     if (mirrorsId) connectWebSocket();
-    return () => disconnectWebSocket();
-  }, [mirrorsId]);
+    return () => {
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      wsRef.current?.close();
+    };
+  }, [mirrorsId, connectWebSocket]);
 
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active' && mirrorsId) connectWebSocket();
-      else if (state === 'background') disconnectWebSocket();
-    });
-    return () => sub.remove();
-  }, [connectWebSocket, disconnectWebSocket, mirrorsId]);
+  // ═══════════════════════════════════════════════════════════
+  // HAPTIC FEEDBACK
+  // ═══════════════════════════════════════════════════════════
+  const playStartFeedback = async () => {
+    if (Platform.OS !== 'web') {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    }
+    Vibration.vibrate([0, 60, 40, 60]);
+  };
 
-  // ═══════════════════════════════════
-  // CONTACTS MANAGEMENT
-  // ═══════════════════════════════════
+  const playStopFeedback = async () => {
+    if (Platform.OS !== 'web') {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+    Vibration.vibrate([0, 30, 50, 30]);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // VOICE RECORDING
+  // ═══════════════════════════════════════════════════════════
+  const startVoiceRecording = async () => {
+    if (!hasAudioPermission) {
+      Alert.alert('Permission Required', 'Microphone access is needed to record voice chirps.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Settings', onPress: () => Linking.openSettings() },
+      ]);
+      return;
+    }
+
+    try {
+      await playStartFeedback();
+      setIsRecording(true);
+      setRecordingDuration(0);
+
+      // Start timer
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(prev => {
+          if (prev >= VOICE_CHIRP_LIMIT - 0.1) {
+            stopVoiceRecording();
+            return prev;
+          }
+          return prev + 0.1;
+        });
+      }, 100);
+
+      // Start recording
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync({
+        android: { extension: '.m4a', outputFormat: 3, audioEncoder: 3, sampleRate: 44100, numberOfChannels: 1, bitRate: 128000 },
+        ios: { extension: '.m4a', outputFormat: 'aac' as any, audioQuality: 0x60, sampleRate: 44100, numberOfChannels: 1, bitRate: 128000 },
+        web: { mimeType: 'audio/webm', bitsPerSecond: 128000 },
+      });
+      await recording.startAsync();
+      recordingRef.current = recording;
+
+      // Animate
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.1, duration: 400, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        ])
+      ).start();
+    } catch (error) {
+      console.error('Voice recording error:', error);
+      setIsRecording(false);
+    }
+  };
+
+  const stopVoiceRecording = async () => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+
+    pulseAnim.stopAnimation();
+    Animated.timing(pulseAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+
+    if (!recordingRef.current) {
+      setIsRecording(false);
+      return;
+    }
+
+    try {
+      await recordingRef.current.stopAndUnloadAsync();
+      const uri = recordingRef.current.getURI();
+      recordingRef.current = null;
+      await playStopFeedback();
+
+      if (uri && recordingDuration > 0.5) {
+        setRecordedMedia({ uri, type: 'voice', duration: recordingDuration });
+        setShowPreview(true);
+      }
+    } catch (error) {
+      console.error('Stop recording error:', error);
+    }
+
+    setIsRecording(false);
+    setRecordingDuration(0);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // VIDEO RECORDING
+  // ═══════════════════════════════════════════════════════════
+  const startVideoRecording = async () => {
+    if (!hasCameraPermission || !hasMicPermission) {
+      Alert.alert(
+        'Permissions Required',
+        'Camera and microphone access are needed to record video chirps.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
+      );
+      return;
+    }
+
+    if (!cameraRef.current) {
+      Alert.alert('Error', 'Camera not ready. Please try again.');
+      return;
+    }
+
+    try {
+      await playStartFeedback();
+      setIsRecording(true);
+      setIsVideoRecording(true);
+      setRecordingDuration(0);
+
+      // Start timer
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(prev => {
+          if (prev >= VIDEO_CHIRP_LIMIT - 0.1) {
+            stopVideoRecording();
+            return prev;
+          }
+          return prev + 0.1;
+        });
+      }, 100);
+
+      // Start video recording
+      const video = await cameraRef.current.recordAsync({
+        maxDuration: VIDEO_CHIRP_LIMIT,
+      });
+
+      if (video?.uri) {
+        setRecordedMedia({ uri: video.uri, type: 'video', duration: recordingDuration });
+        setShowPreview(true);
+      }
+    } catch (error) {
+      console.error('Video recording error:', error);
+      Alert.alert('Recording Error', 'Failed to start video recording.');
+    }
+  };
+
+  const stopVideoRecording = async () => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+
+    try {
+      if (cameraRef.current && isVideoRecording) {
+        await cameraRef.current.stopRecording();
+      }
+      await playStopFeedback();
+    } catch (error) {
+      console.error('Stop video error:', error);
+    }
+
+    setIsRecording(false);
+    setIsVideoRecording(false);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // SEND CHIRP
+  // ═══════════════════════════════════════════════════════════
+  const sendChirp = async () => {
+    if (!recordedMedia || !mirrorsId) return;
+
+    setIsSending(true);
+    try {
+      const toId = selectedContact?.mirrors_id || 'broadcast';
+      const toName = selectedContact?.nickname || selectedContact?.display_name || 'BROADCAST';
+
+      // Save to history
+      const newChirp: ChirpMessage = {
+        id: `${Date.now()}-outgoing`,
+        type: recordedMedia.type,
+        from_mirrors_id: mirrorsId,
+        to_mirrors_id: toId,
+        from_display_name: displayName,
+        duration: recordedMedia.duration,
+        timestamp: new Date().toISOString(),
+        is_outgoing: true,
+        media_uri: recordedMedia.uri,
+      };
+      await saveChirpToHistory(newChirp);
+
+      // Send via WebSocket if connected
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        let base64Data = '';
+        if (Platform.OS !== 'web') {
+          base64Data = await FileSystem.readAsStringAsync(recordedMedia.uri, { 
+            encoding: FileSystem.EncodingType.Base64 
+          });
+        }
+
+        wsRef.current.send(JSON.stringify({
+          type: 'chirp',
+          chirp_type: recordedMedia.type,
+          to_mirrors_id: toId,
+          duration: recordedMedia.duration,
+          audio_data: base64Data,
+        }));
+      }
+
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Chirp Sent', `${recordedMedia.type.toUpperCase()} chirp sent to ${toName}`);
+    } catch (error) {
+      console.error('Send error:', error);
+      Alert.alert('Error', 'Failed to send chirp.');
+    }
+
+    setIsSending(false);
+    setShowPreview(false);
+    setRecordedMedia(null);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // CODES MODE
+  // ═══════════════════════════════════════════════════════════
+  const sendCodesChirp = async () => {
+    if (!selectedFrequency || !mirrorsId) return;
+
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    const newChirp: ChirpMessage = {
+      id: `${Date.now()}-codes`,
+      type: 'codes',
+      from_mirrors_id: mirrorsId,
+      to_mirrors_id: selectedContact?.mirrors_id || 'broadcast',
+      from_display_name: displayName,
+      duration: 0,
+      timestamp: new Date().toISOString(),
+      is_outgoing: true,
+      frequency_name: selectedFrequency.name,
+      frequencies: selectedFrequency.frequencies,
+    };
+
+    await saveChirpToHistory(newChirp);
+    Alert.alert('CODES Sent', `${selectedFrequency.name} sent successfully.`);
+  };
+
+  const shareCodesExternal = async () => {
+    if (!selectedFrequency) return;
+
+    const message = `🔊 MIRRORS 96 CODES\n\n${selectedFrequency.name}\n${selectedFrequency.frequencies.join(' · ')} Hz\n\n432Hz calibrated frequency\ngodmodesound.com`;
+
+    try {
+      const available = await Sharing.isAvailableAsync();
+      if (available && viewShotRef.current?.capture) {
+        const uri = await viewShotRef.current.capture();
+        await Sharing.shareAsync(uri, { mimeType: 'image/png' });
+      } else {
+        Alert.alert('Share CODES', message);
+      }
+    } catch {
+      Alert.alert('Share CODES', message);
+    }
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // CONTACTS
+  // ═══════════════════════════════════════════════════════════
   const lookupContact = async () => {
     if (!newContactId.trim()) return;
     setIsLookingUp(true);
@@ -397,8 +600,7 @@ export default function ChirpConnect() {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setLookupResult(data);
+        setLookupResult(await response.json());
       } else {
         setLookupResult({ error: 'MIRRORS I.D. not found' });
       }
@@ -429,26 +631,6 @@ export default function ChirpConnect() {
     } catch {}
   };
 
-  const removeContact = async (contactId: string) => {
-    if (!mirrorsId) return;
-    try {
-      const response = await fetch(`${API_BASE}/api/mirrors/${mirrorsId}/contacts/remove`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mirrors_id: contactId }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setContacts(data.contacts);
-        await AsyncStorage.setItem(STORAGE_KEYS.CONTACTS, JSON.stringify(data.contacts));
-        if (selectedContact?.mirrors_id === contactId) {
-          setSelectedContact(null);
-          await AsyncStorage.removeItem(STORAGE_KEYS.SELECTED_CONTACT);
-        }
-      }
-    } catch {}
-  };
-
   const selectContact = async (contact: Contact | null) => {
     setSelectedContact(contact);
     if (contact) {
@@ -459,565 +641,301 @@ export default function ChirpConnect() {
     setActiveTab('chirp');
   };
 
-  const refreshContacts = async () => {
-    if (!mirrorsId) return;
-    try {
-      const response = await fetch(`${API_BASE}/api/mirrors/${mirrorsId}/contacts`);
-      if (response.ok) {
-        const data = await response.json();
-        setContacts(data.contacts);
-        await AsyncStorage.setItem(STORAGE_KEYS.CONTACTS, JSON.stringify(data.contacts));
-      }
-    } catch {}
-  };
+  // ═══════════════════════════════════════════════════════════
+  // COMPUTED VALUES
+  // ═══════════════════════════════════════════════════════════
+  const currentLimit = chirpMode === 'voice' ? VOICE_CHIRP_LIMIT : VIDEO_CHIRP_LIMIT;
+  const progressPercent = (recordingDuration / currentLimit) * 100;
 
-  // ═══════════════════════════════════
-  // TRANSMIT ANIMATIONS
-  // ═══════════════════════════════════
-  const startTransmitAnimation = () => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.08, duration: 300, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-      ])
-    ).start();
-    Animated.timing(glowAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start();
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(ringAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-        Animated.timing(ringAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
-      ])
-    ).start();
-  };
+  const filteredFrequencies = useMemo(() => {
+    return FREQUENCY_ARCHIVE.filter(item => {
+      const matchesSearch = !codesSearchQuery || 
+        item.name.toLowerCase().includes(codesSearchQuery.toLowerCase()) ||
+        item.category.toLowerCase().includes(codesSearchQuery.toLowerCase()) ||
+        item.frequencies.some(f => f.toString().includes(codesSearchQuery));
+      const matchesCategory = !codesSelectedCategory || item.category === codesSelectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [codesSearchQuery, codesSelectedCategory]);
 
-  const stopTransmitAnimation = () => {
-    pulseAnim.stopAnimation();
-    glowAnim.stopAnimation();
-    ringAnim.stopAnimation();
-    Animated.timing(pulseAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
-    Animated.timing(glowAnim, { toValue: 0, duration: 150, useNativeDriver: false }).start();
-  };
+  const categories = useMemo(() => {
+    return Array.from(new Set(FREQUENCY_ARCHIVE.map(f => f.category))).sort();
+  }, []);
 
-  // ═══════════════════════════════════
-  // PTT TRANSMIT - VOICE
-  // ═══════════════════════════════════
-  const startTransmit = async () => {
-    if (!hasPermission) {
-      Vibration.vibrate([0, 100, 50, 100]);
-      return;
-    }
-
-    setIsTransmitting(true);
-    setTransmitDuration(0);
-    await playChirpStart();
-    startTransmitAnimation();
-
-    const limit = chirpMode === 'voice' ? VOICE_CHIRP_LIMIT : VIDEO_CHIRP_LIMIT;
-
-    transmitTimerRef.current = setInterval(() => {
-      setTransmitDuration(prev => {
-        if (prev >= limit - 1) {
-          stopTransmit(false); // Auto-stop at limit
-          return prev;
-        }
-        return prev + 0.1;
-      });
-    }, 100);
-
-    try {
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync({
-        android: { extension: '.m4a', outputFormat: 3, audioEncoder: 3, sampleRate: 22050, numberOfChannels: 1, bitRate: 64000 },
-        ios: { extension: '.m4a', outputFormat: 'aac' as any, audioQuality: 0x60, sampleRate: 22050, numberOfChannels: 1, bitRate: 64000 },
-        web: { mimeType: 'audio/webm', bitsPerSecond: 64000 },
-      });
-      await recording.startAsync();
-      recordingRef.current = recording;
-    } catch {
-      stopTransmit(true);
-    }
-  };
-
-  const stopTransmit = async (cancelled = false) => {
-    setIsTransmitting(false);
-    stopTransmitAnimation();
-    await playChirpEnd();
-
-    if (transmitTimerRef.current) {
-      clearInterval(transmitTimerRef.current);
-      transmitTimerRef.current = null;
-    }
-
-    if (cancelled || !recordingRef.current) {
-      setTransmitDuration(0);
-      return;
-    }
-
-    try {
-      await recordingRef.current.stopAndUnloadAsync();
-      const uri = recordingRef.current.getURI();
-      recordingRef.current = null;
-
-      if (uri && transmitDuration > 0.3) {
-        setRecordedAudioUri(uri);
-        setRecordedDuration(transmitDuration);
-        setShowShareModal(true);
-        setLastChirpTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-      }
-    } catch {}
-
-    setTransmitDuration(0);
-  };
-
-  // ═══════════════════════════════════
-  // SEND CHIRP
-  // ═══════════════════════════════════
-  const sendDirectChirp = async () => {
-    if (!recordedAudioUri || !mirrorsId) {
-      setShowShareModal(false);
-      return;
-    }
-
-    setIsSharing(true);
-    try {
-      let base64Audio = '';
-      if (Platform.OS !== 'web') {
-        base64Audio = await FileSystem.readAsStringAsync(recordedAudioUri, { encoding: FileSystem.EncodingType.Base64 });
-      }
-
-      const toId = selectedContact?.mirrors_id || 'broadcast';
-      const toName = selectedContact?.nickname || selectedContact?.display_name || 'BROADCAST';
-
-      // Add to outgoing history
-      const outgoingChirp: ChirpMessage = {
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        type: chirpMode,
-        from_mirrors_id: mirrorsId,
-        to_mirrors_id: toId,
-        from_display_name: displayName,
-        duration: recordedDuration,
-        timestamp: new Date().toISOString(),
-        is_outgoing: true,
-      };
-      saveChirpToHistory(outgoingChirp);
-
-      if (selectedContact) {
-        await fetch(`${API_BASE}/api/mirrors/chirp`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to_mirrors_id: selectedContact.mirrors_id,
-            from_mirrors_id: mirrorsId,
-            from_display_name: displayName,
-            audio_base64: base64Audio,
-            duration: Math.round(recordedDuration * 10) / 10,
-            chirp_type: chirpMode,
-          }),
-        });
-      } else {
-        await fetch(`${API_BASE}/api/codes/transmit`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            channel_id: 'codes-chirp',
-            sender_name: displayName,
-            sender_id: mirrorsId,
-            audio_base64: base64Audio,
-            duration: Math.round(recordedDuration * 10) / 10,
-          }),
-        });
-      }
-    } catch {}
-
-    setIsSharing(false);
-    setShowShareModal(false);
-  };
-
-  const handleShareChirp = async () => {
-    if (!recordedAudioUri) return;
-    setIsSharing(true);
-    try {
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (isAvailable) {
-        await Sharing.shareAsync(recordedAudioUri, {
-          mimeType: 'audio/m4a',
-          dialogTitle: 'CODES Chirp',
-          UTI: 'public.audio',
-        });
-      }
-    } catch {}
-    setIsSharing(false);
-    setShowShareModal(false);
-  };
-
-  // ═══════════════════════════════════
-  // ANIMATED VALUES
-  // ═══════════════════════════════════
-  const glowColor = glowAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [chirpMode === 'voice' ? 'rgba(255, 10, 10, 0)' : 'rgba(10, 100, 255, 0)', 
-                  chirpMode === 'voice' ? 'rgba(255, 10, 10, 0.4)' : 'rgba(10, 100, 255, 0.4)'],
-  });
-
-  const ringScale = ringAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 2] });
-  const ringOpacity = ringAnim.interpolate({ inputRange: [0, 0.7, 1], outputRange: [0.5, 0.1, 0] });
-  const receiveGlow = receiveAnim.interpolate({ inputRange: [0, 1], outputRange: ['rgba(0, 255, 68, 0)', 'rgba(0, 255, 68, 0.3)'] });
-
-  const formatDuration = (s: number) => {
-    const mins = Math.floor(s / 60);
-    const secs = Math.floor(s % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const formatTimestamp = (ts: string) => {
-    const date = new Date(ts);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    
-    if (diff < 60000) return 'Just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-    return date.toLocaleDateString();
-  };
-
-  const limit = chirpMode === 'voice' ? VOICE_CHIRP_LIMIT : VIDEO_CHIRP_LIMIT;
-  const progressPct = (transmitDuration / limit) * 100;
-
-  // ═══════════════════════════════════
-  // CODES MODE HANDLERS
-  // ═══════════════════════════════════
-  const handleCodesSend = async () => {
-    if (!selectedFrequency) return;
-    
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
-    // Add to chirp history
-    const newChirp: ChirpMessage = {
-      id: `codes_${Date.now()}`,
-      type: 'codes',
-      from_mirrors_id: mirrorsId || 'UNKNOWN',
-      to_mirrors_id: selectedContact?.mirrors_id || 'broadcast',
-      from_display_name: displayName,
-      duration: 0,
-      timestamp: new Date().toISOString(),
-      is_outgoing: true,
-      frequency_name: selectedFrequency.name,
-      frequencies: selectedFrequency.frequencies,
-    };
-    
-    const updatedHistory = [newChirp, ...chirpHistory];
-    setChirpHistory(updatedHistory);
-    await AsyncStorage.setItem(STORAGE_KEYS.CHIRP_HISTORY, JSON.stringify(updatedHistory));
-    
-    setLastChirpTime(new Date().toLocaleTimeString());
-    Alert.alert('CODES Sent', `${selectedFrequency.name} sent${selectedContact ? ` to ${selectedContact.nickname || selectedContact.display_name}` : ' to broadcast'}`);
-  };
-
-  const handleCodesShare = async () => {
-    if (!selectedFrequency || !viewShotRef.current?.capture) return;
-    
-    try {
-      // Capture a shareable card image
-      const uri = await viewShotRef.current.capture();
-      const isAvailable = await Sharing.isAvailableAsync();
-      
-      if (isAvailable) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'image/png',
-          dialogTitle: `Share ${selectedFrequency.name}`,
-          UTI: 'public.png',
-        });
-      } else {
-        // Fallback - share as text
-        const message = `🔊 MIRRORS 96 CODES\n\n${selectedFrequency.name}\n${selectedFrequency.frequencies.join(' · ')} Hz\n\n432Hz calibrated frequency from godmodesound.com`;
-        Alert.alert('Share CODES', message);
-      }
-    } catch (error) {
-      console.error('Share error:', error);
-    }
-  };
-
-  // ═══════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
   // RENDER
-  // ═══════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
+  if (!permissionsChecked || isRegistering) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ff0a0a" />
+          <Text style={styles.loadingText}>{isRegistering ? 'GENERATING MIRRORS I.D...' : 'INITIALIZING...'}</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>  
-      {/* Header */}
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>{'◀'}</Text>
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>CODES</Text>
-          <Text style={styles.headerSub}>I.D.</Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.headerTitle}>CODES I.D.</Text>
+          <View style={[styles.statusBadge, connectionStatus === 'online' && styles.statusOnline]}>
+            <View style={[styles.statusDot, connectionStatus === 'online' && styles.statusDotOnline]} />
+            <Text style={styles.statusText}>{connectionStatus.toUpperCase()}</Text>
+          </View>
         </View>
-        <View style={styles.statusArea}>
-          <View style={[styles.statusDot, connectionStatus === 'online' && styles.statusDotOnline]} />
-          <Text style={styles.statusText}>{connectionStatus === 'online' ? 'LIVE' : 'OFF'}</Text>
-        </View>
+        <Text style={styles.mirrorsIdText}>MIRRORS I.D. {mirrorsId}</Text>
       </View>
 
-      {/* MIRRORS I.D. Display */}
-      <View style={styles.idBar}>
-        <Text style={styles.idLabel}>YOUR MIRRORS I.D.</Text>
-        <Text style={styles.idValue}>{mirrorsId || '------'}</Text>
-        <Text style={styles.idName}>{displayName}</Text>
-      </View>
-
-      {/* Tab Navigation */}
+      {/* TAB NAVIGATION */}
       <View style={styles.tabBar}>
-        <TouchableOpacity style={[styles.tab, activeTab === 'chirp' && styles.tabActive]} onPress={() => setActiveTab('chirp')}>
-          <Text style={[styles.tabText, activeTab === 'chirp' && styles.tabTextActive]}>CHIRP</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.tab, activeTab === 'messages' && styles.tabActive]} onPress={() => setActiveTab('messages')}>
-          <Text style={[styles.tabText, activeTab === 'messages' && styles.tabTextActive]}>MESSAGES</Text>
-          {chirpHistory.filter(c => !c.played && !c.is_outgoing).length > 0 && (
-            <View style={styles.badge}><Text style={styles.badgeText}>{chirpHistory.filter(c => !c.played && !c.is_outgoing).length}</Text></View>
-          )}
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.tab, activeTab === 'contacts' && styles.tabActive]} onPress={() => { setActiveTab('contacts'); refreshContacts(); }}>
-          <Text style={[styles.tabText, activeTab === 'contacts' && styles.tabTextActive]}>CONTACTS</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.tab, activeTab === 'settings' && styles.tabActive]} onPress={() => setActiveTab('settings')}>
-          <Text style={[styles.tabText, activeTab === 'settings' && styles.tabTextActive]}>⚙</Text>
-        </TouchableOpacity>
+        {(['chirp', 'messages', 'contacts', 'settings'] as const).map(tab => (
+          <TouchableOpacity
+            key={tab}
+            style={[styles.tab, activeTab === tab && styles.tabActive]}
+            onPress={() => setActiveTab(tab)}
+          >
+            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+              {tab === 'chirp' ? '◎' : tab === 'messages' ? '💬' : tab === 'contacts' ? '👥' : '⚙'}
+            </Text>
+            <Text style={[styles.tabLabel, activeTab === tab && styles.tabLabelActive]}>
+              {tab.toUpperCase()}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
+      {/* ═══════════════════════════════════════════════════════════ */}
       {/* CHIRP TAB */}
+      {/* ═══════════════════════════════════════════════════════════ */}
       {activeTab === 'chirp' && (
-        <View style={styles.mainArea}>
+        <View style={styles.chirpContainer}>
           {/* Mode Toggle */}
           <View style={styles.modeToggle}>
-            <TouchableOpacity style={[styles.modeBtn, chirpMode === 'voice' && styles.modeBtnActive]} onPress={() => setChirpMode('voice')}>
-              <Text style={[styles.modeBtnText, chirpMode === 'voice' && styles.modeBtnTextActive]}>🎤 VOICE</Text>
-              <Text style={styles.modeLimit}>{VOICE_CHIRP_LIMIT}s limit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.modeBtn, chirpMode === 'video' && styles.modeBtnActiveVideo]} onPress={() => setChirpMode('video')}>
-              <Text style={[styles.modeBtnText, chirpMode === 'video' && styles.modeBtnTextActive]}>📹 VIDEO</Text>
-              <Text style={styles.modeLimit}>{VIDEO_CHIRP_LIMIT}s limit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.modeBtn, chirpMode === 'codes' && styles.modeBtnActiveCodes]} onPress={() => setChirpMode('codes')}>
-              <Text style={[styles.modeBtnText, chirpMode === 'codes' && styles.modeBtnTextActive]}>◎ CODES</Text>
-              <Text style={styles.modeLimit}>3s = share</Text>
-            </TouchableOpacity>
+            {(['voice', 'video', 'codes'] as const).map(mode => (
+              <TouchableOpacity
+                key={mode}
+                style={[styles.modeBtn, chirpMode === mode && styles.modeBtnActive]}
+                onPress={() => setChirpMode(mode)}
+              >
+                <Text style={[styles.modeBtnIcon, chirpMode === mode && styles.modeBtnIconActive]}>
+                  {mode === 'voice' ? '🎤' : mode === 'video' ? '📹' : '◎'}
+                </Text>
+                <Text style={[styles.modeBtnText, chirpMode === mode && styles.modeBtnTextActive]}>
+                  {mode.toUpperCase()}
+                </Text>
+                <Text style={styles.modeBtnLimit}>
+                  {mode === 'voice' ? `${VOICE_CHIRP_LIMIT}s` : mode === 'video' ? `${VIDEO_CHIRP_LIMIT}s` : 'SHARE'}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
-          {/* Selected Contact Display */}
-          {selectedContact ? (
-            <View style={styles.selectedContactBar}>
-              <Text style={styles.selectedLabel}>CHIRPING TO:</Text>
-              <Text style={styles.selectedName}>{selectedContact.nickname || selectedContact.display_name}</Text>
-              <Text style={styles.selectedId}>{selectedContact.mirrors_id}</Text>
-              <TouchableOpacity onPress={() => selectContact(null)}><Text style={styles.clearSelected}>✕</Text></TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.broadcastBar}>
-              <Text style={styles.broadcastText}>◉ BROADCAST MODE</Text>
-              <Text style={styles.broadcastSub}>Tap CONTACTS to select recipient</Text>
-            </View>
-          )}
+          {/* Recipient Display */}
+          <TouchableOpacity style={styles.recipientBar} onPress={() => setActiveTab('contacts')}>
+            <Text style={styles.recipientLabel}>TO:</Text>
+            <Text style={styles.recipientName}>
+              {selectedContact?.nickname || selectedContact?.display_name || 'BROADCAST (ALL)'}
+            </Text>
+            <Text style={styles.recipientArrow}>›</Text>
+          </TouchableOpacity>
 
-          {/* Progress indicator when recording */}
-          {isTransmitting && (
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${progressPct}%` }, chirpMode === 'video' && styles.progressFillVideo]} />
-              </View>
-              <Text style={styles.progressText}>{formatDuration(transmitDuration)} / {formatDuration(limit)}</Text>
-            </View>
-          )}
-
-          {/* Incoming indicator */}
-          {isReceiving && (
-            <Animated.View style={[styles.receiveIndicator, { backgroundColor: receiveGlow }]}>
-              <Text style={styles.receiveText}>◉ INCOMING</Text>
-              {incomingFrom && <Text style={styles.receiverName}>{incomingFrom}</Text>}
-            </Animated.View>
-          )}
-
-          {/* THE BUTTON - Voice/Video modes */}
+          {/* VOICE/VIDEO MODE */}
           {(chirpMode === 'voice' || chirpMode === 'video') && (
-            <View style={styles.pttWrapper}>
-              {isTransmitting && (
-                <Animated.View style={[styles.pttRing, { transform: [{ scale: ringScale }], opacity: ringOpacity }, chirpMode === 'video' && styles.pttRingVideo]} />
+            <View style={styles.recordingArea}>
+              {/* Video Camera Preview */}
+              {chirpMode === 'video' && hasCameraPermission && (
+                <View style={styles.cameraContainer}>
+                  <CameraView
+                    ref={cameraRef}
+                    style={styles.cameraPreview}
+                    facing={cameraType}
+                    mode="video"
+                  />
+                  <TouchableOpacity
+                    style={styles.flipCameraBtn}
+                    onPress={() => setCameraType(cameraType === 'front' ? 'back' : 'front')}
+                  >
+                    <Text style={styles.flipCameraText}>⟳</Text>
+                  </TouchableOpacity>
+                </View>
               )}
-              <Animated.View style={[styles.pttGlow, { backgroundColor: glowColor }]} />
-              <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+
+              {/* Recording Timer */}
+              {isRecording && (
+                <View style={styles.timerContainer}>
+                  <View style={styles.recordingIndicator}>
+                    <View style={styles.recordingDot} />
+                    <Text style={styles.recordingLabel}>REC</Text>
+                  </View>
+                  <Text style={styles.timerText}>
+                    {Math.floor(recordingDuration)}:{(Math.floor((recordingDuration % 1) * 10)).toString().padStart(1, '0')}s
+                  </Text>
+                  <View style={styles.progressBar}>
+                    <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+                  </View>
+                  <Text style={styles.limitText}>{currentLimit}s limit</Text>
+                </View>
+              )}
+
+              {/* PTT Button */}
+              <Animated.View style={[styles.pttWrapper, { transform: [{ scale: pulseAnim }] }]}>
                 <TouchableOpacity
-                  onPressIn={startTransmit}
-                  onPressOut={() => stopTransmit(false)}
+                  style={[styles.pttButton, isRecording && styles.pttButtonActive]}
+                  onPressIn={chirpMode === 'voice' ? startVoiceRecording : startVideoRecording}
+                  onPressOut={chirpMode === 'voice' ? stopVoiceRecording : stopVideoRecording}
                   activeOpacity={0.9}
                 >
                   <ImageBackground
                     source={require('../assets/images/chirp-button-bg.jpg')}
-                    style={[styles.pttButton, isTransmitting && styles.pttButtonActive, chirpMode === 'video' && styles.pttButtonVideo]}
+                    style={styles.pttButtonBg}
                     imageStyle={styles.pttButtonImage}
                     resizeMode="cover"
                   >
-                    <View style={styles.pttButtonOverlay}>
-                      <Text style={[styles.pttIcon, { color: isTransmitting ? '#fff' : '#ff0a0a' }]}>{isTransmitting ? 'Ω' : 'Α'}</Text>
-                      <Text style={[styles.pttMainText, chirpMode === 'video' && styles.pttMainTextVideo]}>
-                        {chirpMode === 'voice' ? 'VOICE' : 'VIDEO'}
+                    <View style={styles.pttOverlay}>
+                      <Text style={[styles.pttSymbol, isRecording && styles.pttSymbolActive]}>
+                        {isRecording ? 'Ω' : 'Α'}
                       </Text>
-                      <Text style={[styles.pttSubText, isTransmitting && { color: '#ff6060' }]}>{isTransmitting ? 'Ω RELEASE' : 'Α HOLD'}</Text>
+                      <Text style={styles.pttModeText}>{chirpMode.toUpperCase()}</Text>
+                      <Text style={styles.pttHintText}>
+                        {isRecording ? 'RELEASE TO SEND' : 'HOLD TO RECORD'}
+                      </Text>
                     </View>
                   </ImageBackground>
                 </TouchableOpacity>
               </Animated.View>
+
+              {/* Permission Warning */}
+              {((chirpMode === 'voice' && !hasAudioPermission) || 
+                (chirpMode === 'video' && (!hasCameraPermission || !hasMicPermission))) && (
+                <TouchableOpacity style={styles.permissionWarning} onPress={() => Linking.openSettings()}>
+                  <Text style={styles.permissionWarningText}>
+                    ⚠ {chirpMode === 'voice' ? 'Microphone' : 'Camera & Microphone'} permission required
+                  </Text>
+                  <Text style={styles.permissionWarningLink}>Tap to open Settings</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
-          {/* CODES MODE - Frequency Selection & Send */}
+          {/* CODES MODE */}
           {chirpMode === 'codes' && (
-            <View style={styles.codesContainer}>
-              {/* Frequency Picker Button */}
-              <TouchableOpacity 
-                style={styles.freqPickerBtn} 
+            <View style={styles.codesArea}>
+              {/* Frequency Selector */}
+              <TouchableOpacity
+                style={styles.freqSelector}
                 onPress={() => setShowFrequencyPicker(true)}
               >
                 {selectedFrequency ? (
-                  <View style={styles.selectedFreqDisplay}>
+                  <View style={styles.selectedFreqInfo}>
                     <Text style={styles.selectedFreqName}>{selectedFrequency.name}</Text>
-                    <Text style={styles.selectedFreqHz}>{selectedFrequency.frequencies.join(' · ')} Hz</Text>
+                    <Text style={styles.selectedFreqHz}>
+                      {selectedFrequency.frequencies.join(' · ')} Hz
+                    </Text>
+                    <Text style={styles.selectedFreqCategory}>{selectedFrequency.category.toUpperCase()}</Text>
                   </View>
                 ) : (
                   <View style={styles.selectFreqPrompt}>
                     <Text style={styles.selectFreqIcon}>◎</Text>
                     <Text style={styles.selectFreqText}>SELECT FREQUENCY FROM ARCHIVE</Text>
+                    <Text style={styles.selectFreqCount}>{FREQUENCY_ARCHIVE.length} frequencies available</Text>
                   </View>
                 )}
               </TouchableOpacity>
 
-              {/* CODES Send Button */}
+              {/* Send Buttons */}
               {selectedFrequency && (
-                <View style={styles.codesSendWrapper}>
-                  <TouchableOpacity
-                    style={[styles.codesSendBtn, codesHoldProgress > 0 && styles.codesSendBtnHolding]}
-                    onPressIn={() => {
-                      // Start hold timer for 3-second AirDrop/Share
-                      setCodesHoldProgress(0);
-                      const startTime = Date.now();
-                      codesHoldIntervalRef.current = setInterval(() => {
-                        const elapsed = (Date.now() - startTime) / 1000;
-                        setCodesHoldProgress(Math.min(elapsed / 3, 1));
-                        if (elapsed >= 3) {
-                          // Trigger AirDrop/Share
-                          if (codesHoldIntervalRef.current) clearInterval(codesHoldIntervalRef.current);
-                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                          handleCodesShare();
-                        }
-                      }, 50);
-                    }}
-                    onPressOut={() => {
-                      if (codesHoldIntervalRef.current) clearInterval(codesHoldIntervalRef.current);
-                      if (codesHoldProgress < 1) {
-                        // Quick tap = send via platform
-                        handleCodesSend();
-                      }
-                      setCodesHoldProgress(0);
-                    }}
-                    activeOpacity={0.9}
-                  >
-                    <ImageBackground
-                      source={require('../assets/images/chirp-button-bg.jpg')}
-                      style={styles.pttButton}
-                      imageStyle={styles.pttButtonImage}
-                      resizeMode="cover"
-                    >
-                      <View style={styles.pttButtonOverlay}>
-                        <Text style={[styles.pttIcon, { color: '#ff0a0a' }]}>◎</Text>
-                        <Text style={styles.pttMainText}>CODES</Text>
-                        <Text style={styles.pttSubText}>{codesHoldProgress > 0 ? `${Math.floor(codesHoldProgress * 3)}s...` : 'TAP=SEND · HOLD=SHARE'}</Text>
-                      </View>
-                    </ImageBackground>
+                <View style={styles.codesSendButtons}>
+                  <TouchableOpacity style={styles.codesSendBtn} onPress={sendCodesChirp}>
+                    <Text style={styles.codesSendBtnText}>SEND VIA PLATFORM</Text>
                   </TouchableOpacity>
-                  {/* Hold progress ring */}
-                  {codesHoldProgress > 0 && (
-                    <View style={[styles.codesProgressRing, { opacity: codesHoldProgress }]}>
-                      <View style={[styles.codesProgressFill, { height: `${codesHoldProgress * 100}%` }]} />
-                    </View>
-                  )}
+                  <TouchableOpacity style={styles.codesShareBtn} onPress={shareCodesExternal}>
+                    <Text style={styles.codesShareBtnText}>AIRDROP / TEXT</Text>
+                  </TouchableOpacity>
                 </View>
               )}
-
-              <Text style={styles.codesHint}>
-                {selectedFrequency 
-                  ? 'TAP to send via platform · HOLD 3s for AirDrop/Text'
-                  : 'Choose a frequency to send to contacts'}
-              </Text>
             </View>
           )}
-
-          {lastChirpTime && !isTransmitting && <Text style={styles.lastChirp}>Last chirp: {lastChirpTime}</Text>}
         </View>
       )}
 
-      {/* MESSAGES TAB */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* MESSAGES TAB - CHAT SANDBOX */}
+      {/* ═══════════════════════════════════════════════════════════ */}
       {activeTab === 'messages' && (
-        <FlatList
-          data={chirpHistory}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 20 }}
-          ListEmptyComponent={<Text style={styles.noMessages}>No messages yet. Send or receive a chirp!</Text>}
-          renderItem={({ item }) => (
-            <View style={[styles.messageRow, item.is_outgoing && styles.messageRowOutgoing]}>
-              <View style={styles.messageIcon}>
-                <Text style={styles.messageIconText}>{item.type === 'voice' ? '🎤' : '📹'}</Text>
-              </View>
-              <View style={styles.messageContent}>
-                <View style={styles.messageHeader}>
-                  <Text style={styles.messageName}>
-                    {item.is_outgoing ? `→ ${item.to_mirrors_id === 'broadcast' ? 'BROADCAST' : item.to_mirrors_id}` : item.from_display_name}
-                  </Text>
-                  <Text style={styles.messageTime}>{formatTimestamp(item.timestamp)}</Text>
-                </View>
-                <View style={styles.messageBody}>
-                  <View style={styles.waveform}>
-                    {[...Array(20)].map((_, i) => (
-                      <View key={i} style={[styles.waveBar, { height: 4 + Math.random() * 12 }]} />
-                    ))}
-                  </View>
-                  <Text style={styles.messageDuration}>{formatDuration(item.duration)}</Text>
-                </View>
-                <Text style={styles.messageType}>{item.type.toUpperCase()} CHIRP</Text>
-              </View>
+        <View style={styles.messagesContainer}>
+          <Text style={styles.messagesTitle}>CHIRP HISTORY</Text>
+          {chirpHistory.length === 0 ? (
+            <View style={styles.emptyMessages}>
+              <Text style={styles.emptyMessagesIcon}>💬</Text>
+              <Text style={styles.emptyMessagesText}>No chirps yet</Text>
+              <Text style={styles.emptyMessagesHint}>Send or receive a chirp to start</Text>
             </View>
+          ) : (
+            <FlatList
+              data={chirpHistory}
+              keyExtractor={item => item.id}
+              contentContainerStyle={styles.messagesList}
+              renderItem={({ item }) => (
+                <View style={[styles.messageItem, item.is_outgoing ? styles.messageOutgoing : styles.messageIncoming]}>
+                  <View style={styles.messageBubble}>
+                    <View style={styles.messageHeader}>
+                      <Text style={styles.messageType}>
+                        {item.type === 'voice' ? '🎤' : item.type === 'video' ? '📹' : '◎'} {item.type.toUpperCase()}
+                      </Text>
+                      {item.duration > 0 && (
+                        <Text style={styles.messageDuration}>{item.duration.toFixed(1)}s</Text>
+                      )}
+                    </View>
+                    {item.type === 'codes' && item.frequency_name && (
+                      <View style={styles.messageFreq}>
+                        <Text style={styles.messageFreqName}>{item.frequency_name}</Text>
+                        <Text style={styles.messageFreqHz}>{item.frequencies?.join(' · ')} Hz</Text>
+                      </View>
+                    )}
+                    <View style={styles.messageFooter}>
+                      <Text style={styles.messageFrom}>
+                        {item.is_outgoing ? `TO: ${item.to_mirrors_id}` : `FROM: ${item.from_display_name}`}
+                      </Text>
+                      <Text style={styles.messageTime}>
+                        {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+            />
           )}
-        />
+        </View>
       )}
 
+      {/* ═══════════════════════════════════════════════════════════ */}
       {/* CONTACTS TAB */}
+      {/* ═══════════════════════════════════════════════════════════ */}
       {activeTab === 'contacts' && (
-        <ScrollView style={styles.contactsArea} contentContainerStyle={{ paddingBottom: 20 }}>
-          <TouchableOpacity style={styles.addContactBtn} onPress={() => setShowAddContact(true)}>
-            <Text style={styles.addContactText}>+ ADD CONTACT BY MIRRORS I.D.</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.contactRow, !selectedContact && styles.contactRowSelected]} onPress={() => selectContact(null)}>
-            <View style={styles.contactIcon}><Text style={styles.contactIconText}>◉</Text></View>
+        <ScrollView style={styles.contactsContainer} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+          <TouchableOpacity
+            style={[styles.contactItem, !selectedContact && styles.contactItemSelected]}
+            onPress={() => selectContact(null)}
+          >
+            <Text style={styles.contactIcon}>📡</Text>
             <View style={styles.contactInfo}>
               <Text style={styles.contactName}>BROADCAST</Text>
-              <Text style={styles.contactId}>Send to all CODES users</Text>
+              <Text style={styles.contactId}>Send to all contacts</Text>
             </View>
             {!selectedContact && <Text style={styles.contactCheck}>✓</Text>}
           </TouchableOpacity>
 
-          {contacts.map((contact) => (
+          {contacts.map(contact => (
             <TouchableOpacity
               key={contact.mirrors_id}
-              style={[styles.contactRow, selectedContact?.mirrors_id === contact.mirrors_id && styles.contactRowSelected]}
+              style={[styles.contactItem, selectedContact?.mirrors_id === contact.mirrors_id && styles.contactItemSelected]}
               onPress={() => selectContact(contact)}
-              onLongPress={() => {
-                Alert.alert('Remove Contact', `Remove ${contact.nickname || contact.display_name}?`, [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Remove', style: 'destructive', onPress: () => removeContact(contact.mirrors_id) },
-                ]);
-              }}
             >
-              <View style={[styles.contactIcon, contact.is_online && styles.contactIconOnline]}>
-                <Text style={styles.contactIconText}>{contact.display_name?.charAt(0) || '?'}</Text>
-              </View>
+              <Text style={styles.contactIcon}>👤</Text>
               <View style={styles.contactInfo}>
                 <Text style={styles.contactName}>{contact.nickname || contact.display_name}</Text>
                 <Text style={styles.contactId}>{contact.mirrors_id}</Text>
@@ -1026,193 +944,179 @@ export default function ChirpConnect() {
             </TouchableOpacity>
           ))}
 
-          {contacts.length === 0 && <Text style={styles.noContacts}>No contacts yet. Add someone by their MIRRORS I.D.</Text>}
+          <TouchableOpacity style={styles.addContactBtn} onPress={() => setShowAddContact(true)}>
+            <Text style={styles.addContactBtnText}>+ ADD CONTACT</Text>
+          </TouchableOpacity>
         </ScrollView>
       )}
 
+      {/* ═══════════════════════════════════════════════════════════ */}
       {/* SETTINGS TAB */}
+      {/* ═══════════════════════════════════════════════════════════ */}
       {activeTab === 'settings' && (
-        <ScrollView style={styles.settingsArea} contentContainerStyle={{ paddingBottom: 20 }}>
+        <ScrollView style={styles.settingsContainer} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
           <View style={styles.settingSection}>
-            <Text style={styles.settingSectionTitle}>YOUR MIRRORS I.D.</Text>
-            <View style={styles.idCard}>
-              <Text style={styles.idCardValue}>{mirrorsId || '------'}</Text>
-              <Text style={styles.idCardHint}>Share this code with others to connect</Text>
-            </View>
+            <Text style={styles.settingLabel}>YOUR MIRRORS I.D.</Text>
+            <Text style={styles.settingValue}>{mirrorsId}</Text>
           </View>
-
           <View style={styles.settingSection}>
-            <Text style={styles.settingSectionTitle}>DISPLAY NAME</Text>
-            <TextInput
-              style={styles.settingInput}
-              value={displayName}
-              onChangeText={setDisplayName}
-              placeholder="Enter your name..."
-              placeholderTextColor="#3a1010"
-              onEndEditing={async () => {
-                await AsyncStorage.setItem(STORAGE_KEYS.DISPLAY_NAME, displayName);
-                if (mirrorsId) {
-                  try {
-                    await fetch(`${API_BASE}/api/mirrors/${mirrorsId}/display_name?display_name=${encodeURIComponent(displayName)}`, { method: 'PUT' });
-                  } catch {}
-                }
-              }}
-            />
+            <Text style={styles.settingLabel}>DISPLAY NAME</Text>
+            <Text style={styles.settingValue}>{displayName}</Text>
           </View>
-
           <View style={styles.settingSection}>
-            <Text style={styles.settingSectionTitle}>CHIRP LIMITS</Text>
-            <View style={styles.limitsInfo}>
-              <View style={styles.limitRow}><Text style={styles.limitLabel}>🎤 Voice:</Text><Text style={styles.limitValue}>{VOICE_CHIRP_LIMIT} seconds</Text></View>
-              <View style={styles.limitRow}><Text style={styles.limitLabel}>📹 Video:</Text><Text style={styles.limitValue}>{VIDEO_CHIRP_LIMIT} seconds</Text></View>
-            </View>
+            <Text style={styles.settingLabel}>CHIRP LIMITS</Text>
+            <Text style={styles.settingInfo}>Voice: {VOICE_CHIRP_LIMIT} seconds</Text>
+            <Text style={styles.settingInfo}>Video: {VIDEO_CHIRP_LIMIT} seconds</Text>
           </View>
-
           <View style={styles.settingSection}>
-            <Text style={styles.settingSectionTitle}>iPHONE ACTION BUTTON</Text>
-            <Text style={styles.settingHint}>Settings → Action Button → Shortcut → "Open CODES I.D."</Text>
-            <TouchableOpacity style={styles.settingBtn} onPress={() => { if (Platform.OS === 'ios') Linking.openURL('app-settings:'); }}>
-              <Text style={styles.settingBtnText}>OPEN SETTINGS</Text>
-            </TouchableOpacity>
+            <Text style={styles.settingLabel}>PERMISSIONS</Text>
+            <Text style={styles.settingInfo}>Microphone: {hasAudioPermission ? '✓ Granted' : '✕ Denied'}</Text>
+            <Text style={styles.settingInfo}>Camera: {hasCameraPermission ? '✓ Granted' : '✕ Denied'}</Text>
           </View>
         </ScrollView>
       )}
 
-      {/* ADD CONTACT MODAL */}
-      <Modal visible={showAddContact} transparent animationType="fade" onRequestClose={() => setShowAddContact(false)}>
-        <View style={modalStyles.overlay}>
-          <View style={modalStyles.container}>
-            <Text style={modalStyles.title}>ADD CONTACT</Text>
-            <Text style={modalStyles.subtitle}>Enter their MIRRORS I.D.</Text>
-            <TextInput style={modalStyles.input} value={newContactId} onChangeText={setNewContactId} placeholder="e.g. ABC123" placeholderTextColor="#3a1010" autoCapitalize="characters" maxLength={6} />
-            <TouchableOpacity style={modalStyles.lookupBtn} onPress={lookupContact} disabled={isLookingUp}>
-              {isLookingUp ? <ActivityIndicator color="#ff0a0a" size="small" /> : <Text style={modalStyles.lookupBtnText}>LOOKUP</Text>}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* MODALS */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+
+      {/* Preview Modal */}
+      <Modal visible={showPreview} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.previewModal}>
+            <Text style={styles.previewTitle}>
+              {recordedMedia?.type === 'voice' ? '🎤 VOICE' : '📹 VIDEO'} CHIRP
+            </Text>
+            <Text style={styles.previewDuration}>{recordedMedia?.duration.toFixed(1)}s</Text>
+            <Text style={styles.previewTo}>
+              TO: {selectedContact?.nickname || selectedContact?.display_name || 'BROADCAST'}
+            </Text>
+            <View style={styles.previewButtons}>
+              <TouchableOpacity style={styles.previewSendBtn} onPress={sendChirp} disabled={isSending}>
+                {isSending ? (
+                  <ActivityIndicator size="small" color="#000" />
+                ) : (
+                  <Text style={styles.previewSendBtnText}>SEND CHIRP</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.previewCancelBtn} onPress={() => { setShowPreview(false); setRecordedMedia(null); }}>
+                <Text style={styles.previewCancelBtnText}>CANCEL</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Contact Modal */}
+      <Modal visible={showAddContact} transparent animationType="slide">
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={styles.addContactModal}>
+            <Text style={styles.addContactTitle}>ADD CONTACT</Text>
+            <TextInput
+              style={styles.addContactInput}
+              placeholder="Enter MIRRORS I.D."
+              placeholderTextColor="#5a1a1a"
+              value={newContactId}
+              onChangeText={setNewContactId}
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
+            <TouchableOpacity style={styles.addContactLookupBtn} onPress={lookupContact} disabled={isLookingUp}>
+              {isLookingUp ? (
+                <ActivityIndicator size="small" color="#ff0a0a" />
+              ) : (
+                <Text style={styles.addContactLookupText}>LOOKUP</Text>
+              )}
             </TouchableOpacity>
             {lookupResult && (
-              <View style={modalStyles.resultBox}>
-                {lookupResult.error ? <Text style={modalStyles.errorText}>{lookupResult.error}</Text> : (
+              <View style={styles.lookupResult}>
+                {lookupResult.error ? (
+                  <Text style={styles.lookupError}>{lookupResult.error}</Text>
+                ) : (
                   <>
-                    <Text style={modalStyles.resultName}>{lookupResult.display_name}</Text>
-                    <Text style={modalStyles.resultId}>{lookupResult.mirrors_id}</Text>
-                    <TouchableOpacity style={modalStyles.addBtn} onPress={addContact}><Text style={modalStyles.addBtnText}>+ ADD TO CONTACTS</Text></TouchableOpacity>
+                    <Text style={styles.lookupName}>{lookupResult.display_name}</Text>
+                    <Text style={styles.lookupId}>{lookupResult.mirrors_id}</Text>
+                    <TouchableOpacity style={styles.lookupAddBtn} onPress={addContact}>
+                      <Text style={styles.lookupAddText}>ADD TO CONTACTS</Text>
+                    </TouchableOpacity>
                   </>
                 )}
               </View>
             )}
-            <TouchableOpacity style={modalStyles.cancelBtn} onPress={() => { setShowAddContact(false); setNewContactId(''); setLookupResult(null); }}>
-              <Text style={modalStyles.cancelBtnText}>CANCEL</Text>
+            <TouchableOpacity style={styles.addContactCancelBtn} onPress={() => { setShowAddContact(false); setNewContactId(''); setLookupResult(null); }}>
+              <Text style={styles.addContactCancelText}>CANCEL</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
-      {/* SHARE CHIRP MODAL */}
-      <Modal visible={showShareModal} animationType="fade" transparent onRequestClose={() => setShowShareModal(false)}>
-        <View style={shareStyles.overlay}>
-          <View style={shareStyles.container}>
-            <Text style={shareStyles.title}>{chirpMode === 'voice' ? '🎤 VOICE' : '📹 VIDEO'} CHIRP RECORDED</Text>
-            <Text style={shareStyles.duration}>{formatDuration(recordedDuration)}</Text>
-            <View style={shareStyles.waveformLarge}>
-              {[...Array(30)].map((_, i) => (
-                <View key={i} style={[shareStyles.waveBarLarge, { height: 10 + Math.sin(i * 0.5) * 20 + Math.random() * 10 }]} />
-              ))}
-            </View>
-            <Text style={shareStyles.toText}>{selectedContact ? `TO: ${selectedContact.nickname || selectedContact.mirrors_id}` : 'BROADCAST TO ALL'}</Text>
-            <View style={shareStyles.actionRow}>
-              <TouchableOpacity style={shareStyles.sendBtn} onPress={sendDirectChirp} disabled={isSharing}>
-                {isSharing ? <ActivityIndicator color="#000" size="small" /> : <Text style={shareStyles.sendBtnText}>{selectedContact ? '▶ SEND' : '◉ BROADCAST'}</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity style={shareStyles.shareBtn} onPress={handleShareChirp} disabled={isSharing}>
-                <Text style={shareStyles.shareBtnText}>SHARE</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity style={shareStyles.cancelBtn} onPress={() => setShowShareModal(false)}><Text style={shareStyles.cancelBtnText}>CANCEL</Text></TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* FREQUENCY PICKER MODAL - CODES ARCHIVE */}
-      <Modal visible={showFrequencyPicker} transparent animationType="slide" onRequestClose={() => { setShowFrequencyPicker(false); setCodesSearchQuery(''); setCodesSelectedCategory(null); }}>
-        <View style={freqPickerStyles.overlay}>
-          <View style={freqPickerStyles.container}>
+      {/* Frequency Picker Modal */}
+      <Modal visible={showFrequencyPicker} transparent animationType="slide" onRequestClose={() => setShowFrequencyPicker(false)}>
+        <View style={styles.freqPickerOverlay}>
+          <View style={styles.freqPickerContainer}>
             {/* Header */}
-            <View style={freqPickerStyles.header}>
+            <View style={styles.freqPickerHeader}>
               <View>
-                <Text style={freqPickerStyles.title}>CODES ARCHIVE</Text>
-                <Text style={freqPickerStyles.subtitle}>{FREQUENCY_ARCHIVE.length} frequencies · 432Hz calibrated</Text>
+                <Text style={styles.freqPickerTitle}>CODES ARCHIVE</Text>
+                <Text style={styles.freqPickerSubtitle}>{FREQUENCY_ARCHIVE.length} frequencies · 432Hz</Text>
               </View>
-              <TouchableOpacity onPress={() => { setShowFrequencyPicker(false); setCodesSearchQuery(''); setCodesSelectedCategory(null); }} style={freqPickerStyles.closeButton}>
-                <Text style={freqPickerStyles.closeBtn}>✕</Text>
+              <TouchableOpacity onPress={() => { setShowFrequencyPicker(false); setCodesSearchQuery(''); setCodesSelectedCategory(null); }}>
+                <Text style={styles.freqPickerClose}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Search Bar */}
-            <View style={freqPickerStyles.searchContainer}>
-              <Text style={freqPickerStyles.searchIcon}>⌕</Text>
+            {/* Search */}
+            <View style={styles.freqSearchBar}>
+              <Text style={styles.freqSearchIcon}>⌕</Text>
               <TextInput
-                style={freqPickerStyles.searchInput}
+                style={styles.freqSearchInput}
                 placeholder="Search frequencies..."
                 placeholderTextColor="#5a1a1a"
                 value={codesSearchQuery}
                 onChangeText={setCodesSearchQuery}
-                autoCapitalize="none"
-                autoCorrect={false}
-                clearButtonMode="while-editing"
               />
               {codesSearchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setCodesSearchQuery('')} style={freqPickerStyles.clearSearch}>
-                  <Text style={freqPickerStyles.clearSearchText}>✕</Text>
+                <TouchableOpacity onPress={() => setCodesSearchQuery('')}>
+                  <Text style={styles.freqSearchClear}>✕</Text>
                 </TouchableOpacity>
               )}
             </View>
 
-            {/* Category Filter Pills */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={freqPickerStyles.categoryScroll} contentContainerStyle={freqPickerStyles.categoryContainer}>
+            {/* Categories */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.freqCategories}>
               <TouchableOpacity
-                style={[freqPickerStyles.categoryPill, !codesSelectedCategory && freqPickerStyles.categoryPillActive]}
+                style={[styles.freqCatPill, !codesSelectedCategory && styles.freqCatPillActive]}
                 onPress={() => setCodesSelectedCategory(null)}
               >
-                <Text style={[freqPickerStyles.categoryPillText, !codesSelectedCategory && freqPickerStyles.categoryPillTextActive]}>ALL</Text>
+                <Text style={[styles.freqCatText, !codesSelectedCategory && styles.freqCatTextActive]}>ALL</Text>
               </TouchableOpacity>
-              {Array.from(new Set(FREQUENCY_ARCHIVE.map(f => f.category))).sort().map(cat => (
+              {categories.map(cat => (
                 <TouchableOpacity
                   key={cat}
-                  style={[freqPickerStyles.categoryPill, codesSelectedCategory === cat && freqPickerStyles.categoryPillActive]}
+                  style={[styles.freqCatPill, codesSelectedCategory === cat && styles.freqCatPillActive]}
                   onPress={() => setCodesSelectedCategory(codesSelectedCategory === cat ? null : cat)}
                 >
-                  <Text style={[freqPickerStyles.categoryPillText, codesSelectedCategory === cat && freqPickerStyles.categoryPillTextActive]}>
+                  <Text style={[styles.freqCatText, codesSelectedCategory === cat && styles.freqCatTextActive]}>
                     {cat.toUpperCase()}
                   </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
-            {/* Frequency List */}
+            {/* List */}
             <FlatList
-              data={FREQUENCY_ARCHIVE.filter(item => {
-                const matchesSearch = codesSearchQuery.length === 0 || 
-                  item.name.toLowerCase().includes(codesSearchQuery.toLowerCase()) ||
-                  item.category.toLowerCase().includes(codesSearchQuery.toLowerCase()) ||
-                  item.frequencies.some(f => f.toString().includes(codesSearchQuery));
-                const matchesCategory = !codesSelectedCategory || item.category === codesSelectedCategory;
-                return matchesSearch && matchesCategory;
-              })}
-              keyExtractor={(item, idx) => `${item.name}-${idx}`}
-              contentContainerStyle={freqPickerStyles.listContent}
-              showsVerticalScrollIndicator={true}
+              data={filteredFrequencies}
+              keyExtractor={(item, i) => `${item.name}-${i}`}
+              contentContainerStyle={styles.freqList}
               initialNumToRender={20}
-              maxToRenderPerBatch={15}
-              windowSize={10}
               ListEmptyComponent={
-                <View style={freqPickerStyles.emptyState}>
-                  <Text style={freqPickerStyles.emptyIcon}>◎</Text>
-                  <Text style={freqPickerStyles.emptyText}>No frequencies found</Text>
-                  <Text style={freqPickerStyles.emptyHint}>Try a different search term</Text>
+                <View style={styles.freqEmpty}>
+                  <Text style={styles.freqEmptyText}>No frequencies found</Text>
                 </View>
               }
               renderItem={({ item }) => (
-                <TouchableOpacity 
-                  style={[freqPickerStyles.freqItem, selectedFrequency?.name === item.name && freqPickerStyles.freqItemSelected]}
+                <TouchableOpacity
+                  style={[styles.freqItem, selectedFrequency?.name === item.name && styles.freqItemSelected]}
                   onPress={() => {
                     setSelectedFrequency({ name: item.name, frequencies: item.frequencies, category: item.category });
                     setShowFrequencyPicker(false);
@@ -1220,264 +1124,225 @@ export default function ChirpConnect() {
                     setCodesSelectedCategory(null);
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }}
-                  activeOpacity={0.7}
                 >
-                  <View style={freqPickerStyles.freqInfo}>
-                    <Text style={freqPickerStyles.freqName} numberOfLines={1}>{item.name}</Text>
-                    <Text style={freqPickerStyles.freqHz} numberOfLines={1}>
-                      {item.frequencies.length > 3 
-                        ? `${item.frequencies.slice(0, 3).join(' · ')} Hz +${item.frequencies.length - 3} more`
-                        : `${item.frequencies.join(' · ')} Hz`
-                      }
-                    </Text>
+                  <View style={styles.freqItemInfo}>
+                    <Text style={styles.freqItemName}>{item.name}</Text>
+                    <Text style={styles.freqItemHz}>{item.frequencies.join(' · ')} Hz</Text>
                   </View>
-                  <View style={freqPickerStyles.freqMeta}>
-                    <Text style={freqPickerStyles.freqCategory}>{item.category.toUpperCase()}</Text>
-                    {selectedFrequency?.name === item.name && <Text style={freqPickerStyles.checkmark}>✓</Text>}
-                  </View>
+                  <Text style={styles.freqItemCat}>{item.category.toUpperCase()}</Text>
                 </TouchableOpacity>
               )}
             />
 
-            {/* Result Count */}
-            <View style={freqPickerStyles.footer}>
-              <Text style={freqPickerStyles.footerText}>
-                {FREQUENCY_ARCHIVE.filter(item => {
-                  const matchesSearch = codesSearchQuery.length === 0 || 
-                    item.name.toLowerCase().includes(codesSearchQuery.toLowerCase()) ||
-                    item.category.toLowerCase().includes(codesSearchQuery.toLowerCase());
-                  const matchesCategory = !codesSelectedCategory || item.category === codesSelectedCategory;
-                  return matchesSearch && matchesCategory;
-                }).length} results
-              </Text>
+            {/* Footer */}
+            <View style={styles.freqFooter}>
+              <Text style={styles.freqFooterText}>{filteredFrequencies.length} results</Text>
             </View>
           </View>
         </View>
       </Modal>
+
+      {/* Bottom Safe Area */}
+      <View style={{ height: insets.bottom + 80 }} />
     </View>
   );
 }
 
-// ═══════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // STYLES
-// ═══════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#1a0808' },
-  backBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-  backText: { color: '#ff0a0a', fontSize: 20 },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { color: '#ff0a0a', fontSize: 28, fontWeight: '900', letterSpacing: 8, fontFamily: 'TerminatorRealNFI' },
-  headerSub: { color: '#5a1a1a', fontSize: 12, letterSpacing: 8, marginTop: 2, fontFamily: 'TerminatorRealNFI' },
-  statusArea: { width: 44, alignItems: 'center' },
-  statusDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#ff0a0a', marginBottom: 4 },
-  statusDotOnline: { backgroundColor: '#00ff44' },
-  statusText: { color: '#5a1a1a', fontSize: 8, letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { color: '#ff0a0a', marginTop: 16, fontSize: 12, letterSpacing: 2 },
 
-  idBar: { alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1a0808', backgroundColor: '#050202' },
-  idLabel: { color: '#3a1010', fontSize: 8, letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
-  idValue: { color: '#ff0a0a', fontSize: 24, fontWeight: '900', letterSpacing: 6, marginTop: 4, fontFamily: 'TerminatorRealNFI' },
-  idName: { color: '#5a1a1a', fontSize: 10, marginTop: 2, fontFamily: 'TerminatorRealNFI' },
+  // Header
+  header: { paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#1a0808' },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerTitle: { color: '#ff0a0a', fontSize: 20, fontWeight: '900', letterSpacing: 4 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#1a0808', borderRadius: 12 },
+  statusOnline: { backgroundColor: '#0a1a0a' },
+  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#5a1a1a', marginRight: 6 },
+  statusDotOnline: { backgroundColor: '#00ff00' },
+  statusText: { color: '#5a1a1a', fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+  mirrorsIdText: { color: '#5a1a1a', fontSize: 11, marginTop: 6, letterSpacing: 2 },
 
+  // Tabs
   tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#1a0808' },
-  tab: { flex: 1, paddingVertical: 12, alignItems: 'center', backgroundColor: '#050202', flexDirection: 'row', justifyContent: 'center' },
-  tabActive: { backgroundColor: '#0a0505', borderBottomWidth: 2, borderBottomColor: '#ff0a0a' },
-  tabText: { color: '#3a1010', fontSize: 9, fontWeight: '700', letterSpacing: 1, fontFamily: 'TerminatorRealNFI' },
-  tabTextActive: { color: '#ff0a0a' },
-  badge: { backgroundColor: '#ff0a0a', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 4 },
-  badgeText: { color: '#000', fontSize: 9, fontWeight: '900' },
+  tab: { flex: 1, alignItems: 'center', paddingVertical: 12 },
+  tabActive: { borderBottomWidth: 2, borderBottomColor: '#ff0a0a' },
+  tabText: { fontSize: 18 },
+  tabTextActive: {},
+  tabLabel: { color: '#5a1a1a', fontSize: 8, marginTop: 4, letterSpacing: 1 },
+  tabLabelActive: { color: '#ff0a0a' },
 
-  mainArea: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
+  // Chirp Container
+  chirpContainer: { flex: 1, padding: 16 },
 
-  modeToggle: { flexDirection: 'row', position: 'absolute', top: 12, gap: 8 },
-  modeBtn: { paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: '#2a0a0a', backgroundColor: '#050202', alignItems: 'center' },
-  modeBtnActive: { borderColor: '#ff0a0a', backgroundColor: '#1a0505' },
-  modeBtnActiveVideo: { borderColor: '#0a64ff', backgroundColor: '#050a1a' },
-  modeBtnActiveCodes: { borderColor: '#ffa500', backgroundColor: '#1a0f05' },
-  modeBtnText: { color: '#5a1a1a', fontSize: 10, fontWeight: '700', fontFamily: 'TerminatorRealNFI' },
-  modeBtnTextActive: { color: '#fff' },
-  modeLimit: { color: '#3a1010', fontSize: 7, marginTop: 2 },
+  // Mode Toggle
+  modeToggle: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  modeBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#2a0a0a', borderRadius: 8 },
+  modeBtnActive: { borderColor: '#ff0a0a', backgroundColor: '#1a0808' },
+  modeBtnIcon: { fontSize: 20, opacity: 0.5 },
+  modeBtnIconActive: { opacity: 1 },
+  modeBtnText: { color: '#5a1a1a', fontSize: 10, fontWeight: '700', marginTop: 4, letterSpacing: 1 },
+  modeBtnTextActive: { color: '#ff0a0a' },
+  modeBtnLimit: { color: '#3a1010', fontSize: 8, marginTop: 2 },
 
-  selectedContactBar: { position: 'absolute', top: 60, alignItems: 'center', backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a40', padding: 10, width: '100%' },
-  selectedLabel: { color: '#3a1010', fontSize: 8, letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
-  selectedName: { color: '#ff0a0a', fontSize: 14, fontWeight: '700', marginTop: 2, fontFamily: 'TerminatorRealNFI' },
-  selectedId: { color: '#5a1a1a', fontSize: 10, marginTop: 2, fontFamily: 'TerminatorRealNFI' },
-  clearSelected: { color: '#ff0a0a', fontSize: 16, marginTop: 6 },
+  // Recipient
+  recipientBar: { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: '#0a0505', borderRadius: 8, marginBottom: 16 },
+  recipientLabel: { color: '#5a1a1a', fontSize: 10, marginRight: 8 },
+  recipientName: { flex: 1, color: '#ff0a0a', fontSize: 12, fontWeight: '600' },
+  recipientArrow: { color: '#5a1a1a', fontSize: 18 },
 
-  broadcastBar: { position: 'absolute', top: 60, alignItems: 'center' },
-  broadcastText: { color: '#ff0a0a', fontSize: 12, fontWeight: '700', letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
-  broadcastSub: { color: '#3a1010', fontSize: 9, marginTop: 4 },
+  // Recording Area
+  recordingArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  progressContainer: { position: 'absolute', top: 110, width: '100%', alignItems: 'center' },
-  progressBar: { width: '80%', height: 4, backgroundColor: '#1a0808', borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: '#ff0a0a' },
-  progressFillVideo: { backgroundColor: '#0a64ff' },
-  progressText: { color: '#ff0a0a', fontSize: 10, marginTop: 4, fontFamily: 'TerminatorRealNFI' },
+  // Camera
+  cameraContainer: { width: SCREEN_WIDTH - 64, height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 20, backgroundColor: '#0a0505' },
+  cameraPreview: { flex: 1 },
+  flipCameraBtn: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.5)', padding: 8, borderRadius: 20 },
+  flipCameraText: { color: '#fff', fontSize: 20 },
 
-  receiveIndicator: { position: 'absolute', top: 130, left: 20, right: 20, paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#00ff4440' },
-  receiveText: { color: '#00ff44', fontSize: 14, fontWeight: '900', letterSpacing: 4, fontFamily: 'TerminatorRealNFI' },
-  receiverName: { color: '#00ff44', fontSize: 10, letterSpacing: 2, marginTop: 4, opacity: 0.7, fontFamily: 'TerminatorRealNFI' },
+  // Timer
+  timerContainer: { alignItems: 'center', marginBottom: 20 },
+  recordingIndicator: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  recordingDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#ff0a0a', marginRight: 8 },
+  recordingLabel: { color: '#ff0a0a', fontSize: 12, fontWeight: '700', letterSpacing: 2 },
+  timerText: { color: '#fff', fontSize: 48, fontWeight: '200' },
+  progressBar: { width: 200, height: 4, backgroundColor: '#2a0a0a', borderRadius: 2, marginTop: 12 },
+  progressFill: { height: '100%', backgroundColor: '#ff0a0a', borderRadius: 2 },
+  limitText: { color: '#5a1a1a', fontSize: 10, marginTop: 8 },
 
-  pttWrapper: { alignItems: 'center', justifyContent: 'center', width: 200, height: 200 },
-  pttRing: { position: 'absolute', width: 160, height: 160, borderRadius: 80, borderWidth: 2, borderColor: '#ff0a0a' },
-  pttRingVideo: { borderColor: '#0a64ff' },
-  pttGlow: { position: 'absolute', width: 180, height: 180, borderRadius: 90 },
-  pttButton: { width: 160, height: 160, borderRadius: 80, overflow: 'hidden', borderWidth: 4, borderColor: '#2a0a0a', justifyContent: 'center', alignItems: 'center' },
-  pttButtonImage: { borderRadius: 76 },
-  pttButtonOverlay: { flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.35)' },
+  // PTT Button
+  pttWrapper: { alignItems: 'center', justifyContent: 'center' },
+  pttButton: { width: 160, height: 160, borderRadius: 80, overflow: 'hidden', borderWidth: 4, borderColor: '#2a0a0a' },
   pttButtonActive: { borderColor: '#ff0a0a' },
-  pttButtonVideo: { borderColor: '#0a2a4a' },
-  pttIcon: { fontSize: 36, marginBottom: 6, color: '#ff0a0a', textShadowColor: '#000', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
-  pttMainText: { color: '#fff', fontSize: 20, fontWeight: '900', letterSpacing: 4, fontFamily: 'TerminatorRealNFI', textShadowColor: '#000', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
-  pttMainTextVideo: { color: '#0a64ff' },
-  pttSubText: { color: '#aaa', fontSize: 8, letterSpacing: 1, marginTop: 6, fontFamily: 'TerminatorRealNFI', textShadowColor: '#000', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+  pttButtonBg: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  pttButtonImage: { borderRadius: 76 },
+  pttOverlay: { flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' },
+  pttSymbol: { color: '#ff0a0a', fontSize: 36, fontWeight: '900' },
+  pttSymbolActive: { color: '#fff' },
+  pttModeText: { color: '#fff', fontSize: 16, fontWeight: '700', marginTop: 4, letterSpacing: 2 },
+  pttHintText: { color: '#888', fontSize: 8, marginTop: 8, letterSpacing: 1 },
 
-  lastChirp: { color: '#3a1010', fontSize: 10, letterSpacing: 1, marginTop: 20, fontFamily: 'TerminatorRealNFI' },
+  // Permission Warning
+  permissionWarning: { marginTop: 20, padding: 16, backgroundColor: '#1a0808', borderRadius: 8, alignItems: 'center' },
+  permissionWarningText: { color: '#ff6060', fontSize: 12, textAlign: 'center' },
+  permissionWarningLink: { color: '#ff0a0a', fontSize: 10, marginTop: 8, textDecorationLine: 'underline' },
 
-  // Codes Mode
-  codesContainer: { flex: 1, width: '100%', paddingHorizontal: 20, paddingTop: 80, alignItems: 'center' },
-  freqPickerBtn: { width: '100%', backgroundColor: '#050202', borderWidth: 1, borderColor: '#ffa500', padding: 16, marginBottom: 20 },
-  selectedFreqDisplay: { alignItems: 'center' },
-  selectedFreqName: { color: '#ffa500', fontSize: 14, fontWeight: '700', textAlign: 'center', fontFamily: 'TerminatorRealNFI' },
-  selectedFreqHz: { color: '#ff0a0a', fontSize: 11, marginTop: 6, fontFamily: 'TerminatorRealNFI' },
-  selectFreqPrompt: { alignItems: 'center', paddingVertical: 8 },
-  selectFreqIcon: { color: '#ffa500', fontSize: 32, marginBottom: 8 },
-  selectFreqText: { color: '#5a1a1a', fontSize: 10, letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
-  codesSendWrapper: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
-  codesSendBtn: {},
-  codesSendBtnHolding: { opacity: 0.9 },
-  codesProgressRing: { position: 'absolute', width: 180, height: 180, borderRadius: 90, borderWidth: 3, borderColor: '#ffa500', overflow: 'hidden' },
-  codesProgressFill: { position: 'absolute', bottom: 0, width: '100%', backgroundColor: 'rgba(255,165,0,0.3)' },
-  codesHint: { color: '#5a1a1a', fontSize: 9, textAlign: 'center', marginTop: 20, letterSpacing: 1, fontFamily: 'TerminatorRealNFI' },
+  // Codes Area
+  codesArea: { flex: 1, alignItems: 'center', paddingTop: 20 },
+  freqSelector: { width: '100%', padding: 20, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a', borderRadius: 8 },
+  selectedFreqInfo: { alignItems: 'center' },
+  selectedFreqName: { color: '#ff0a0a', fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  selectedFreqHz: { color: '#ff6060', fontSize: 12, marginTop: 6 },
+  selectedFreqCategory: { color: '#5a1a1a', fontSize: 9, marginTop: 4, letterSpacing: 2 },
+  selectFreqPrompt: { alignItems: 'center' },
+  selectFreqIcon: { color: '#ff0a0a', fontSize: 32, marginBottom: 8 },
+  selectFreqText: { color: '#5a1a1a', fontSize: 11, letterSpacing: 2 },
+  selectFreqCount: { color: '#3a1010', fontSize: 9, marginTop: 6 },
+  codesSendButtons: { flexDirection: 'row', gap: 12, marginTop: 20, width: '100%' },
+  codesSendBtn: { flex: 1, backgroundColor: '#ff0a0a', paddingVertical: 14, borderRadius: 8, alignItems: 'center' },
+  codesSendBtnText: { color: '#000', fontSize: 11, fontWeight: '900', letterSpacing: 1 },
+  codesShareBtn: { flex: 1, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a', paddingVertical: 14, borderRadius: 8, alignItems: 'center' },
+  codesShareBtnText: { color: '#ff0a0a', fontSize: 11, fontWeight: '700', letterSpacing: 1 },
 
   // Messages
-  noMessages: { color: '#3a1010', fontSize: 11, textAlign: 'center', marginTop: 40 },
-  messageRow: { flexDirection: 'row', backgroundColor: '#050202', borderWidth: 1, borderColor: '#1a0808', padding: 12, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#00ff44' },
-  messageRowOutgoing: { borderLeftColor: '#ff0a0a' },
-  messageIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#1a0808', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  messageIconText: { fontSize: 16 },
-  messageContent: { flex: 1 },
+  messagesContainer: { flex: 1, padding: 16 },
+  messagesTitle: { color: '#ff0a0a', fontSize: 14, fontWeight: '700', letterSpacing: 2, marginBottom: 16 },
+  emptyMessages: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyMessagesIcon: { fontSize: 48, opacity: 0.3 },
+  emptyMessagesText: { color: '#5a1a1a', fontSize: 14, marginTop: 16 },
+  emptyMessagesHint: { color: '#3a1010', fontSize: 11, marginTop: 8 },
+  messagesList: { paddingBottom: 20 },
+  messageItem: { marginBottom: 12 },
+  messageOutgoing: { alignItems: 'flex-end' },
+  messageIncoming: { alignItems: 'flex-start' },
+  messageBubble: { backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#2a0a0a', borderRadius: 12, padding: 12, maxWidth: '80%' },
   messageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  messageName: { color: '#ff0a0a', fontSize: 12, fontWeight: '700', fontFamily: 'TerminatorRealNFI' },
+  messageType: { color: '#ff0a0a', fontSize: 11, fontWeight: '700' },
+  messageDuration: { color: '#5a1a1a', fontSize: 10 },
+  messageFreq: { backgroundColor: '#1a0808', padding: 8, borderRadius: 6, marginBottom: 8 },
+  messageFreqName: { color: '#ff0a0a', fontSize: 12, fontWeight: '600' },
+  messageFreqHz: { color: '#5a1a1a', fontSize: 10, marginTop: 2 },
+  messageFooter: { flexDirection: 'row', justifyContent: 'space-between' },
+  messageFrom: { color: '#3a1010', fontSize: 9 },
   messageTime: { color: '#3a1010', fontSize: 9 },
-  messageBody: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  waveform: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 },
-  waveBar: { width: 3, backgroundColor: '#ff0a0a40', borderRadius: 1 },
-  messageDuration: { color: '#5a1a1a', fontSize: 10, fontFamily: 'TerminatorRealNFI' },
-  messageType: { color: '#3a1010', fontSize: 8, marginTop: 4, letterSpacing: 1 },
 
   // Contacts
-  contactsArea: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
-  addContactBtn: { backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a', paddingVertical: 14, alignItems: 'center', marginBottom: 12 },
-  addContactText: { color: '#ff0a0a', fontSize: 11, fontWeight: '700', letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
-  contactRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#050202', borderWidth: 1, borderColor: '#1a0808', padding: 12, marginBottom: 8 },
-  contactRowSelected: { borderColor: '#ff0a0a', backgroundColor: '#0a0505' },
-  contactIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#1a0808', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  contactIconOnline: { backgroundColor: '#0a2a0a', borderWidth: 1, borderColor: '#00ff44' },
-  contactIconText: { color: '#ff0a0a', fontSize: 16, fontWeight: '700' },
+  contactsContainer: { flex: 1, padding: 16 },
+  contactItem: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#0a0505', borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: 'transparent' },
+  contactItemSelected: { borderColor: '#ff0a0a', backgroundColor: '#1a0808' },
+  contactIcon: { fontSize: 24, marginRight: 12 },
   contactInfo: { flex: 1 },
-  contactName: { color: '#ff0a0a', fontSize: 13, fontWeight: '700', fontFamily: 'TerminatorRealNFI' },
-  contactId: { color: '#5a1a1a', fontSize: 10, marginTop: 2, fontFamily: 'TerminatorRealNFI' },
-  contactCheck: { color: '#ff0a0a', fontSize: 18, marginLeft: 12 },
-  noContacts: { color: '#3a1010', fontSize: 11, textAlign: 'center', marginTop: 20 },
+  contactName: { color: '#ff0a0a', fontSize: 14, fontWeight: '600' },
+  contactId: { color: '#5a1a1a', fontSize: 10, marginTop: 2 },
+  contactCheck: { color: '#ff0a0a', fontSize: 18 },
+  addContactBtn: { padding: 16, backgroundColor: '#0a0505', borderRadius: 8, borderWidth: 1, borderColor: '#2a0a0a', borderStyle: 'dashed', alignItems: 'center', marginTop: 8 },
+  addContactBtnText: { color: '#5a1a1a', fontSize: 12, letterSpacing: 2 },
 
   // Settings
-  settingsArea: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
-  settingSection: { marginBottom: 20 },
-  settingSectionTitle: { color: '#ff0a0a', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 8, fontFamily: 'TerminatorRealNFI' },
-  idCard: { backgroundColor: '#050202', borderWidth: 1, borderColor: '#ff0a0a40', padding: 16, alignItems: 'center' },
-  idCardValue: { color: '#ff0a0a', fontSize: 28, fontWeight: '900', letterSpacing: 6, fontFamily: 'TerminatorRealNFI' },
-  idCardHint: { color: '#3a1010', fontSize: 9, marginTop: 8, textAlign: 'center' },
-  settingInput: { backgroundColor: '#050202', borderWidth: 1, borderColor: '#2a0a0a', color: '#ff0a0a', fontSize: 14, padding: 12 },
-  limitsInfo: { backgroundColor: '#050202', borderWidth: 1, borderColor: '#1a0808', padding: 12 },
-  limitRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
-  limitLabel: { color: '#5a1a1a', fontSize: 12 },
-  limitValue: { color: '#ff0a0a', fontSize: 12, fontFamily: 'TerminatorRealNFI' },
-  settingHint: { color: '#3a1010', fontSize: 10, marginBottom: 12 },
-  settingBtn: { backgroundColor: '#050202', borderWidth: 1, borderColor: '#2a0a0a', paddingVertical: 12, alignItems: 'center' },
-  settingBtnText: { color: '#5a1a1a', fontSize: 10, letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
-});
+  settingsContainer: { flex: 1, padding: 16 },
+  settingSection: { marginBottom: 24 },
+  settingLabel: { color: '#5a1a1a', fontSize: 10, letterSpacing: 2, marginBottom: 8 },
+  settingValue: { color: '#ff0a0a', fontSize: 18, fontWeight: '600' },
+  settingInfo: { color: '#888', fontSize: 12, marginTop: 4 },
 
-const modalStyles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
-  container: { width: SCREEN_WIDTH - 40, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a30', padding: 24 },
-  title: { color: '#ff0a0a', fontSize: 18, fontWeight: '900', letterSpacing: 4, textAlign: 'center', fontFamily: 'TerminatorRealNFI' },
-  subtitle: { color: '#5a1a1a', fontSize: 10, textAlign: 'center', marginTop: 8, fontFamily: 'TerminatorRealNFI' },
-  input: { backgroundColor: '#050202', borderWidth: 1, borderColor: '#2a0a0a', color: '#ff0a0a', fontSize: 24, padding: 16, textAlign: 'center', marginTop: 20, letterSpacing: 6, fontFamily: 'TerminatorRealNFI' },
-  lookupBtn: { backgroundColor: '#ff0a0a', paddingVertical: 14, alignItems: 'center', marginTop: 16 },
-  lookupBtnText: { color: '#000', fontSize: 12, fontWeight: '900', letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
-  resultBox: { backgroundColor: '#050202', borderWidth: 1, borderColor: '#ff0a0a40', padding: 16, marginTop: 16, alignItems: 'center' },
-  resultName: { color: '#ff0a0a', fontSize: 16, fontWeight: '700', fontFamily: 'TerminatorRealNFI' },
-  resultId: { color: '#5a1a1a', fontSize: 12, marginTop: 4, fontFamily: 'TerminatorRealNFI' },
-  addBtn: { backgroundColor: '#ff0a0a', paddingVertical: 12, paddingHorizontal: 20, marginTop: 12 },
-  addBtnText: { color: '#000', fontSize: 11, fontWeight: '900', letterSpacing: 1, fontFamily: 'TerminatorRealNFI' },
-  errorText: { color: '#ff0a0a', fontSize: 12, fontFamily: 'TerminatorRealNFI' },
-  cancelBtn: { marginTop: 16, paddingVertical: 12, alignItems: 'center' },
-  cancelBtnText: { color: '#5a1a1a', fontSize: 11, letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
-});
+  // Modal Overlay
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
 
-const shareStyles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
-  container: { width: SCREEN_WIDTH - 40, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a30', padding: 20, alignItems: 'center' },
-  title: { color: '#ff0a0a', fontSize: 14, fontWeight: '900', letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
-  duration: { color: '#fff', fontSize: 36, fontWeight: '300', marginTop: 8, fontFamily: 'TerminatorRealNFI' },
-  waveformLarge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, marginTop: 20, marginBottom: 16 },
-  waveBarLarge: { width: 6, backgroundColor: '#ff0a0a', borderRadius: 3 },
-  toText: { color: '#5a1a1a', fontSize: 10, letterSpacing: 2, marginBottom: 16, fontFamily: 'TerminatorRealNFI' },
-  actionRow: { flexDirection: 'row', gap: 12, width: '100%' },
-  sendBtn: { flex: 2, backgroundColor: '#ff0a0a', paddingVertical: 14, alignItems: 'center' },
-  sendBtnText: { color: '#000', fontSize: 11, fontWeight: '900', letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
-  shareBtn: { flex: 1, backgroundColor: '#050202', borderWidth: 1, borderColor: '#ff0a0a', paddingVertical: 14, alignItems: 'center' },
-  shareBtnText: { color: '#ff0a0a', fontSize: 11, fontWeight: '700', letterSpacing: 1, fontFamily: 'TerminatorRealNFI' },
-  cancelBtn: { marginTop: 12, paddingVertical: 12, alignItems: 'center' },
-  cancelBtnText: { color: '#5a1a1a', fontSize: 10, letterSpacing: 2, fontFamily: 'TerminatorRealNFI' },
-});
+  // Preview Modal
+  previewModal: { width: SCREEN_WIDTH - 48, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a', borderRadius: 12, padding: 24, alignItems: 'center' },
+  previewTitle: { color: '#ff0a0a', fontSize: 16, fontWeight: '700', letterSpacing: 2 },
+  previewDuration: { color: '#fff', fontSize: 48, fontWeight: '200', marginVertical: 16 },
+  previewTo: { color: '#5a1a1a', fontSize: 11, letterSpacing: 2, marginBottom: 24 },
+  previewButtons: { width: '100%', gap: 12 },
+  previewSendBtn: { backgroundColor: '#ff0a0a', paddingVertical: 16, borderRadius: 8, alignItems: 'center' },
+  previewSendBtnText: { color: '#000', fontSize: 14, fontWeight: '900', letterSpacing: 2 },
+  previewCancelBtn: { paddingVertical: 12, alignItems: 'center' },
+  previewCancelBtnText: { color: '#5a1a1a', fontSize: 12, letterSpacing: 2 },
 
-const freqPickerStyles = StyleSheet.create({
-  // Modal overlay
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.98)', justifyContent: 'flex-end' },
-  container: { height: '85%', backgroundColor: '#050202', borderTopWidth: 2, borderTopColor: '#ff0a0a', borderTopLeftRadius: 16, borderTopRightRadius: 16 },
-  
-  // Header
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 },
-  title: { color: '#ff0a0a', fontSize: 18, fontWeight: '900', letterSpacing: 4, fontFamily: 'TerminatorRealNFI' },
-  subtitle: { color: '#5a1a1a', fontSize: 10, marginTop: 4, fontFamily: 'TerminatorRealNFI' },
-  closeButton: { padding: 4 },
-  closeBtn: { color: '#ff0a0a', fontSize: 24, fontWeight: '300' },
-  
-  // Search bar
-  searchContainer: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 12, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#2a0a0a', borderRadius: 8, paddingHorizontal: 12 },
-  searchIcon: { color: '#5a1a1a', fontSize: 18, marginRight: 8 },
-  searchInput: { flex: 1, height: 44, color: '#ff0a0a', fontSize: 14, fontFamily: 'TerminatorRealNFI' },
-  clearSearch: { padding: 6 },
-  clearSearchText: { color: '#5a1a1a', fontSize: 14 },
-  
-  // Category pills
-  categoryScroll: { maxHeight: 44, marginBottom: 8 },
-  categoryContainer: { paddingHorizontal: 16, gap: 8, flexDirection: 'row', alignItems: 'center' },
-  categoryPill: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#2a0a0a', borderRadius: 16 },
-  categoryPillActive: { backgroundColor: '#1a0808', borderColor: '#ff0a0a' },
-  categoryPillText: { color: '#5a1a1a', fontSize: 9, fontWeight: '700', letterSpacing: 1, fontFamily: 'TerminatorRealNFI' },
-  categoryPillTextActive: { color: '#ff0a0a' },
-  
-  // List
-  listContent: { paddingBottom: 100 },
+  // Add Contact Modal
+  addContactModal: { width: SCREEN_WIDTH - 48, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a', borderRadius: 12, padding: 24 },
+  addContactTitle: { color: '#ff0a0a', fontSize: 16, fontWeight: '700', letterSpacing: 2, textAlign: 'center', marginBottom: 20 },
+  addContactInput: { backgroundColor: '#050202', borderWidth: 1, borderColor: '#2a0a0a', borderRadius: 8, padding: 16, color: '#ff0a0a', fontSize: 16, textAlign: 'center', letterSpacing: 4 },
+  addContactLookupBtn: { backgroundColor: '#ff0a0a', paddingVertical: 14, borderRadius: 8, marginTop: 12, alignItems: 'center' },
+  addContactLookupText: { color: '#000', fontSize: 12, fontWeight: '700', letterSpacing: 2 },
+  lookupResult: { marginTop: 20, padding: 16, backgroundColor: '#1a0808', borderRadius: 8, alignItems: 'center' },
+  lookupError: { color: '#ff6060', fontSize: 12 },
+  lookupName: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  lookupId: { color: '#5a1a1a', fontSize: 12, marginTop: 4 },
+  lookupAddBtn: { backgroundColor: '#00aa00', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 6, marginTop: 12 },
+  lookupAddText: { color: '#fff', fontSize: 11, fontWeight: '700', letterSpacing: 1 },
+  addContactCancelBtn: { marginTop: 16, alignItems: 'center', paddingVertical: 12 },
+  addContactCancelText: { color: '#5a1a1a', fontSize: 12, letterSpacing: 2 },
+
+  // Frequency Picker
+  freqPickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.98)', justifyContent: 'flex-end' },
+  freqPickerContainer: { height: '85%', backgroundColor: '#050202', borderTopLeftRadius: 16, borderTopRightRadius: 16, borderTopWidth: 2, borderTopColor: '#ff0a0a' },
+  freqPickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20 },
+  freqPickerTitle: { color: '#ff0a0a', fontSize: 18, fontWeight: '900', letterSpacing: 4 },
+  freqPickerSubtitle: { color: '#5a1a1a', fontSize: 10, marginTop: 4 },
+  freqPickerClose: { color: '#ff0a0a', fontSize: 24, padding: 4 },
+  freqSearchBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 12, backgroundColor: '#0a0505', borderRadius: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: '#2a0a0a' },
+  freqSearchIcon: { color: '#5a1a1a', fontSize: 18, marginRight: 8 },
+  freqSearchInput: { flex: 1, height: 44, color: '#ff0a0a', fontSize: 14 },
+  freqSearchClear: { color: '#5a1a1a', fontSize: 16, padding: 4 },
+  freqCategories: { maxHeight: 44, marginHorizontal: 16, marginBottom: 8 },
+  freqCatPill: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#2a0a0a', borderRadius: 16, marginRight: 8 },
+  freqCatPillActive: { backgroundColor: '#1a0808', borderColor: '#ff0a0a' },
+  freqCatText: { color: '#5a1a1a', fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+  freqCatTextActive: { color: '#ff0a0a' },
+  freqList: { paddingBottom: 80 },
+  freqEmpty: { padding: 40, alignItems: 'center' },
+  freqEmptyText: { color: '#5a1a1a', fontSize: 14 },
   freqItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#1a0808' },
   freqItemSelected: { backgroundColor: '#1a0808', borderLeftWidth: 3, borderLeftColor: '#ff0a0a' },
-  freqInfo: { flex: 1, marginRight: 12 },
-  freqName: { color: '#ff0a0a', fontSize: 13, fontWeight: '600', fontFamily: 'TerminatorRealNFI' },
-  freqHz: { color: '#5a1a1a', fontSize: 10, marginTop: 4, fontFamily: 'TerminatorRealNFI' },
-  freqMeta: { alignItems: 'flex-end' },
-  freqCategory: { color: '#3a1010', fontSize: 8, letterSpacing: 1, fontFamily: 'TerminatorRealNFI', marginBottom: 4 },
-  checkmark: { color: '#ff0a0a', fontSize: 16, fontWeight: '700' },
-  
-  // Empty state
-  emptyState: { alignItems: 'center', paddingVertical: 60 },
-  emptyIcon: { color: '#2a0a0a', fontSize: 48, marginBottom: 16 },
-  emptyText: { color: '#5a1a1a', fontSize: 14, fontWeight: '600', fontFamily: 'TerminatorRealNFI' },
-  emptyHint: { color: '#3a1010', fontSize: 10, marginTop: 8, fontFamily: 'TerminatorRealNFI' },
-  
-  // Footer
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingVertical: 12, paddingHorizontal: 20, backgroundColor: '#050202', borderTopWidth: 1, borderTopColor: '#1a0808' },
-  footerText: { color: '#3a1010', fontSize: 10, textAlign: 'center', letterSpacing: 1, fontFamily: 'TerminatorRealNFI' },
+  freqItemInfo: { flex: 1, marginRight: 12 },
+  freqItemName: { color: '#ff0a0a', fontSize: 13, fontWeight: '600' },
+  freqItemHz: { color: '#5a1a1a', fontSize: 10, marginTop: 4 },
+  freqItemCat: { color: '#3a1010', fontSize: 8, letterSpacing: 1 },
+  freqFooter: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12, backgroundColor: '#050202', borderTopWidth: 1, borderTopColor: '#1a0808', alignItems: 'center' },
+  freqFooterText: { color: '#3a1010', fontSize: 10, letterSpacing: 1 },
 });
