@@ -333,6 +333,10 @@ export default function HowScreen() {
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: C.eye }]}>&gt; CONNECT WITH GODMODE</Text>
             <View style={styles.connectGrid}>
+              <TouchableOpacity style={[styles.connectBtn, { borderColor: C.eye + '40' }]} onPress={() => Linking.openURL('https://instagram.com/mirrors.96')}>
+                <Text style={[styles.connectLabel, { color: C.eye }]}>MIRRORS 96</Text>
+                <Text style={[styles.connectSub, { color: C.eye + '88' }]}>@mirrors.96</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={[styles.connectBtn, { borderColor: C.eye + '40' }]} onPress={() => Linking.openURL('https://instagram.com/vincesinnott')}>
                 <Text style={[styles.connectLabel, { color: C.eye }]}>GODMODE SOUND</Text>
                 <Text style={[styles.connectSub, { color: C.eye + '88' }]}>@vincesinnott</Text>
