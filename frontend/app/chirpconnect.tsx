@@ -101,9 +101,10 @@ export default function ChirpConnect() {
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
 
   // Codes mode state
-  const [selectedFrequency, setSelectedFrequency] = useState<{ name: string; frequencies: number[] } | null>(null);
+  const [selectedFrequency, setSelectedFrequency] = useState<{ name: string; frequencies: number[]; category: string } | null>(null);
   const [showFrequencyPicker, setShowFrequencyPicker] = useState(false);
-  const [codesHoldTimer, setCodesHoldTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [codesSearchQuery, setCodesSearchQuery] = useState('');
+  const [codesSelectedCategory, setCodesSelectedCategory] = useState<string | null>(null);
   const [codesHoldProgress, setCodesHoldProgress] = useState(0);
   const codesHoldIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -1130,37 +1131,126 @@ export default function ChirpConnect() {
         </View>
       </Modal>
 
-      {/* FREQUENCY PICKER MODAL */}
-      <Modal visible={showFrequencyPicker} transparent animationType="slide" onRequestClose={() => setShowFrequencyPicker(false)}>
+      {/* FREQUENCY PICKER MODAL - CODES ARCHIVE */}
+      <Modal visible={showFrequencyPicker} transparent animationType="slide" onRequestClose={() => { setShowFrequencyPicker(false); setCodesSearchQuery(''); setCodesSelectedCategory(null); }}>
         <View style={freqPickerStyles.overlay}>
           <View style={freqPickerStyles.container}>
+            {/* Header */}
             <View style={freqPickerStyles.header}>
-              <Text style={freqPickerStyles.title}>SELECT FREQUENCY</Text>
-              <TouchableOpacity onPress={() => setShowFrequencyPicker(false)}>
+              <View>
+                <Text style={freqPickerStyles.title}>CODES ARCHIVE</Text>
+                <Text style={freqPickerStyles.subtitle}>{FREQUENCY_ARCHIVE.length} frequencies · 432Hz calibrated</Text>
+              </View>
+              <TouchableOpacity onPress={() => { setShowFrequencyPicker(false); setCodesSearchQuery(''); setCodesSelectedCategory(null); }} style={freqPickerStyles.closeButton}>
                 <Text style={freqPickerStyles.closeBtn}>✕</Text>
               </TouchableOpacity>
             </View>
-            <Text style={freqPickerStyles.subtitle}>Choose from the archive to send</Text>
+
+            {/* Search Bar */}
+            <View style={freqPickerStyles.searchContainer}>
+              <Text style={freqPickerStyles.searchIcon}>⌕</Text>
+              <TextInput
+                style={freqPickerStyles.searchInput}
+                placeholder="Search frequencies..."
+                placeholderTextColor="#5a1a1a"
+                value={codesSearchQuery}
+                onChangeText={setCodesSearchQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
+                clearButtonMode="while-editing"
+              />
+              {codesSearchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setCodesSearchQuery('')} style={freqPickerStyles.clearSearch}>
+                  <Text style={freqPickerStyles.clearSearchText}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Category Filter Pills */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={freqPickerStyles.categoryScroll} contentContainerStyle={freqPickerStyles.categoryContainer}>
+              <TouchableOpacity
+                style={[freqPickerStyles.categoryPill, !codesSelectedCategory && freqPickerStyles.categoryPillActive]}
+                onPress={() => setCodesSelectedCategory(null)}
+              >
+                <Text style={[freqPickerStyles.categoryPillText, !codesSelectedCategory && freqPickerStyles.categoryPillTextActive]}>ALL</Text>
+              </TouchableOpacity>
+              {Array.from(new Set(FREQUENCY_ARCHIVE.map(f => f.category))).sort().map(cat => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[freqPickerStyles.categoryPill, codesSelectedCategory === cat && freqPickerStyles.categoryPillActive]}
+                  onPress={() => setCodesSelectedCategory(codesSelectedCategory === cat ? null : cat)}
+                >
+                  <Text style={[freqPickerStyles.categoryPillText, codesSelectedCategory === cat && freqPickerStyles.categoryPillTextActive]}>
+                    {cat.toUpperCase()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Frequency List */}
             <FlatList
-              data={FREQUENCY_ARCHIVE.slice(0, 50)}
+              data={FREQUENCY_ARCHIVE.filter(item => {
+                const matchesSearch = codesSearchQuery.length === 0 || 
+                  item.name.toLowerCase().includes(codesSearchQuery.toLowerCase()) ||
+                  item.category.toLowerCase().includes(codesSearchQuery.toLowerCase()) ||
+                  item.frequencies.some(f => f.toString().includes(codesSearchQuery));
+                const matchesCategory = !codesSelectedCategory || item.category === codesSelectedCategory;
+                return matchesSearch && matchesCategory;
+              })}
               keyExtractor={(item, idx) => `${item.name}-${idx}`}
-              contentContainerStyle={{ paddingBottom: 20 }}
+              contentContainerStyle={freqPickerStyles.listContent}
+              showsVerticalScrollIndicator={true}
+              initialNumToRender={20}
+              maxToRenderPerBatch={15}
+              windowSize={10}
+              ListEmptyComponent={
+                <View style={freqPickerStyles.emptyState}>
+                  <Text style={freqPickerStyles.emptyIcon}>◎</Text>
+                  <Text style={freqPickerStyles.emptyText}>No frequencies found</Text>
+                  <Text style={freqPickerStyles.emptyHint}>Try a different search term</Text>
+                </View>
+              }
               renderItem={({ item }) => (
                 <TouchableOpacity 
                   style={[freqPickerStyles.freqItem, selectedFrequency?.name === item.name && freqPickerStyles.freqItemSelected]}
                   onPress={() => {
-                    setSelectedFrequency({ name: item.name, frequencies: item.frequencies });
+                    setSelectedFrequency({ name: item.name, frequencies: item.frequencies, category: item.category });
                     setShowFrequencyPicker(false);
+                    setCodesSearchQuery('');
+                    setCodesSelectedCategory(null);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }}
+                  activeOpacity={0.7}
                 >
                   <View style={freqPickerStyles.freqInfo}>
-                    <Text style={freqPickerStyles.freqName}>{item.name}</Text>
-                    <Text style={freqPickerStyles.freqHz}>{item.frequencies.join(' · ')} Hz</Text>
+                    <Text style={freqPickerStyles.freqName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={freqPickerStyles.freqHz} numberOfLines={1}>
+                      {item.frequencies.length > 3 
+                        ? `${item.frequencies.slice(0, 3).join(' · ')} Hz +${item.frequencies.length - 3} more`
+                        : `${item.frequencies.join(' · ')} Hz`
+                      }
+                    </Text>
                   </View>
-                  <Text style={freqPickerStyles.freqCategory}>{item.category.toUpperCase()}</Text>
+                  <View style={freqPickerStyles.freqMeta}>
+                    <Text style={freqPickerStyles.freqCategory}>{item.category.toUpperCase()}</Text>
+                    {selectedFrequency?.name === item.name && <Text style={freqPickerStyles.checkmark}>✓</Text>}
+                  </View>
                 </TouchableOpacity>
               )}
             />
+
+            {/* Result Count */}
+            <View style={freqPickerStyles.footer}>
+              <Text style={freqPickerStyles.footerText}>
+                {FREQUENCY_ARCHIVE.filter(item => {
+                  const matchesSearch = codesSearchQuery.length === 0 || 
+                    item.name.toLowerCase().includes(codesSearchQuery.toLowerCase()) ||
+                    item.category.toLowerCase().includes(codesSearchQuery.toLowerCase());
+                  const matchesCategory = !codesSelectedCategory || item.category === codesSelectedCategory;
+                  return matchesSearch && matchesCategory;
+                }).length} results
+              </Text>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1344,16 +1434,50 @@ const shareStyles = StyleSheet.create({
 });
 
 const freqPickerStyles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'flex-end' },
-  container: { height: '70%', backgroundColor: '#0a0505', borderTopWidth: 2, borderTopColor: '#ff0a0a' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#1a0808' },
-  title: { color: '#ff0a0a', fontSize: 16, fontWeight: '900', letterSpacing: 4, fontFamily: 'TerminatorRealNFI' },
-  closeBtn: { color: '#ff0a0a', fontSize: 20 },
-  subtitle: { color: '#5a1a1a', fontSize: 10, textAlign: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1a0808', fontFamily: 'TerminatorRealNFI' },
+  // Modal overlay
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.98)', justifyContent: 'flex-end' },
+  container: { height: '85%', backgroundColor: '#050202', borderTopWidth: 2, borderTopColor: '#ff0a0a', borderTopLeftRadius: 16, borderTopRightRadius: 16 },
+  
+  // Header
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 },
+  title: { color: '#ff0a0a', fontSize: 18, fontWeight: '900', letterSpacing: 4, fontFamily: 'TerminatorRealNFI' },
+  subtitle: { color: '#5a1a1a', fontSize: 10, marginTop: 4, fontFamily: 'TerminatorRealNFI' },
+  closeButton: { padding: 4 },
+  closeBtn: { color: '#ff0a0a', fontSize: 24, fontWeight: '300' },
+  
+  // Search bar
+  searchContainer: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 12, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#2a0a0a', borderRadius: 8, paddingHorizontal: 12 },
+  searchIcon: { color: '#5a1a1a', fontSize: 18, marginRight: 8 },
+  searchInput: { flex: 1, height: 44, color: '#ff0a0a', fontSize: 14, fontFamily: 'TerminatorRealNFI' },
+  clearSearch: { padding: 6 },
+  clearSearchText: { color: '#5a1a1a', fontSize: 14 },
+  
+  // Category pills
+  categoryScroll: { maxHeight: 44, marginBottom: 8 },
+  categoryContainer: { paddingHorizontal: 16, gap: 8, flexDirection: 'row', alignItems: 'center' },
+  categoryPill: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#2a0a0a', borderRadius: 16 },
+  categoryPillActive: { backgroundColor: '#1a0808', borderColor: '#ff0a0a' },
+  categoryPillText: { color: '#5a1a1a', fontSize: 9, fontWeight: '700', letterSpacing: 1, fontFamily: 'TerminatorRealNFI' },
+  categoryPillTextActive: { color: '#ff0a0a' },
+  
+  // List
+  listContent: { paddingBottom: 100 },
   freqItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#1a0808' },
-  freqItemSelected: { backgroundColor: '#1a0808' },
-  freqInfo: { flex: 1 },
+  freqItemSelected: { backgroundColor: '#1a0808', borderLeftWidth: 3, borderLeftColor: '#ff0a0a' },
+  freqInfo: { flex: 1, marginRight: 12 },
   freqName: { color: '#ff0a0a', fontSize: 13, fontWeight: '600', fontFamily: 'TerminatorRealNFI' },
   freqHz: { color: '#5a1a1a', fontSize: 10, marginTop: 4, fontFamily: 'TerminatorRealNFI' },
-  freqCategory: { color: '#3a1010', fontSize: 9, letterSpacing: 1, fontFamily: 'TerminatorRealNFI' },
+  freqMeta: { alignItems: 'flex-end' },
+  freqCategory: { color: '#3a1010', fontSize: 8, letterSpacing: 1, fontFamily: 'TerminatorRealNFI', marginBottom: 4 },
+  checkmark: { color: '#ff0a0a', fontSize: 16, fontWeight: '700' },
+  
+  // Empty state
+  emptyState: { alignItems: 'center', paddingVertical: 60 },
+  emptyIcon: { color: '#2a0a0a', fontSize: 48, marginBottom: 16 },
+  emptyText: { color: '#5a1a1a', fontSize: 14, fontWeight: '600', fontFamily: 'TerminatorRealNFI' },
+  emptyHint: { color: '#3a1010', fontSize: 10, marginTop: 8, fontFamily: 'TerminatorRealNFI' },
+  
+  // Footer
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingVertical: 12, paddingHorizontal: 20, backgroundColor: '#050202', borderTopWidth: 1, borderTopColor: '#1a0808' },
+  footerText: { color: '#3a1010', fontSize: 10, textAlign: 'center', letterSpacing: 1, fontFamily: 'TerminatorRealNFI' },
 });
