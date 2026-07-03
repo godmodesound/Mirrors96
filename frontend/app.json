@@ -15,6 +15,7 @@
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Transmit voice instantly via Direct Connect",
         "NSCameraUsageDescription": "Record video chirps to share with contacts",
+        "NSPhotoLibraryUsageDescription": "Upload a photo to customize your CODES I.D.",
         "UIBackgroundModes": [
           "audio"
         ]

@@ -23,8 +23,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Audio } from 'expo-av';
 import { Camera, CameraView, CameraType } from 'expo-camera';
 import ViewShot from 'react-native-view-shot';
@@ -50,6 +51,8 @@ const STORAGE_KEYS = {
   CONTACTS: '@mirrors_contacts',
   SELECTED_CONTACT: '@mirrors_selected_contact',
   CHIRP_HISTORY: '@chirp_history',
+  HAPTIC_SETTINGS: '@codes_haptic_settings',
+  AVATAR: '@mirrors_avatar',
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -129,6 +132,12 @@ export default function ChirpConnect() {
   const [isReceiving, setIsReceiving] = useState(false);
   const [incomingFrom, setIncomingFrom] = useState('');
 
+  // Customization (Settings)
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [hapticsEnabled, setHapticsEnabled] = useState(true);
+  const [hapticIntensity, setHapticIntensity] = useState<'LIGHT' | 'MEDIUM' | 'HEAVY'>('HEAVY');
+  const [hapticPulses, setHapticPulses] = useState<1 | 2 | 3>(1);
+
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -192,6 +201,7 @@ export default function ChirpConnect() {
   useEffect(() => {
     initializeMirrorsId();
     loadChirpHistory();
+    loadCustomization();
   }, []);
 
   const initializeMirrorsId = async () => {
@@ -314,20 +324,105 @@ export default function ChirpConnect() {
   }, [mirrorsId, connectWebSocket]);
 
   // ═══════════════════════════════════════════════════════════
-  // HAPTIC FEEDBACK
+  // HAPTIC ENGINE — settings-aware (Nextel-style PTT feedback)
   // ═══════════════════════════════════════════════════════════
-  const playStartFeedback = async () => {
-    if (Platform.OS !== 'web') {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+  const fireHaptic = async (
+    intensity: 'LIGHT' | 'MEDIUM' | 'HEAVY' = hapticIntensity,
+    pulses: number = hapticPulses,
+    enabled: boolean = hapticsEnabled,
+  ) => {
+    if (!enabled || Platform.OS === 'web') return;
+    const style =
+      intensity === 'LIGHT' ? Haptics.ImpactFeedbackStyle.Light :
+      intensity === 'MEDIUM' ? Haptics.ImpactFeedbackStyle.Medium :
+      Haptics.ImpactFeedbackStyle.Heavy;
+    for (let i = 0; i < pulses; i++) {
+      await Haptics.impactAsync(style);
+      if (i < pulses - 1) await new Promise(r => setTimeout(r, 90));
     }
-    Vibration.vibrate([0, 60, 40, 60]);
+  };
+
+  const playStartFeedback = async () => {
+    await fireHaptic();
+    if (hapticsEnabled) Vibration.vibrate([0, 60, 40, 60]);
   };
 
   const playStopFeedback = async () => {
+    if (!hapticsEnabled) return;
     if (Platform.OS !== 'web') {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     Vibration.vibrate([0, 30, 50, 30]);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // CUSTOMIZATION — haptic settings + profile image
+  // ═══════════════════════════════════════════════════════════
+  const loadCustomization = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEYS.HAPTIC_SETTINGS);
+      if (stored) {
+        const s = JSON.parse(stored);
+        if (typeof s.enabled === 'boolean') setHapticsEnabled(s.enabled);
+        if (s.intensity) setHapticIntensity(s.intensity);
+        if (s.pulses) setHapticPulses(s.pulses);
+      }
+      const avatar = await AsyncStorage.getItem(STORAGE_KEYS.AVATAR);
+      if (avatar) setAvatarUri(avatar);
+    } catch {}
+  };
+
+  const saveHapticSettings = async (updates: { enabled?: boolean; intensity?: 'LIGHT' | 'MEDIUM' | 'HEAVY'; pulses?: 1 | 2 | 3 }) => {
+    const next = {
+      enabled: updates.enabled !== undefined ? updates.enabled : hapticsEnabled,
+      intensity: updates.intensity ?? hapticIntensity,
+      pulses: updates.pulses ?? hapticPulses,
+    };
+    setHapticsEnabled(next.enabled);
+    setHapticIntensity(next.intensity);
+    setHapticPulses(next.pulses);
+    await AsyncStorage.setItem(STORAGE_KEYS.HAPTIC_SETTINGS, JSON.stringify(next));
+    // Preview the new feel immediately
+    fireHaptic(next.intensity, next.pulses, next.enabled);
+  };
+
+  const pickAvatar = async () => {
+    try {
+      let perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        if (perm.canAskAgain) {
+          perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        }
+        if (!perm.granted) {
+          Alert.alert('Photos Access Needed', 'Allow photo access to set your CODES I.D. image.', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          ]);
+          return;
+        }
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+        base64: true,
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        const asset = result.assets[0];
+        const uri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        setAvatarUri(uri);
+        await AsyncStorage.setItem(STORAGE_KEYS.AVATAR, uri);
+        fireHaptic('MEDIUM', 1, true);
+      }
+    } catch (error) {
+      console.error('Avatar pick error:', error);
+    }
+  };
+
+  const removeAvatar = async () => {
+    setAvatarUri(null);
+    await AsyncStorage.removeItem(STORAGE_KEYS.AVATAR);
   };
 
   // ═══════════════════════════════════════════════════════════
@@ -681,7 +776,13 @@ export default function ChirpConnect() {
       {/* HEADER */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>CODES I.D.</Text>
+          <View style={styles.headerLeft}>
+            <Image
+              source={avatarUri ? { uri: avatarUri } : require('../assets/images/codes-id-button.jpg')}
+              style={styles.headerAvatar}
+            />
+            <Text style={styles.headerTitle}>CODES I.D.</Text>
+          </View>
           <View style={[styles.statusBadge, connectionStatus === 'online' && styles.statusOnline]}>
             <View style={[styles.statusDot, connectionStatus === 'online' && styles.statusDotOnline]} />
             <Text style={styles.statusText}>{connectionStatus.toUpperCase()}</Text>
@@ -781,8 +882,9 @@ export default function ChirpConnect() {
                 </View>
               )}
 
-              {/* PTT Button */}
+              {/* PTT Button — Nextel-style with haptic + visual feedback */}
               <Animated.View style={[styles.pttWrapper, { transform: [{ scale: pulseAnim }] }]}>
+                {isRecording && <View style={styles.pttGlowRing} />}
                 <TouchableOpacity
                   style={[styles.pttButton, isRecording && styles.pttButtonActive]}
                   onPressIn={chirpMode === 'voice' ? startVoiceRecording : startVideoRecording}
@@ -790,12 +892,12 @@ export default function ChirpConnect() {
                   activeOpacity={0.9}
                 >
                   <ImageBackground
-                    source={require('../assets/images/chirp-button-bg.jpg')}
+                    source={require('../assets/images/codes-id-button.jpg')}
                     style={styles.pttButtonBg}
                     imageStyle={styles.pttButtonImage}
                     resizeMode="cover"
                   >
-                    <View style={styles.pttOverlay}>
+                    <View style={[styles.pttOverlay, isRecording && styles.pttOverlayActive]}>
                       <Text style={[styles.pttSymbol, isRecording && styles.pttSymbolActive]}>
                         {isRecording ? 'Ω' : 'Α'}
                       </Text>
@@ -967,6 +1069,74 @@ export default function ChirpConnect() {
             <Text style={styles.settingLabel}>CHIRP LIMITS</Text>
             <Text style={styles.settingInfo}>Voice: {VOICE_CHIRP_LIMIT} seconds</Text>
             <Text style={styles.settingInfo}>Video: {VIDEO_CHIRP_LIMIT} seconds</Text>
+          </View>
+          <View style={styles.settingSection}>
+            <Text style={styles.settingLabel}>PROFILE IMAGE</Text>
+            <View style={styles.avatarRow}>
+              <Image
+                source={avatarUri ? { uri: avatarUri } : require('../assets/images/codes-id-button.jpg')}
+                style={styles.avatarPreview}
+              />
+              <View style={styles.avatarActions}>
+                <TouchableOpacity style={styles.avatarUploadBtn} onPress={pickAvatar}>
+                  <Text style={styles.avatarUploadText}>UPLOAD IMAGE</Text>
+                </TouchableOpacity>
+                {avatarUri && (
+                  <TouchableOpacity style={styles.avatarRemoveBtn} onPress={removeAvatar}>
+                    <Text style={styles.avatarRemoveText}>REMOVE</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+            <Text style={styles.settingInfo}>Customize your CODES I.D. — NEXTEL ERA</Text>
+          </View>
+          <View style={styles.settingSection}>
+            <Text style={styles.settingLabel}>HAPTIC ENGINE</Text>
+            <TouchableOpacity
+              style={[styles.hapticToggle, hapticsEnabled && styles.hapticToggleOn]}
+              onPress={() => saveHapticSettings({ enabled: !hapticsEnabled })}
+            >
+              <View style={[styles.hapticToggleDot, hapticsEnabled && styles.hapticToggleDotOn]} />
+              <Text style={[styles.hapticToggleText, hapticsEnabled && styles.hapticToggleTextOn]}>
+                {hapticsEnabled ? 'HAPTICS ON' : 'HAPTICS OFF'}
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.hapticRowLabel}>INTENSITY</Text>
+            <View style={styles.hapticOptionRow}>
+              {(['LIGHT', 'MEDIUM', 'HEAVY'] as const).map(lvl => (
+                <TouchableOpacity
+                  key={lvl}
+                  style={[styles.hapticOption, hapticIntensity === lvl && styles.hapticOptionActive, !hapticsEnabled && styles.hapticOptionDisabled]}
+                  onPress={() => saveHapticSettings({ intensity: lvl })}
+                  disabled={!hapticsEnabled}
+                >
+                  <Text style={[styles.hapticOptionText, hapticIntensity === lvl && styles.hapticOptionTextActive]}>{lvl}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.hapticRowLabel}>PULSE FREQUENCY</Text>
+            <View style={styles.hapticOptionRow}>
+              {([1, 2, 3] as const).map(p => (
+                <TouchableOpacity
+                  key={p}
+                  style={[styles.hapticOption, hapticPulses === p && styles.hapticOptionActive, !hapticsEnabled && styles.hapticOptionDisabled]}
+                  onPress={() => saveHapticSettings({ pulses: p })}
+                  disabled={!hapticsEnabled}
+                >
+                  <Text style={[styles.hapticOptionText, hapticPulses === p && styles.hapticOptionTextActive]}>{p}X</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.settingInfo}>Fires when you press the CHIRP button — tap an option to feel it</Text>
+          </View>
+          <View style={styles.settingSection}>
+            <Text style={styles.settingLabel}>iPHONE ACTION BUTTON</Text>
+            <View style={styles.actionBtnCard}>
+              <Text style={styles.actionBtnStep}>1. iPhone Settings → Action Button</Text>
+              <Text style={styles.actionBtnStep}>2. Select SHORTCUT → Open App</Text>
+              <Text style={styles.actionBtnStep}>3. Choose this app — CODES I.D. is one press away</Text>
+            </View>
+            <Text style={styles.settingInfo}>Instant PTT access, Nextel Direct Connect style (requires installed build)</Text>
           </View>
           <View style={styles.settingSection}>
             <Text style={styles.settingLabel}>PERMISSIONS</Text>
@@ -1159,6 +1329,8 @@ const styles = StyleSheet.create({
   // Header
   header: { paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#1a0808' },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerAvatar: { width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, borderColor: '#ff0a0a' },
   headerTitle: { color: '#ff0a0a', fontSize: 20, fontWeight: '900', letterSpacing: 4 },
   statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#1a0808', borderRadius: 12 },
   statusOnline: { backgroundColor: '#0a1a0a' },
@@ -1221,6 +1393,8 @@ const styles = StyleSheet.create({
   pttButtonBg: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   pttButtonImage: { borderRadius: 76 },
   pttOverlay: { flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' },
+  pttOverlayActive: { backgroundColor: 'rgba(255,10,10,0.18)' },
+  pttGlowRing: { position: 'absolute', width: 190, height: 190, borderRadius: 95, borderWidth: 3, borderColor: '#ff0a0a', opacity: 0.85, shadowColor: '#ff0a0a', shadowOpacity: 0.9, shadowRadius: 18, shadowOffset: { width: 0, height: 0 }, elevation: 12 },
   pttSymbol: { color: '#ff0a0a', fontSize: 36, fontWeight: '900' },
   pttSymbolActive: { color: '#fff' },
   pttModeText: { color: '#fff', fontSize: 16, fontWeight: '700', marginTop: 4, letterSpacing: 2 },
@@ -1288,6 +1462,34 @@ const styles = StyleSheet.create({
   settingLabel: { color: '#5a1a1a', fontSize: 10, letterSpacing: 2, marginBottom: 8 },
   settingValue: { color: '#ff0a0a', fontSize: 18, fontWeight: '600' },
   settingInfo: { color: '#888', fontSize: 12, marginTop: 4 },
+
+  // Profile image (Settings)
+  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 4 },
+  avatarPreview: { width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: '#ff0a0a' },
+  avatarActions: { gap: 8 },
+  avatarUploadBtn: { backgroundColor: '#ff0a0a', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 8, alignItems: 'center' },
+  avatarUploadText: { color: '#000', fontSize: 11, fontWeight: '900', letterSpacing: 2 },
+  avatarRemoveBtn: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: 8, borderWidth: 1, borderColor: '#2a0a0a', alignItems: 'center' },
+  avatarRemoveText: { color: '#5a1a1a', fontSize: 10, letterSpacing: 2 },
+
+  // Haptic engine (Settings)
+  hapticToggle: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#2a0a0a', borderRadius: 8, padding: 14, marginBottom: 12 },
+  hapticToggleOn: { borderColor: '#ff0a0a', backgroundColor: '#1a0808' },
+  hapticToggleDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#3a1010' },
+  hapticToggleDotOn: { backgroundColor: '#ff0a0a' },
+  hapticToggleText: { color: '#5a1a1a', fontSize: 12, fontWeight: '700', letterSpacing: 2 },
+  hapticToggleTextOn: { color: '#ff0a0a' },
+  hapticRowLabel: { color: '#5a1a1a', fontSize: 9, letterSpacing: 2, marginBottom: 6, marginTop: 4 },
+  hapticOptionRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  hapticOption: { flex: 1, paddingVertical: 12, borderWidth: 1, borderColor: '#2a0a0a', borderRadius: 8, alignItems: 'center', backgroundColor: '#0a0505' },
+  hapticOptionActive: { borderColor: '#ff0a0a', backgroundColor: '#1a0808' },
+  hapticOptionDisabled: { opacity: 0.35 },
+  hapticOptionText: { color: '#5a1a1a', fontSize: 11, fontWeight: '700', letterSpacing: 1 },
+  hapticOptionTextActive: { color: '#ff0a0a' },
+
+  // Action button (Settings)
+  actionBtnCard: { backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#2a0a0a', borderRadius: 8, padding: 14, gap: 6 },
+  actionBtnStep: { color: '#888', fontSize: 12 },
 
   // Modal Overlay
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
