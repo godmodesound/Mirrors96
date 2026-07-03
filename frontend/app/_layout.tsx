@@ -116,7 +116,7 @@ export default function Layout() {
             name="chirpconnect"
             options={{
               href: null,
-              title: 'ChirpConnect',
+              title: 'MirrorConnect',
             }}
           />
           <Tabs.Screen

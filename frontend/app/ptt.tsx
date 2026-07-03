@@ -16,7 +16,7 @@ import { Audio } from 'expo-av';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { useAuth } from '../src/AuthContext';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 
 const API_URL =
@@ -39,8 +39,8 @@ interface PTTMessage {
   audio_base64: string;
 }
 
-// ═══ NEXTEL CHIRP GENERATOR ═══
-// Recreates the iconic Nextel Direct Connect chirp using Web Audio API tones
+// ═══ CHIRP GENERATOR ═══
+// Recreates the iconic Direct Connect chirp using Web Audio API tones
 const playChirp = async (type: 'connect' | 'disconnect') => {
   try {
     if (Platform.OS !== 'web') {
@@ -164,7 +164,7 @@ export default function PTTScreen() {
               created_at: data.created_at,
               audio_base64: data.audio_base64,
             }]);
-            // Nextel: auto-play incoming like a walkie-talkie
+            // : auto-play incoming like a walkie-talkie
             setWhoIsTalking(data.sender_name);
             playChirp('connect');
             playAudioFromBase64(data.audio_base64, data.message_id);
@@ -200,7 +200,7 @@ export default function PTTScreen() {
     }
   };
 
-  // ═══ NEXTEL-STYLE RECORDING ═══
+  // ═══ -STYLE RECORDING ═══
   const startRecording = async () => {
     if (!hasPermission) {
       await requestPermissions();
@@ -209,7 +209,7 @@ export default function PTTScreen() {
     try {
       await cleanupAudio();
 
-      // Nextel chirp on connect
+      // chirp on connect
       await playChirp('connect');
 
       await Audio.setAudioModeAsync({
@@ -262,7 +262,7 @@ export default function PTTScreen() {
       const uri = recordingRef.current.getURI();
       recordingRef.current = null;
 
-      // Nextel chirp on disconnect
+      // chirp on disconnect
       await playChirp('disconnect');
 
       if (uri && recordingDuration > 0.3) {
@@ -424,7 +424,7 @@ export default function PTTScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
-        {/* ═══ NEXTEL HEADER ═══ */}
+        {/* ═══ HEADER ═══ */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backIcon}>◁</Text>
@@ -540,7 +540,7 @@ export default function PTTScreen() {
           </View>
         )}
 
-        {/* ═══ NEXTEL PTT BUTTON ═══ */}
+        {/* ═══ PTT BUTTON ═══ */}
         <View style={[styles.pttZone, { paddingBottom: Math.max(insets.bottom + 80, 90) }]}>
           {/* Recording Status */}
           {isRecording && (

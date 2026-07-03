@@ -324,7 +324,7 @@ export default function ChirpConnect() {
   }, [mirrorsId, connectWebSocket]);
 
   // ═══════════════════════════════════════════════════════════
-  // HAPTIC ENGINE — settings-aware (Nextel-style PTT feedback)
+  // HAPTIC ENGINE — settings-aware (-style PTT feedback)
   // ═══════════════════════════════════════════════════════════
   const fireHaptic = async (
     intensity: 'LIGHT' | 'MEDIUM' | 'HEAVY' = hapticIntensity,
@@ -430,7 +430,7 @@ export default function ChirpConnect() {
   // ═══════════════════════════════════════════════════════════
   const startVoiceRecording = async () => {
     if (!hasAudioPermission) {
-      Alert.alert('Permission Required', 'Microphone access is needed to record voice chirps.', [
+      Alert.alert('Permission Required', 'Microphone access is needed to record voice mirrors.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Settings', onPress: () => Linking.openSettings() },
       ]);
@@ -527,7 +527,7 @@ export default function ChirpConnect() {
     if (!hasCameraPermission || !hasMicPermission) {
       Alert.alert(
         'Permissions Required',
-        'Camera and microphone access are needed to record video chirps.',
+        'Camera and microphone access are needed to record video mirrors.',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Open Settings', onPress: () => Linking.openSettings() },
@@ -643,10 +643,10 @@ export default function ChirpConnect() {
       }
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Chirp Sent', `${recordedMedia.type.toUpperCase()} chirp sent to ${toName}`);
+      Alert.alert('Mirror Sent', `${recordedMedia.type.toUpperCase()} mirror sent to ${toName}`);
     } catch (error) {
       console.error('Send error:', error);
-      Alert.alert('Error', 'Failed to send chirp.');
+      Alert.alert('Error', 'Failed to send mirror.');
     }
 
     setIsSending(false);
@@ -821,7 +821,7 @@ export default function ChirpConnect() {
               {tab === 'chirp' ? '◎' : tab === 'messages' ? '💬' : tab === 'contacts' ? '👥' : '⚙'}
             </Text>
             <Text style={[styles.tabLabel, activeTab === tab && styles.tabLabelActive]}>
-              {tab.toUpperCase()}
+              {tab === 'chirp' ? 'MIRROR' : tab.toUpperCase()}
             </Text>
           </TouchableOpacity>
         ))}
@@ -900,7 +900,7 @@ export default function ChirpConnect() {
                 </View>
               )}
 
-              {/* PTT Button — Nextel-style with haptic + visual feedback */}
+              {/* PTT Button — -style with haptic + visual feedback */}
               <Animated.View style={[styles.pttWrapper, { transform: [{ scale: pulseAnim }] }]}>
                 {isRecording && <View style={styles.pttGlowRing} />}
                 <TouchableOpacity
@@ -987,12 +987,12 @@ export default function ChirpConnect() {
       {/* ═══════════════════════════════════════════════════════════ */}
       {activeTab === 'messages' && (
         <View style={styles.messagesContainer}>
-          <Text style={styles.messagesTitle}>CHIRP HISTORY</Text>
+          <Text style={styles.messagesTitle}>MIRROR HISTORY</Text>
           {chirpHistory.length === 0 ? (
             <View style={styles.emptyMessages}>
               <Text style={styles.emptyMessagesIcon}>💬</Text>
-              <Text style={styles.emptyMessagesText}>No chirps yet</Text>
-              <Text style={styles.emptyMessagesHint}>Send or receive a chirp to start</Text>
+              <Text style={styles.emptyMessagesText}>No mirrors yet</Text>
+              <Text style={styles.emptyMessagesHint}>Send or receive a mirror to start</Text>
             </View>
           ) : (
             <FlatList
@@ -1084,7 +1084,7 @@ export default function ChirpConnect() {
             <Text style={styles.settingValue}>{displayName}</Text>
           </View>
           <View style={styles.settingSection}>
-            <Text style={styles.settingLabel}>CHIRP LIMITS</Text>
+            <Text style={styles.settingLabel}>MIRROR LIMITS</Text>
             <Text style={styles.settingInfo}>Voice: {VOICE_CHIRP_LIMIT} seconds</Text>
             <Text style={styles.settingInfo}>Video: {VIDEO_CHIRP_LIMIT} seconds</Text>
           </View>
@@ -1106,7 +1106,7 @@ export default function ChirpConnect() {
                 )}
               </View>
             </View>
-            <Text style={styles.settingInfo}>Customize your CODES I.D. — NEXTEL ERA</Text>
+            <Text style={styles.settingInfo}>Customize your CODES I.D. — RETROSUPERFUTURE</Text>
           </View>
           <View style={styles.settingSection}>
             <Text style={styles.settingLabel}>HAPTIC ENGINE</Text>
@@ -1145,7 +1145,7 @@ export default function ChirpConnect() {
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={styles.settingInfo}>Fires when you press the CHIRP button — tap an option to feel it</Text>
+            <Text style={styles.settingInfo}>Fires when you press the MIRROR button — tap an option to feel it</Text>
           </View>
           <View style={styles.settingSection}>
             <Text style={styles.settingLabel}>iPHONE ACTION BUTTON</Text>
@@ -1154,7 +1154,7 @@ export default function ChirpConnect() {
               <Text style={styles.actionBtnStep}>2. Select SHORTCUT → Open App</Text>
               <Text style={styles.actionBtnStep}>3. Choose this app — CODES I.D. is one press away</Text>
             </View>
-            <Text style={styles.settingInfo}>Instant PTT access, Nextel Direct Connect style (requires installed build)</Text>
+            <Text style={styles.settingInfo}>Instant PTT access, Direct Connect style (requires installed build)</Text>
           </View>
           <View style={styles.settingSection}>
             <Text style={styles.settingLabel}>PERMISSIONS</Text>
@@ -1173,7 +1173,7 @@ export default function ChirpConnect() {
         <View style={styles.modalOverlay}>
           <View style={styles.previewModal}>
             <Text style={styles.previewTitle}>
-              {recordedMedia?.type === 'voice' ? '🎤 VOICE' : '📹 VIDEO'} CHIRP
+              {recordedMedia?.type === 'voice' ? '🎤 VOICE' : '📹 VIDEO'} MIRROR
             </Text>
             <Text style={styles.previewDuration}>{recordedMedia?.duration.toFixed(1)}s</Text>
             <Text style={styles.previewTo}>
@@ -1184,7 +1184,7 @@ export default function ChirpConnect() {
                 {isSending ? (
                   <ActivityIndicator size="small" color="#000" />
                 ) : (
-                  <Text style={styles.previewSendBtnText}>SEND CHIRP</Text>
+                  <Text style={styles.previewSendBtnText}>SEND MIRROR</Text>
                 )}
               </TouchableOpacity>
               <TouchableOpacity style={styles.previewCancelBtn} onPress={() => { setShowPreview(false); setRecordedMedia(null); }}>

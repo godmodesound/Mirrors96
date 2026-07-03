@@ -1,5 +1,5 @@
 /**
- * ChirpAudio.ts — Nextel Classic Chirp Sound Synthesis
+ * ChirpAudio.ts — Classic Chirp Sound Synthesis
  * 
  * Recreates the iconic Motorola iDEN two-tone chirp:
  * - Send chirp: ascending two-tone "doo-DEET" (~1800Hz → ~2400Hz)
@@ -113,7 +113,7 @@ function silence(duration: number, sampleRate: number = 44100): Float32Array {
 }
 
 /**
- * Classic Nextel Send Chirp — ascending "doo-DEET"
+ * Classic Send Chirp — ascending "doo-DEET"
  * Two quick tones: ~1800Hz then ~2400Hz
  */
 export function generateSendChirp(): string {
@@ -126,7 +126,7 @@ export function generateSendChirp(): string {
 }
 
 /**
- * Classic Nextel Receive Chirp — descending "DEET-doo"
+ * Classic Receive Chirp — descending "DEET-doo"
  * Two quick tones: ~2400Hz then ~1800Hz
  */
 export function generateReceiveChirp(): string {
