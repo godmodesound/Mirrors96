@@ -18,7 +18,8 @@
         "UIBackgroundModes": [
           "audio"
         ]
-      }
+      },
+      "bundleIdentifier": "app.emergent.binauralpreview2d067bc8"
     },
     "android": {
       "adaptiveIcon": {
@@ -30,7 +31,8 @@
         "RECORD_AUDIO",
         "VIBRATE",
         "CAMERA"
-      ]
+      ],
+      "package": "com.emergent.binauralpreview.lfhc0u"
     },
     "web": {
       "bundler": "metro",

@@ -18,9 +18,32 @@ import { AudioEngine } from './AudioEngine';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const MAP_W = SCREEN_WIDTH - 32;
-const MAP_H = MAP_W * 0.9;
+const MAP_H = MAP_W * 1.02;
 const CX = MAP_W / 2;
 const CY = MAP_H / 2;
+
+// ═══════ MATRIX CODE RAIN (static field, generated once) ═══════
+const MATRIX_GLYPHS = 'アイウエオカキクケコサシスセソタチツテト0123456789';
+interface MatrixChar { x: number; y: number; c: string; o: number; bright: boolean }
+const MATRIX_RAIN: MatrixChar[] = (() => {
+  const chars: MatrixChar[] = [];
+  const cols = 13;
+  for (let i = 0; i < cols; i++) {
+    const colX = (MAP_W / cols) * i + (MAP_W / cols) * 0.5;
+    const count = 11 + Math.floor(Math.random() * 5);
+    const yStart = Math.random() * 26;
+    for (let j = 0; j < count; j++) {
+      chars.push({
+        x: colX + (Math.random() - 0.5) * 8,
+        y: yStart + j * (MAP_H / 15) + Math.random() * 8,
+        c: MATRIX_GLYPHS[Math.floor(Math.random() * MATRIX_GLYPHS.length)],
+        o: 0.09 + Math.random() * 0.18,
+        bright: Math.random() > 0.9,
+      });
+    }
+  }
+  return chars;
+})();
 
 // Sacred Geometry Types
 type GeometryType = 'TREE' | 'MERKABA' | 'METATRON' | 'VE64' | 'SRI_YANTRA' | 'TORUS' | 'PHI_SPIRAL' | 'ICOSA';
@@ -912,12 +935,15 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
 
       {/* Main Visualization */}
       <View style={st.vizContainer}>
-        {/* Left Telemetry */}
+        {/* Left Telemetry — HUD style */}
         <View style={st.telemetryLeft}>
-          <Text style={st.telemetryLabel}>◇ GEOMETRY</Text>
-          <Text style={st.telemetryValue}>{activeGeometry}</Text>
-          <Text style={st.telemetryLabel}>NODES: {currentNodes.length}</Text>
-          <Text style={st.telemetryLabel}>STATUS: {isPlaying ? 'LIVE' : 'IDLE'}</Text>
+          <Text style={st.hudLabel}>GEOMETRY</Text>
+          <Text style={st.hudTitle}>
+            {activeGeometry} <Text style={st.hudTitleAccent}>{currentNodes.length}</Text>
+          </Text>
+          <View style={st.hudDivider} />
+          <Text style={st.hudLine}>NODES: {currentNodes.length}</Text>
+          <Text style={st.hudLine}>STATUS: {isPlaying ? 'LIVE' : 'IDLE'}</Text>
         </View>
 
         {/* SVG Visualization */}
@@ -925,8 +951,8 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
           <Defs>
             {/* Background gradient */}
             <RadialGradient id="map-bg" cx="50%" cy="50%" r="70%">
-              <Stop offset="0%" stopColor="#1a0505" stopOpacity="1" />
-              <Stop offset="50%" stopColor="#0d0202" stopOpacity="1" />
+              <Stop offset="0%" stopColor="#04120a" stopOpacity="1" />
+              <Stop offset="55%" stopColor="#020803" stopOpacity="1" />
               <Stop offset="100%" stopColor="#000000" stopOpacity="1" />
             </RadialGradient>
 
@@ -950,13 +976,38 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
           {/* Background */}
           <Rect x="0" y="0" width={MAP_W} height={MAP_H} fill="url(#map-bg)" />
 
-          {/* Grid lines */}
-          {[0.25, 0.5, 0.75].map((ratio, i) => (
-            <G key={`grid-${i}`}>
-              <Line x1={MAP_W * ratio} y1={0} x2={MAP_W * ratio} y2={MAP_H} stroke="#ff0a0a" strokeWidth={0.3} opacity={0.1} />
-              <Line x1={0} y1={MAP_H * ratio} x2={MAP_W} y2={MAP_H * ratio} stroke="#ff0a0a" strokeWidth={0.3} opacity={0.1} />
-            </G>
+          {/* Matrix code rain */}
+          {MATRIX_RAIN.map((m, i) => (
+            <SvgText
+              key={`mx-${i}`}
+              x={m.x}
+              y={m.y}
+              fill={m.bright ? '#7dffa0' : '#00ff41'}
+              fontSize={m.bright ? 8 : 7}
+              fontWeight="600"
+              opacity={m.bright ? m.o + 0.18 : m.o}
+            >
+              {m.c}
+            </SvgText>
           ))}
+
+          {/* HUD tech frame */}
+          <G>
+            <Rect x={3} y={3} width={MAP_W - 6} height={MAP_H - 6} rx={14} fill="none" stroke="#ff0a0a" strokeWidth={1} opacity={0.3} />
+            <Rect x={8} y={8} width={MAP_W - 16} height={MAP_H - 16} rx={10} fill="none" stroke="#00e5ff" strokeWidth={0.5} opacity={0.12} />
+            {/* Corner brackets */}
+            <Path d={`M 3 34 L 3 15 Q 3 3 15 3 L 34 3`} stroke="#ff2a2a" strokeWidth={2.5} fill="none" opacity={0.85} />
+            <Path d={`M ${MAP_W - 34} 3 L ${MAP_W - 15} 3 Q ${MAP_W - 3} 3 ${MAP_W - 3} 15 L ${MAP_W - 3} 34`} stroke="#ff2a2a" strokeWidth={2.5} fill="none" opacity={0.85} />
+            <Path d={`M 3 ${MAP_H - 34} L 3 ${MAP_H - 15} Q 3 ${MAP_H - 3} 15 ${MAP_H - 3} L 34 ${MAP_H - 3}`} stroke="#ff2a2a" strokeWidth={2.5} fill="none" opacity={0.85} />
+            <Path d={`M ${MAP_W - 34} ${MAP_H - 3} L ${MAP_W - 15} ${MAP_H - 3} Q ${MAP_W - 3} ${MAP_H - 3} ${MAP_W - 3} ${MAP_H - 15} L ${MAP_W - 3} ${MAP_H - 34}`} stroke="#ff2a2a" strokeWidth={2.5} fill="none" opacity={0.85} />
+            {/* Cyan accent segments */}
+            <Line x1={44} y1={3} x2={84} y2={3} stroke="#00e5ff" strokeWidth={2} opacity={0.45} />
+            <Line x1={MAP_W - 84} y1={MAP_H - 3} x2={MAP_W - 44} y2={MAP_H - 3} stroke="#00e5ff" strokeWidth={2} opacity={0.45} />
+            {/* Left edge tech segments */}
+            <Line x1={3} y1={MAP_H * 0.34} x2={3} y2={MAP_H * 0.44} stroke="#ff2a2a" strokeWidth={3} opacity={0.6} />
+            <Line x1={3} y1={MAP_H * 0.48} x2={3} y2={MAP_H * 0.54} stroke="#00e5ff" strokeWidth={2} opacity={0.35} />
+            <Line x1={MAP_W - 3} y1={MAP_H * 0.56} x2={MAP_W - 3} y2={MAP_H * 0.66} stroke="#ff2a2a" strokeWidth={3} opacity={0.6} />
+          </G>
 
           {/* Geometry-specific decorations */}
           {renderGeometryDecorations()}
@@ -987,70 +1038,74 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
           {/* Nodes */}
           {currentNodes.map((node) => {
             const isActive = activeNode === node.id || activeNodes.has(node.id);
-            const nodeR = isActive ? 18 : 12;
+            const nodeR = isActive ? 16 : 12;
             return (
               <G key={node.id} onPress={() => handleNodePress(node)}>
                 {/* Glow */}
                 <SvgCircle
                   cx={node.x}
                   cy={node.y}
-                  r={isActive ? 40 : 28}
+                  r={isActive ? 42 : 30}
                   fill={`url(#glow-${node.id})`}
                 />
-                {/* Outer ring */}
+                {/* Outer bright ring */}
                 <SvgCircle
                   cx={node.x}
                   cy={node.y}
-                  r={nodeR + 4}
+                  r={nodeR + 6}
                   fill="none"
                   stroke={node.color}
-                  strokeWidth={isActive ? 1.5 : 0.5}
-                  opacity={isActive ? 0.8 : 0.3}
+                  strokeWidth={isActive ? 3 : 2.2}
+                  opacity={isActive ? 1 : 0.9}
                 />
                 {/* Node body */}
                 <SvgCircle
                   cx={node.x}
                   cy={node.y}
                   r={nodeR}
-                  fill="#0a0505"
+                  fill="#0a0a08"
                   stroke={node.color}
-                  strokeWidth={isActive ? 2 : 1}
+                  strokeWidth={1}
+                  opacity={0.95}
                 />
-                {/* Inner glow */}
+                {/* Inner disc */}
                 <SvgCircle
                   cx={node.x}
                   cy={node.y}
-                  r={nodeR * 0.5}
+                  r={nodeR * 0.62}
                   fill={node.color}
-                  opacity={isActive ? 1 : 0.6}
+                  opacity={isActive ? 1 : 0.85}
                 />
                 {/* Hot pixel */}
                 <SvgCircle
                   cx={node.x}
                   cy={node.y}
-                  r={isActive ? 3 : 2}
+                  r={isActive ? 3.5 : 2.8}
                   fill="#ffffff"
-                  opacity={isActive ? 1 : 0.5}
+                  opacity={isActive ? 1 : 0.9}
                 />
                 {/* Label */}
                 <SvgText
                   x={node.x}
-                  y={node.y + nodeR + 12}
+                  y={node.y + nodeR + 17}
                   fill={isActive ? '#ffffff' : node.color}
-                  fontSize={6}
-                  fontWeight="700"
+                  fontSize={8.5}
+                  fontWeight="800"
                   textAnchor="middle"
-                  letterSpacing={0.5}
+                  letterSpacing={1.2}
                 >
                   {node.name}
                 </SvgText>
                 {/* Frequency label */}
                 <SvgText
                   x={node.x}
-                  y={node.y + nodeR + 21}
-                  fill="#666"
-                  fontSize={5}
+                  y={node.y + nodeR + 28}
+                  fill="#cfd8d3"
+                  fontSize={7}
+                  fontWeight="600"
                   textAnchor="middle"
+                  letterSpacing={0.8}
+                  opacity={0.85}
                 >
                   {node.freq} Hz
                 </SvgText>
@@ -1059,17 +1114,17 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
           })}
 
           {/* Axis labels */}
-          <SvgText x={6} y={MAP_H - 6} fill="#ff0a0a" fontSize={6} opacity={0.2}>
-            {activeGeometry} · {currentNodes.length} NODES
+          <SvgText x={14} y={MAP_H - 12} fill="#6ee7ff" fontSize={8} fontWeight="700" letterSpacing={2} opacity={0.65}>
+            {activeGeometry} - {currentNodes.length} NODES
           </SvgText>
         </Svg>
 
-        {/* Right Telemetry */}
+        {/* Right Telemetry — HUD style */}
         <View style={st.telemetryRight}>
-          <Text style={st.telemetryLabel}>◇ TELEMETRY</Text>
-          <Text style={st.telemetryValue}>BAND: {activeNodeData?.band || 'ALPHA'}</Text>
-          <Text style={st.telemetryValue}>{activeNodeData?.freq || '432'} Hz</Text>
-          <Text style={st.telemetryLabel}>{isPlaying ? 'TRANSMIT' : 'STANDBY'}</Text>
+          <Text style={st.hudLabel}>TELEMETRY</Text>
+          <Text style={st.hudLine}>BAND: {activeNodeData?.band || 'ALPHA'}</Text>
+          <Text style={st.hudFreq}>{activeNodeData?.freq || currentFrequency || '432'} Hz</Text>
+          <Text style={st.hudLine}>{isPlaying ? 'TRANSMIT' : 'STANDBY'}</Text>
         </View>
       </View>
 
@@ -1084,10 +1139,10 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
                 key={band.name}
                 style={[
                   st.meterCell,
-                  { backgroundColor: isActive ? band.color : `${band.color}20` },
+                  { borderColor: band.color, backgroundColor: isActive ? band.color : '#040a05' },
                 ]}
               >
-                <Text style={[st.meterSymbol, isActive && { color: '#000' }]}>{band.name}</Text>
+                <Text style={[st.meterSymbol, { color: isActive ? '#000' : band.color }]}>{band.name}</Text>
               </View>
             );
           })}
@@ -1194,8 +1249,10 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
 const st = StyleSheet.create({
   container: {
     backgroundColor: '#000',
-    borderWidth: 1,
-    borderColor: '#ff0a0a30',
+    borderWidth: 1.5,
+    borderColor: '#ff0a0a45',
+    borderRadius: 16,
+    overflow: 'hidden',
     marginHorizontal: 0,
     paddingBottom: 16,
   },
@@ -1296,30 +1353,52 @@ const st = StyleSheet.create({
   },
   telemetryLeft: {
     position: 'absolute',
-    left: 8,
-    top: 8,
+    left: 16,
+    top: 14,
     zIndex: 10,
   },
   telemetryRight: {
     position: 'absolute',
-    right: 8,
-    top: 8,
+    right: 16,
+    top: 14,
     zIndex: 10,
     alignItems: 'flex-end',
   },
-  telemetryLabel: {
-    color: '#ff0a0a',
-    fontSize: 7,
-    fontWeight: '600',
-    letterSpacing: 1,
-    marginBottom: 2,
-  },
-  telemetryValue: {
-    color: '#ff0a0a',
-    fontSize: 8,
+  hudLabel: {
+    color: '#6ee7ff',
+    fontSize: 9,
     fontWeight: '700',
-    letterSpacing: 1,
-    marginBottom: 4,
+    letterSpacing: 3,
+    marginBottom: 3,
+  },
+  hudTitle: {
+    color: '#eafcff',
+    fontSize: 17,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  hudTitleAccent: {
+    color: '#ff2a2a',
+  },
+  hudDivider: {
+    height: 1,
+    width: 92,
+    backgroundColor: '#6ee7ff45',
+    marginVertical: 6,
+  },
+  hudLine: {
+    color: '#8feaff',
+    fontSize: 9,
+    fontWeight: '600',
+    letterSpacing: 2,
+    marginBottom: 3,
+  },
+  hudFreq: {
+    color: '#bdf6ff',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 2,
+    marginVertical: 2,
   },
   // Compact Combined Strip
   compactStrip: {
@@ -1330,35 +1409,33 @@ const st = StyleSheet.create({
   meterRow: {
     flexDirection: 'row',
     paddingHorizontal: 12,
-    gap: 4,
-    marginBottom: 8,
+    gap: 6,
+    marginBottom: 10,
   },
   meterCell: {
     flex: 1,
-    height: 28,
-    borderRadius: 4,
+    height: 44,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ff0a0a15',
+    borderWidth: 1.5,
   },
   meterSymbol: {
-    color: '#ffffff50',
-    fontSize: 12,
+    fontSize: 18,
     fontWeight: '900',
   },
   freqDisplay: {
     backgroundColor: '#ff0a0a',
     paddingHorizontal: 8,
-    height: 28,
-    borderRadius: 4,
+    height: 44,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 50,
+    minWidth: 52,
   },
   freqDisplayText: {
     color: '#000',
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '900',
   },
   solfeggioScroll: {
@@ -1369,24 +1446,28 @@ const st = StyleSheet.create({
     paddingHorizontal: 4,
   },
   solfeggioChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#ff0a0a30',
-    borderRadius: 4,
-    backgroundColor: '#0a0505',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderWidth: 1.5,
+    borderColor: '#8a2a2a',
+    borderRadius: 10,
+    backgroundColor: '#0a0303',
   },
   solfeggioChipActive: {
-    borderColor: '#ff0a0a',
-    backgroundColor: '#ff0a0a20',
+    borderColor: '#ff4a4a',
+    backgroundColor: '#ff0a0a22',
   },
   solfeggioChipText: {
-    color: '#ff0a0a80',
-    fontSize: 11,
-    fontWeight: '700',
+    color: '#ff2a2a',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textShadowColor: '#ff0a0a80',
+    textShadowRadius: 8,
+    textShadowOffset: { width: 0, height: 0 },
   },
   solfeggioChipTextActive: {
-    color: '#ff0a0a',
+    color: '#ff6b6b',
   },
   spectrumContainer: {
     paddingHorizontal: 12,
