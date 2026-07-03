@@ -439,10 +439,15 @@ export default function ChirpConnect() {
 
     try {
       await playStartFeedback();
+
+      // Prepare recorder FIRST (HIGH_QUALITY preset = valid AAC config on iOS 26/27, Android & web)
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      recordingRef.current = recording;
+
+      // Recorder is live — now start UI feedback
       setIsRecording(true);
       setRecordingDuration(0);
-
-      // Start timer
       recordingTimerRef.current = setInterval(() => {
         setRecordingDuration(prev => {
           if (prev >= VOICE_CHIRP_LIMIT - 0.1) {
@@ -453,17 +458,6 @@ export default function ChirpConnect() {
         });
       }, 100);
 
-      // Start recording
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync({
-        android: { extension: '.m4a', outputFormat: 3, audioEncoder: 3, sampleRate: 44100, numberOfChannels: 1, bitRate: 128000 },
-        ios: { extension: '.m4a', outputFormat: 'aac' as any, audioQuality: 0x60, sampleRate: 44100, numberOfChannels: 1, bitRate: 128000 },
-        web: { mimeType: 'audio/webm', bitsPerSecond: 128000 },
-      });
-      await recording.startAsync();
-      recordingRef.current = recording;
-
       // Animate
       Animated.loop(
         Animated.sequence([
@@ -471,9 +465,26 @@ export default function ChirpConnect() {
           Animated.timing(pulseAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
         ])
       ).start();
-    } catch (error) {
-      console.error('Voice recording error:', error);
+    } catch (error: any) {
+      // Clean recovery — no console.error (avoids dev-overlay CONSOLE ERROR toast)
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      pulseAnim.stopAnimation();
+      Animated.timing(pulseAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+      recordingRef.current = null;
       setIsRecording(false);
+      setRecordingDuration(0);
+      console.log('Voice recording unavailable:', error?.message || error);
+      Alert.alert(
+        'Microphone Unavailable',
+        'Could not access the microphone. Check that no other app is using it and that mic access is allowed.',
+        [
+          { text: 'OK', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
+      );
     }
   };
 
@@ -501,8 +512,8 @@ export default function ChirpConnect() {
         setRecordedMedia({ uri, type: 'voice', duration: recordingDuration });
         setShowPreview(true);
       }
-    } catch (error) {
-      console.error('Stop recording error:', error);
+    } catch (error: any) {
+      console.log('Stop recording issue:', error?.message || error);
     }
 
     setIsRecording(false);
@@ -556,8 +567,15 @@ export default function ChirpConnect() {
         setRecordedMedia({ uri: video.uri, type: 'video', duration: recordingDuration });
         setShowPreview(true);
       }
-    } catch (error) {
-      console.error('Video recording error:', error);
+    } catch (error: any) {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      setIsRecording(false);
+      setIsVideoRecording(false);
+      setRecordingDuration(0);
+      console.log('Video recording unavailable:', error?.message || error);
       Alert.alert('Recording Error', 'Failed to start video recording.');
     }
   };

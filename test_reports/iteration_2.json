@@ -1,0 +1,29 @@
+{
+  "summary": "Verified the /chirpconnect voice-recording console-error fix on the live web preview using a headless (no-microphone) mobile viewport. Held the PTT VOICE button twice (mouse-down ~2.2s each); zero console.error events were captured across the full session, the previously-offending 'Voice recording error' string never appeared, and the new console.log 'Voice recording unavailable: Requested device not found' was logged exactly once per hold (2 total). UI recovered cleanly after each release: REC indicator disappeared, 'HOLD TO RECORD' label re-appeared, no stuck glow ring, and a second hold produced identical graceful behavior with no error accumulation. Regression: VOICE/VIDEO/CODES mode toggle works, MESSAGES/CONTACTS/SETTINGS/CHIRP tabs all render on click, ONLINE WS status is displayed, MIRRORS I.D. auto-registered.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "expo-av (deprecated package)", "issue": "expo-av is deprecated and will be removed in SDK 54. Metro logs show: '[expo-av]: Expo AV has been deprecated and will be removed in SDK 54. Use the expo-audio and expo-video packages to replace the required functionality.' Reference: /app/frontend/app/chirpconnect.tsx (Audio import from expo-av)"},
+      {"component": "Alert.alert on web (Microphone Unavailable)", "issue": "react-native-web's Alert.alert is effectively a no-op — the 'Microphone Unavailable' dialog with OK/Open Settings is NOT rendered on the web preview (Playwright dialog handler received 0 dialogs, and no in-DOM 'Microphone Unavailable' text was found). Expected react-native-web behavior; works on native. Consider an in-app fallback banner/toast for web. Reference: /app/frontend/app/chirpconnect.tsx:480-487"}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "OPTIONAL (low priority): react-native-web's Alert.alert() does not render dialogs. On the web build, users who trigger the mic-unavailable path get zero visual feedback (only a console.log). Consider rendering an in-app modal/toast in addition to Alert.alert so web users see 'Microphone Unavailable'. On native (iOS/Android) the current Alert works fine, so this is web-preview cosmetic only.",
+    "OPTIONAL: Add testID attributes to the PTT button, mode selectors (VOICE/VIDEO/CODES), and tab buttons in /app/frontend/app/chirpconnect.tsx — currently tests must rely on text-content selectors."
+  ],
+  "critical_code_review_comments": [
+    "chirpconnect.tsx is 1568 lines — exceeds the 700-line guideline; recommend splitting into feature modules (PTT/recording, tabs, settings, codes-mode) for maintainability.",
+    "Bug-fix implementation in startVoiceRecording (lines 431-489) is correct: recorder is prepared BEFORE timer/animation, error path fully cleans interval + pulseAnim + isRecording + duration + recordingRef, and uses console.log instead of console.error — verified live."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only run)", "frontend": "100%"},
+  "seed_data_creation": "None — MIRRORS I.D. auto-registered on load (S7DI9Z visible in header).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Bug fix VERIFIED. Voice PTT no-mic failure path is fully graceful on web preview: 0 console.error, console.log 'Voice recording unavailable: Requested device not found' fires, UI resets to 'Α / HOLD TO RECORD' with no stuck REC/timer/glow. Second hold repeats identical behavior. Mode toggle + all 4 tabs regression clean. Only cosmetic finding: react-native-web's Alert.alert doesn't render on web (native only) — non-blocking, expected framework behavior.",
+  "rca_of_issue": "Original bug: startVoiceRecording used a hand-rolled expo-av options object with invalid iOS outputFormat 'aac' string AND started the REC timer + pulse animation BEFORE the recorder was prepared. On failure the catch used console.error, which Expo's dev overlay surfaces as a red 'CONSOLE ERROR' toast, and the timer interval leaked (stuck REC state). Fix (verified): (1) uses Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY) — valid preset for iOS/Android/web; (2) starts timer & pulse animation ONLY after the recorder is live; (3) on catch, clears the interval, stops+resets pulseAnim, nulls recordingRef, resets isRecording+recordingDuration, logs via console.log (not console.error), and shows an Alert with OK/Open Settings; (4) same downgrade applied in stopVoiceRecording and startVideoRecording error paths. Reproduction (headless web = no mic = same failing condition as reported user env): mousedown on PTT button in VOICE mode → confirmed 0 console.error, clean UI recovery, no state leak across repeated holds."
+}
