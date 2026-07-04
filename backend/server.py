@@ -1630,6 +1630,27 @@ async def update_display_name(mirrors_id: str, display_name: str):
         raise HTTPException(status_code=404, detail="MIRRORS I.D. not found")
     return {"status": "updated", "display_name": display_name}
 
+@api_router.put("/mirrors/{mirrors_id}/change_id")
+async def change_mirrors_id(mirrors_id: str, new_id: str):
+    """Change a MIRRORS I.D. to a new custom ID (4-10 alphanumeric chars)."""
+    import re as _re
+    new_id = new_id.strip().upper()
+    if not _re.fullmatch(r"[A-Z0-9]{4,10}", new_id):
+        raise HTTPException(status_code=400, detail="I.D. must be 4-10 letters/numbers")
+    old = await db.mirrors_ids.find_one({"_id": mirrors_id.upper()})
+    if not old:
+        raise HTTPException(status_code=404, detail="MIRRORS I.D. not found")
+    if new_id == old["_id"]:
+        return {"status": "unchanged", "mirrors_id": new_id}
+    existing = await db.mirrors_ids.find_one({"_id": new_id})
+    if existing:
+        raise HTTPException(status_code=409, detail="I.D. already taken")
+    new_doc = dict(old)
+    new_doc["_id"] = new_id
+    await db.mirrors_ids.insert_one(new_doc)
+    await db.mirrors_ids.delete_one({"_id": old["_id"]})
+    return {"status": "updated", "mirrors_id": new_id}
+
 @api_router.post("/mirrors/chirp")
 async def send_direct_chirp(data: DirectChirp):
     """Send a direct chirp to a specific MIRRORS I.D."""

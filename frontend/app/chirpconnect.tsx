@@ -26,11 +26,12 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Audio } from 'expo-av';
+import { Audio, Video, ResizeMode } from 'expo-av';
 import { Camera, CameraView, CameraType } from 'expo-camera';
 import ViewShot from 'react-native-view-shot';
 import Constants from 'expo-constants';
 import { FREQUENCY_ARCHIVE } from '../src/FrequencyArchiveData';
+import { AudioEngine } from '../src/AudioEngine';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -53,7 +54,16 @@ const STORAGE_KEYS = {
   CHIRP_HISTORY: '@chirp_history',
   HAPTIC_SETTINGS: '@codes_haptic_settings',
   AVATAR: '@mirrors_avatar',
+  CHAT_STYLE: '@codes_chat_style',
 };
+
+// Chat bubble themes — customizable chat style
+const CHAT_THEMES = {
+  INFRARED: { bubble: '#1a0808', border: '#ff0a0a55', accent: '#ff0a0a', text: '#ff6b6b' },
+  MATRIX: { bubble: '#041007', border: '#00ff4155', accent: '#00ff41', text: '#7dffa0' },
+  MONO: { bubble: '#121212', border: '#444444', accent: '#ffffff', text: '#cccccc' },
+} as const;
+type ChatStyleKey = keyof typeof CHAT_THEMES;
 
 // ═══════════════════════════════════════════════════════════
 // TYPES
@@ -137,6 +147,17 @@ export default function ChirpConnect() {
   const [hapticsEnabled, setHapticsEnabled] = useState(true);
   const [hapticIntensity, setHapticIntensity] = useState<'LIGHT' | 'MEDIUM' | 'HEAVY'>('HEAVY');
   const [hapticPulses, setHapticPulses] = useState<1 | 2 | 3>(1);
+  const [chatStyle, setChatStyle] = useState<ChatStyleKey>('INFRARED');
+
+  // Identity editing (Settings)
+  const [editName, setEditName] = useState('');
+  const [editId, setEditId] = useState('');
+  const [isSavingIdentity, setIsSavingIdentity] = useState(false);
+
+  // Message playback
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [videoPlayback, setVideoPlayback] = useState<ChirpMessage | null>(null);
+  const playbackSoundRef = useRef<Audio.Sound | null>(null);
 
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
@@ -202,6 +223,20 @@ export default function ChirpConnect() {
     initializeMirrorsId();
     loadChirpHistory();
     loadCustomization();
+  }, []);
+
+  // Keep identity edit fields in sync
+  useEffect(() => {
+    setEditName(displayName);
+    setEditId(mirrorsId || '');
+  }, [displayName, mirrorsId]);
+
+  // Cleanup playback on unmount
+  useEffect(() => {
+    return () => {
+      playbackSoundRef.current?.unloadAsync().catch(() => {});
+      AudioEngine.stopMulti();
+    };
   }, []);
 
   const initializeMirrorsId = async () => {
@@ -369,6 +404,8 @@ export default function ChirpConnect() {
       }
       const avatar = await AsyncStorage.getItem(STORAGE_KEYS.AVATAR);
       if (avatar) setAvatarUri(avatar);
+      const style = await AsyncStorage.getItem(STORAGE_KEYS.CHAT_STYLE);
+      if (style && style in CHAT_THEMES) setChatStyle(style as ChatStyleKey);
     } catch {}
   };
 
@@ -423,6 +460,115 @@ export default function ChirpConnect() {
   const removeAvatar = async () => {
     setAvatarUri(null);
     await AsyncStorage.removeItem(STORAGE_KEYS.AVATAR);
+  };
+
+  const setChatStyleAndSave = async (style: ChatStyleKey) => {
+    setChatStyle(style);
+    await AsyncStorage.setItem(STORAGE_KEYS.CHAT_STYLE, style);
+    fireHaptic('LIGHT', 1, true);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // IDENTITY — edit display name & MIRRORS I.D.
+  // ═══════════════════════════════════════════════════════════
+  const saveIdentity = async () => {
+    const newName = editName.trim();
+    const newId = editId.trim().toUpperCase();
+    if (!newName) {
+      Alert.alert('Invalid Name', 'Display name cannot be empty.');
+      return;
+    }
+    if (!/^[A-Z0-9]{4,10}$/.test(newId)) {
+      Alert.alert('Invalid MIRRORS I.D.', 'Use 4-10 letters/numbers only.');
+      return;
+    }
+    setIsSavingIdentity(true);
+    try {
+      let currentId = mirrorsId || newId;
+      // Change I.D. (if edited)
+      if (newId !== mirrorsId) {
+        try {
+          const res = await fetch(`${API_BASE}/api/mirrors/${mirrorsId}/change_id?new_id=${newId}`, { method: 'PUT' });
+          if (res.status === 409) {
+            Alert.alert('I.D. Taken', `${newId} is already in use. Choose another.`);
+            setIsSavingIdentity(false);
+            return;
+          }
+        } catch {}
+        currentId = newId;
+        setMirrorsId(currentId);
+        await AsyncStorage.setItem(STORAGE_KEYS.MIRRORS_ID, currentId);
+      }
+      // Display name (if edited)
+      if (newName !== displayName) {
+        try {
+          await fetch(`${API_BASE}/api/mirrors/${currentId}/display_name?display_name=${encodeURIComponent(newName)}`, { method: 'PUT' });
+        } catch {}
+        setDisplayName(newName);
+        await AsyncStorage.setItem(STORAGE_KEYS.DISPLAY_NAME, newName);
+      }
+      fireHaptic('MEDIUM', 1, true);
+      Alert.alert('Identity Updated', `${newName} · ${currentId}`);
+    } catch {
+      Alert.alert('Error', 'Could not save identity.');
+    }
+    setIsSavingIdentity(false);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // MESSAGE PLAYBACK — hear back voice / video / codes
+  // ═══════════════════════════════════════════════════════════
+  const stopPlayback = async () => {
+    if (playbackSoundRef.current) {
+      await playbackSoundRef.current.unloadAsync().catch(() => {});
+      playbackSoundRef.current = null;
+    }
+    AudioEngine.stopMulti();
+    setPlayingId(null);
+  };
+
+  const playMessage = async (item: ChirpMessage) => {
+    // Tap again to stop
+    if (playingId === item.id) {
+      await stopPlayback();
+      return;
+    }
+    await stopPlayback();
+
+    if (item.type === 'voice') {
+      if (!item.media_uri) {
+        Alert.alert('Not Available', 'This recording is no longer on this device.');
+        return;
+      }
+      try {
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+        const { sound } = await Audio.Sound.createAsync({ uri: item.media_uri }, { shouldPlay: true });
+        playbackSoundRef.current = sound;
+        setPlayingId(item.id);
+        sound.setOnPlaybackStatusUpdate((st: any) => {
+          if (st.didJustFinish) {
+            sound.unloadAsync().catch(() => {});
+            playbackSoundRef.current = null;
+            setPlayingId(null);
+          }
+        });
+      } catch {
+        Alert.alert('Playback Unavailable', 'This recording could not be played.');
+      }
+    } else if (item.type === 'video') {
+      if (!item.media_uri) {
+        Alert.alert('Not Available', 'This video is no longer on this device.');
+        return;
+      }
+      setVideoPlayback(item);
+    } else if (item.type === 'codes' && item.frequencies?.length) {
+      AudioEngine.playMulti(item.frequencies, 0.3);
+      setPlayingId(item.id);
+      setTimeout(() => {
+        AudioEngine.stopMulti();
+        setPlayingId(p => (p === item.id ? null : p));
+      }, 8000);
+    }
   };
 
   // ═══════════════════════════════════════════════════════════
@@ -999,38 +1145,69 @@ export default function ChirpConnect() {
               data={chirpHistory}
               keyExtractor={item => item.id}
               contentContainerStyle={styles.messagesList}
-              renderItem={({ item }) => (
-                <View style={[styles.messageItem, item.is_outgoing ? styles.messageOutgoing : styles.messageIncoming]}>
-                  <View style={styles.messageBubble}>
-                    <View style={styles.messageHeader}>
-                      <Text style={styles.messageType}>
-                        {item.type === 'voice' ? '🎤' : item.type === 'video' ? '📹' : '◎'} {item.type.toUpperCase()}
-                      </Text>
-                      {item.duration > 0 && (
-                        <Text style={styles.messageDuration}>{item.duration.toFixed(1)}s</Text>
-                      )}
-                    </View>
-                    {item.type === 'codes' && item.frequency_name && (
-                      <View style={styles.messageFreq}>
-                        <Text style={styles.messageFreqName}>{item.frequency_name}</Text>
-                        <Text style={styles.messageFreqHz}>{item.frequencies?.join(' · ')} Hz</Text>
+              renderItem={({ item }) => {
+                const theme = CHAT_THEMES[chatStyle];
+                const isPlaying = playingId === item.id;
+                return (
+                  <View style={[styles.messageItem, item.is_outgoing ? styles.messageOutgoing : styles.messageIncoming]}>
+                    <TouchableOpacity
+                      style={[styles.messageBubble, { backgroundColor: theme.bubble, borderColor: isPlaying ? theme.accent : theme.border }]}
+                      onPress={() => playMessage(item)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={styles.messageHeader}>
+                        <Text style={[styles.messageType, { color: theme.accent }]}>
+                          {item.type === 'voice' ? '🎤' : item.type === 'video' ? '📹' : '◎'} {item.type.toUpperCase()}
+                        </Text>
+                        {item.duration > 0 && (
+                          <Text style={[styles.messageDuration, { color: theme.text }]}>{item.duration.toFixed(1)}s</Text>
+                        )}
                       </View>
-                    )}
-                    <View style={styles.messageFooter}>
-                      <Text style={styles.messageFrom}>
-                        {item.is_outgoing ? `TO: ${item.to_mirrors_id}` : `FROM: ${item.from_display_name}`}
+                      {item.type === 'codes' && item.frequency_name && (
+                        <View style={styles.messageFreq}>
+                          <Text style={[styles.messageFreqName, { color: theme.text }]}>{item.frequency_name}</Text>
+                          <Text style={[styles.messageFreqHz, { color: theme.accent }]}>{item.frequencies?.join(' · ')} Hz</Text>
+                        </View>
+                      )}
+                      <Text style={[styles.messagePlayHint, { color: isPlaying ? theme.accent : theme.text }]}>
+                        {isPlaying ? '■ PLAYING — TAP TO STOP' : item.type === 'video' ? '▶ TAP TO WATCH' : '▶ TAP TO PLAY'}
                       </Text>
-                      <Text style={styles.messageTime}>
-                        {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </Text>
-                    </View>
+                      <View style={styles.messageFooter}>
+                        <Text style={[styles.messageFrom, { color: theme.text }]}>
+                          {item.is_outgoing ? `TO: ${item.to_mirrors_id}` : `FROM: ${item.from_display_name}`}
+                        </Text>
+                        <Text style={styles.messageTime}>
+                          {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
                   </View>
-                </View>
-              )}
+                );
+              }}
             />
           )}
         </View>
       )}
+
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* VIDEO PLAYBACK MODAL */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      <Modal visible={!!videoPlayback} transparent animationType="fade" onRequestClose={() => setVideoPlayback(null)}>
+        <View style={styles.videoModalOverlay}>
+          {videoPlayback?.media_uri && (
+            <Video
+              source={{ uri: videoPlayback.media_uri }}
+              style={styles.videoPlayer}
+              useNativeControls
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay
+            />
+          )}
+          <TouchableOpacity style={styles.videoCloseBtn} onPress={() => setVideoPlayback(null)}>
+            <Text style={styles.videoCloseText}>CLOSE</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
 
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* CONTACTS TAB */}
@@ -1076,12 +1253,52 @@ export default function ChirpConnect() {
       {activeTab === 'settings' && (
         <ScrollView style={styles.settingsContainer} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
           <View style={styles.settingSection}>
-            <Text style={styles.settingLabel}>YOUR MIRRORS I.D.</Text>
-            <Text style={styles.settingValue}>{mirrorsId}</Text>
+            <Text style={styles.settingLabel}>IDENTITY</Text>
+            <Text style={styles.identityFieldLabel}>DISPLAY NAME</Text>
+            <TextInput
+              style={styles.identityInput}
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Display name"
+              placeholderTextColor="#5a1a1a"
+              maxLength={24}
+            />
+            <Text style={styles.identityFieldLabel}>MIRRORS I.D. (4-10 LETTERS/NUMBERS)</Text>
+            <TextInput
+              style={styles.identityInput}
+              value={editId}
+              onChangeText={t => setEditId(t.toUpperCase())}
+              placeholder="MIRRORS I.D."
+              placeholderTextColor="#5a1a1a"
+              autoCapitalize="characters"
+              maxLength={10}
+            />
+            <TouchableOpacity style={styles.identitySaveBtn} onPress={saveIdentity} disabled={isSavingIdentity}>
+              {isSavingIdentity ? (
+                <ActivityIndicator color="#000" size="small" />
+              ) : (
+                <Text style={styles.identitySaveText}>SAVE IDENTITY</Text>
+              )}
+            </TouchableOpacity>
           </View>
           <View style={styles.settingSection}>
-            <Text style={styles.settingLabel}>DISPLAY NAME</Text>
-            <Text style={styles.settingValue}>{displayName}</Text>
+            <Text style={styles.settingLabel}>CHAT STYLE</Text>
+            <View style={styles.hapticOptionRow}>
+              {(Object.keys(CHAT_THEMES) as ChatStyleKey[]).map(styleKey => (
+                <TouchableOpacity
+                  key={styleKey}
+                  style={[
+                    styles.hapticOption,
+                    { borderColor: CHAT_THEMES[styleKey].accent },
+                    chatStyle === styleKey && { backgroundColor: CHAT_THEMES[styleKey].bubble },
+                  ]}
+                  onPress={() => setChatStyleAndSave(styleKey)}
+                >
+                  <Text style={[styles.hapticOptionText, { color: CHAT_THEMES[styleKey].accent }]}>{styleKey}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.settingInfo}>Changes the look of your MIRROR HISTORY chat</Text>
           </View>
           <View style={styles.settingSection}>
             <Text style={styles.settingLabel}>MIRROR LIMITS</Text>
@@ -1106,7 +1323,7 @@ export default function ChirpConnect() {
                 )}
               </View>
             </View>
-            <Text style={styles.settingInfo}>Customize your CODES I.D. — RETROSUPERFUTURE</Text>
+            <Text style={styles.settingInfo}>Customize your CODES I.D.</Text>
           </View>
           <View style={styles.settingSection}>
             <Text style={styles.settingLabel}>HAPTIC ENGINE</Text>
@@ -1508,6 +1725,19 @@ const styles = StyleSheet.create({
   // Action button (Settings)
   actionBtnCard: { backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#2a0a0a', borderRadius: 8, padding: 14, gap: 6 },
   actionBtnStep: { color: '#888', fontSize: 12 },
+
+  // Identity editing (Settings)
+  identityFieldLabel: { color: '#5a1a1a', fontSize: 9, letterSpacing: 2, marginBottom: 6, marginTop: 4 },
+  identityInput: { backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#2a0a0a', borderRadius: 8, color: '#ff0a0a', fontSize: 16, fontWeight: '700', letterSpacing: 1, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12 },
+  identitySaveBtn: { backgroundColor: '#ff0a0a', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
+  identitySaveText: { color: '#000', fontSize: 12, fontWeight: '900', letterSpacing: 2 },
+
+  // Message playback
+  messagePlayHint: { fontSize: 9, letterSpacing: 1.5, marginTop: 6, fontWeight: '700' },
+  videoModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
+  videoPlayer: { width: '92%', aspectRatio: 9 / 16, maxHeight: '75%', backgroundColor: '#000', borderRadius: 12 },
+  videoCloseBtn: { marginTop: 20, borderWidth: 1.5, borderColor: '#ff0a0a', borderRadius: 8, paddingVertical: 12, paddingHorizontal: 40 },
+  videoCloseText: { color: '#ff0a0a', fontSize: 12, fontWeight: '900', letterSpacing: 3 },
 
   // Modal Overlay
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
