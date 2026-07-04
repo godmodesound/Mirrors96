@@ -552,7 +552,7 @@ export default function TerminalScreen() {
           <View style={styles.heroSection}>
             {/* Single Clean Hero Image */}
             <Image
-              source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/bac8r24y_12F6498E-3CF0-4954-9AD3-E53F93083CD4.png' }}
+              source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/sggnhemh_62116037-E399-4D1A-B02B-6883C61FE01F.png' }}
               style={styles.heroImage}
               resizeMode="contain"
             />
