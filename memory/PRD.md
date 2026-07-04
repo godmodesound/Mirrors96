@@ -15,6 +15,13 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - iPhone Action Button setup card in Settings (Shortcuts → Open App).
 - Fixed: expo-haptics version mismatch (now ~15.0.8), expo-file-system legacy import (send-chirp base64 path would have crashed on device).
 
+### CODES I.D. — identity, playback, chat styles (done, tested — iteration_3.json)
+- Renames: "chirp" → "Mirror" in all UI, NEXTEL removed everywhere (incl. backend AI prompt), RETROSUPERFUTURE removed.
+- Editable IDENTITY in Settings (display name + actual MIRRORS I.D.) — backend `PUT /api/mirrors/{id}/change_id` (400/404/409 handling, contacts preserved).
+- Message playback in MESSAGES tab: tap bubble → voice (expo-av Sound), video (fullscreen modal), codes (AudioEngine.playMulti, 8s auto-stop); tap-again stops.
+- Customizable CHAT STYLE: INFRARED/MATRIX/MONO themes, persisted `@codes_chat_style`.
+- Landing hero image swapped to new MIRRORS 96 artwork (index.tsx).
+
 ## Pending user verification (physical iPhone via Expo Go)
 - Video capture (96s) + camera permissions
 - Notch/safe-area spacing
