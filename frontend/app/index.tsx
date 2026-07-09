@@ -28,6 +28,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
 import { FrequencyMap } from '../src/FrequencyMap';
+import NinetySixGuide from '../src/NinetySixGuide';
 import SendCodesModal from '../src/SendCodesModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -1164,6 +1165,9 @@ export default function TerminalScreen() {
         layers={layers}
         loadedArchiveName={loadedArchiveName}
       />
+
+      {/* ═══════ 96 — AI FREQUENCY GUIDE ═══════ */}
+      <NinetySixGuide />
     </View>
   );
 }

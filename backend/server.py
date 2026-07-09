@@ -17,7 +17,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 import jwt
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1740,6 +1740,101 @@ async def create_google_auth_indexes():
     await db.user_sessions.create_index("session_token", unique=True)
     await db.user_sessions.create_index("user_id")
     await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
+
+# ═══════════════════════════════════════════════════════════
+# 96 — AI FREQUENCY GUIDE (OpenAI gpt-5.5, user's own key)
+# ═══════════════════════════════════════════════════════════
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+
+NINETY_SIX_SYSTEM = """You are 96 — the resident AI guide of GODMODE SOUND, a retro-futuristic animated timekeeper with warm southern hospitality: cheerful, folksy, a touch theatrical ("Well hey there, sugar!"), always in character. Your name is 96 — never claim any other name.
+
+YOUR DOMAIN (the app you live in):
+- FREQUENCY LAB: interactive brain-node geometries (MERKABA, and others), brainwave bands (delta δ 0.5-4Hz sleep, theta θ 4-8Hz meditation, alpha α 8-13Hz relaxation, beta β 13-30Hz focus, gamma γ 30-100Hz cognition), solfeggio presets (174, 285, 396, 417, 432, 528, 639, 741, 852, 963, 1074, 1185 Hz). Users tap nodes to play tones or PLAY GEOMETRY for full patterns.
+- CODEX ARCHIVE: 306 frequency protocols organized by category, searchable, stackable.
+- MIRRORS WHEEL: harmonic resonance mirror system visualization with SPIN mode.
+- CODES I.D.: Nextel-era style push-to-talk — 33s voice mirrors, 96s video mirrors, shareable frequency codes, contacts, haptic engine settings.
+- SOUND: free music streaming (GODMODE discography).
+
+YOUR MISSION:
+1. Recommend frequencies & protocols for any goal (sleep, focus, recovery, meditation...) — give specific Hz values, bands, session lengths, and exactly where to run them in the app.
+2. Help users organize step-by-step frequency session plans.
+3. Explain any app feature simply so everything feels effortless.
+
+RULES:
+- Keep replies concise: under ~130 words unless asked for detail. Plain text, no markdown headers.
+- Sprinkle light folksy charm, but stay genuinely useful — practical steps first.
+- Frequencies are for relaxation & entertainment, not medical treatment — add a brief gentle note when advice touches health."""
+
+guide_chats = {}
+
+class GuideChatRequest(BaseModel):
+    session_id: str
+    message: str
+
+@api_router.post("/guide/chat")
+async def guide_chat(req: GuideChatRequest):
+    if not OPENAI_API_KEY:
+        raise HTTPException(status_code=500, detail="Guide not configured")
+    msg = req.message.strip()
+    if not msg:
+        raise HTTPException(status_code=400, detail="Empty message")
+
+    chat = guide_chats.get(req.session_id)
+    if chat is None:
+        # Rebuild recent context from DB after restart
+        history = await db.guide_messages.find(
+            {"session_id": req.session_id}, {"_id": 0}
+        ).sort("timestamp", -1).to_list(20)
+        history.reverse()
+        context = ""
+        if history:
+            context = "\n\nRECENT CONVERSATION (continue naturally):\n" + "\n".join(
+                f"{m['role'].upper()}: {m['text'][:400]}" for m in history
+            )
+        chat = LlmChat(
+            api_key=OPENAI_API_KEY,
+            session_id=req.session_id,
+            system_message=NINETY_SIX_SYSTEM + context,
+        ).with_model("openai", "gpt-5.5")
+        guide_chats[req.session_id] = chat
+        if len(guide_chats) > 200:
+            guide_chats.pop(next(iter(guide_chats)))
+
+    await db.guide_messages.insert_one({
+        "session_id": req.session_id, "role": "user", "text": msg,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+
+    async def gen():
+        parts = []
+        try:
+            async for ev in chat.stream_message(UserMessage(text=msg)):
+                if isinstance(ev, TextDelta):
+                    parts.append(ev.content)
+                    yield f"data: {json.dumps({'delta': ev.content})}\n\n"
+                elif isinstance(ev, StreamDone):
+                    break
+        except Exception as e:
+            logging.error(f"96 guide stream error: {e}")
+            yield f"data: {json.dumps({'error': 'Guide temporarily unavailable'})}\n\n"
+        full = "".join(parts)
+        if full:
+            await db.guide_messages.insert_one({
+                "session_id": req.session_id, "role": "assistant", "text": full,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+@api_router.get("/guide/history/{session_id}")
+async def guide_history(session_id: str, limit: int = 50):
+    msgs = await db.guide_messages.find(
+        {"session_id": session_id}, {"_id": 0}
+    ).sort("timestamp", -1).to_list(limit)
+    msgs.reverse()
+    return {"messages": msgs}
 
 @api_router.post("/mirrors/chirp")
 async def send_direct_chirp(data: DirectChirp):
