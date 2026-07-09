@@ -14,7 +14,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 import jwt
 from emergentintegrations.llm.chat import LlmChat, UserMessage
@@ -1650,6 +1650,96 @@ async def change_mirrors_id(mirrors_id: str, new_id: str):
     await db.mirrors_ids.insert_one(new_doc)
     await db.mirrors_ids.delete_one({"_id": old["_id"]})
     return {"status": "updated", "mirrors_id": new_id}
+
+# ═══════════════════════════════════════════════════════════
+# GOOGLE AUTH (Emergent-managed)
+# ═══════════════════════════════════════════════════════════
+EMERGENT_SESSION_API = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
+
+class GoogleSessionRequest(BaseModel):
+    session_id: str
+    mirrors_id: Optional[str] = None
+
+async def get_google_user(request: Request):
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = auth.split(" ", 1)[1]
+    session = await db.user_sessions.find_one({"session_token": token}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    expires = session["expires_at"]
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if expires < datetime.now(timezone.utc):
+        await db.user_sessions.delete_one({"session_token": token})
+        raise HTTPException(status_code=401, detail="Session expired")
+    guser = await db.google_users.find_one({"user_id": session["user_id"]}, {"_id": 0})
+    if not guser:
+        raise HTTPException(status_code=401, detail="User not found")
+    return guser
+
+@api_router.post("/auth/google/session")
+async def google_create_session(req: GoogleSessionRequest):
+    """Exchange an Emergent session_id for a persistent session + user record."""
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.get(EMERGENT_SESSION_API, headers={"X-Session-ID": req.session_id})
+    if resp.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid session ID")
+    data = resp.json()
+    email = data["email"]
+    mirrors_link = req.mirrors_id.strip().upper() if req.mirrors_id else None
+
+    existing = await db.google_users.find_one({"email": email}, {"_id": 0})
+    if existing:
+        user_id = existing["user_id"]
+        update = {"name": data.get("name", ""), "picture": data.get("picture", "")}
+        if mirrors_link:
+            update["mirrors_id"] = mirrors_link
+        await db.google_users.update_one({"user_id": user_id}, {"$set": update})
+    else:
+        user_id = f"user_{uuid.uuid4().hex[:12]}"
+        await db.google_users.insert_one({
+            "user_id": user_id,
+            "email": email,
+            "name": data.get("name", ""),
+            "picture": data.get("picture", ""),
+            "mirrors_id": mirrors_link,
+            "created_at": datetime.now(timezone.utc),
+        })
+
+    session_token = data["session_token"]
+    await db.user_sessions.update_one(
+        {"session_token": session_token},
+        {"$set": {
+            "session_token": session_token,
+            "user_id": user_id,
+            "created_at": datetime.now(timezone.utc),
+            "expires_at": datetime.now(timezone.utc) + timedelta(days=7),
+        }},
+        upsert=True,
+    )
+    guser = await db.google_users.find_one({"user_id": user_id}, {"_id": 0})
+    return {"user": guser, "session_token": session_token}
+
+@api_router.get("/auth/me")
+async def google_me(user=Depends(get_google_user)):
+    return {"user": user}
+
+@api_router.post("/auth/logout")
+async def google_logout(request: Request):
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        await db.user_sessions.delete_one({"session_token": auth.split(" ", 1)[1]})
+    return {"status": "logged_out"}
+
+@app.on_event("startup")
+async def create_google_auth_indexes():
+    await db.google_users.create_index("email", unique=True)
+    await db.google_users.create_index("user_id", unique=True)
+    await db.user_sessions.create_index("session_token", unique=True)
+    await db.user_sessions.create_index("user_id")
+    await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
 
 @api_router.post("/mirrors/chirp")
 async def send_direct_chirp(data: DirectChirp):

@@ -32,6 +32,7 @@ import ViewShot from 'react-native-view-shot';
 import Constants from 'expo-constants';
 import { FREQUENCY_ARCHIVE } from '../src/FrequencyArchiveData';
 import { AudioEngine } from '../src/AudioEngine';
+import GoogleSignInButton from '../src/GoogleSignInButton';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -1252,6 +1253,11 @@ export default function ChirpConnect() {
       {/* ═══════════════════════════════════════════════════════════ */}
       {activeTab === 'settings' && (
         <ScrollView style={styles.settingsContainer} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+          <View style={styles.settingSection}>
+            <Text style={styles.settingLabel}>ACCOUNT</Text>
+            <GoogleSignInButton mirrorsId={mirrorsId || undefined} />
+            <Text style={styles.settingInfo}>Optional — link your Google account to your MIRRORS I.D.</Text>
+          </View>
           <View style={styles.settingSection}>
             <Text style={styles.settingLabel}>IDENTITY</Text>
             <Text style={styles.identityFieldLabel}>DISPLAY NAME</Text>

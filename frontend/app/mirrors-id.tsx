@@ -6,6 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/AuthContext';
+import GoogleSignInButton from '../src/GoogleSignInButton';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
 
 export default function MirrorsIdScreen() {
@@ -274,6 +275,12 @@ export default function MirrorsIdScreen() {
       >
         <MirrorsIdBanner />
         <Text style={styles.title}>MIRRORS ID</Text>
+
+        {/* Google Sign-In (optional) */}
+        <View style={{ marginBottom: 20 }}>
+          <GoogleSignInButton />
+        </View>
+
         <Text style={styles.subtitle}>
           {mode === 'register'
             ? 'Create your account to unlock the full spectrum'

@@ -6,6 +6,7 @@ import { useFonts } from 'expo-font';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioBridgeProvider } from '../src/AudioEngine';
 import { AuthProvider } from '../src/AuthContext';
+import { GoogleAuthProvider } from '../src/GoogleAuthContext';
 import MobiusTabBar from '../src/MobiusTabBar';
 
 // No floating button — PTT is seamlessly integrated in Mirrors ID section
@@ -25,6 +26,7 @@ export default function Layout() {
   }
 
   return (
+    <GoogleAuthProvider>
     <AuthProvider>
     <AudioBridgeProvider>
       <View style={styles.container}>
@@ -130,6 +132,7 @@ export default function Layout() {
       </View>
     </AudioBridgeProvider>
     </AuthProvider>
+    </GoogleAuthProvider>
   );
 }
 
