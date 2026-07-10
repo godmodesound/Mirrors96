@@ -27,6 +27,12 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - Frontend: `src/GoogleAuthContext.tsx` (provider in _layout), `src/GoogleSignInButton.tsx`; tokens in SecureStore (native) / localStorage (web); web redirect lands on '/' with #session_id handling.
 - Backend: POST /api/auth/google/session, GET /api/auth/me, POST /api/auth/logout; `google_users` + `user_sessions` collections with unique/TTL indexes.
 
+### 96 — AI Frequency Guide (done, tested — iteration_5.json)
+- OpenAI gpt-5.5 via emergentintegrations 0.2.0 streaming; USER'S OWN OPENAI_API_KEY in backend/.env (currently quota-blocked — user will fund it; feature works in graceful-degraded mode until then).
+- Persona "96": Miss-Minutes-style folksy timekeeper; recommends frequencies/protocols, explains app features.
+- Backend: POST /api/guide/chat (SSE stream), GET /api/guide/history/{sid}; messages persisted in `guide_messages`; in-memory chat cache rebuilds context from DB after restarts.
+- Frontend: `src/NinetySixGuide.tsx` — floating 96 button on / and /library; fullscreen modal chat with expo/fetch streaming; session in AsyncStorage `@ninety_six_session`.
+
 ## Pending user verification (physical iPhone via Expo Go)
 - Video capture (96s) + camera permissions
 - Notch/safe-area spacing
