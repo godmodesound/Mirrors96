@@ -1,0 +1,42 @@
+{
+  "summary": "Tested the new '96 · AI FREQUENCY GUIDE' feature end-to-end (backend SSE + Mongo persistence + frontend modal). All 5 pytest cases pass; all frontend flows validated. Graceful quota-error path confirmed: SSE stream returns `data: {\"error\":\"Guide temporarily unavailable\"}` followed by `data: [DONE]` with HTTP 200 (never 500 / never hangs). Empty message -> 400, malformed body -> 422. User messages are persisted in Mongo `guide_messages` collection even when the AI reply fails (verified via GET /api/guide/history/{sid}). Unknown session returns empty list. FRONTEND: floating round '96' FAB (54x54, bottom-right) is present on both / and /library, correctly distinguishable from the 'MIRRORS 96' wheel/text. Tapping FAB opens fullscreen modal with '96 · FREQUENCY GUIDE' header + welcome empty state. Sending 'what helps sleep?' shows user bubble instantly and assistant bubble with '⚠ Guide temporarily unavailable' — no console.error flood, no crash, input re-enabled. Closing (✕) then reopening restores prior user message from history endpoint. Regression: hero (GODMODE SOUND), CODES_LAB, MIRRORS_WHEEL still render on /; /library archive list and search input still render. Deprecated packages detected: expo-av still imported in app/index.tsx (SDK 54 deprecates it — migrate to expo-audio/expo-video).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/library", "issues": ["Multiple console errors: <svg>/<rect>/<circle> receiving negative width/height/r attributes. Not related to 96 guide, but should be investigated (likely in MirrorsWheel or ParticleLab on very small width)."]}
+    ],
+    "react_native_issues": [
+      {"component": "expo-av", "issue": "Deprecated package still in use — 'Expo AV has been deprecated and will be removed in SDK 54. Use expo-audio and expo-video instead.' Reference: /app/frontend/app/index.tsx:25 (`import { Audio } from 'expo-av'`)."},
+      {"component": "TouchableMixin", "issue": "Console warning: 'TouchableMixin is deprecated. Please use Pressable.' — likely coming from an older TouchableOpacity usage / RN internals; verify no direct TouchableMixin import in project code."},
+      {"component": "shadow*/textShadow* style props", "issue": "React-Native-Web deprecation warning: 'shadow*' and 'textShadow*' style props are deprecated. Use 'boxShadow'/'textShadow'. Multiple StyleSheet.create blocks use shadowColor/shadowOpacity/shadowRadius/shadowOffset (e.g. /app/frontend/src/NinetySixGuide.tsx:202-205 fab shadow, and other files)."},
+      {"component": "props.pointerEvents", "issue": "Warning: 'props.pointerEvents is deprecated. Use style.pointerEvents.'"}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_guide.py", "/app/test_reports/pytest/guide.xml"],
+  "action_items": [
+    "None required for the 96 Guide feature itself — it works exactly as specified including the graceful quota-error path.",
+    "Migrate expo-av → expo-audio (all audio players in index.tsx / library.tsx / sound.tsx / SendCodesModal) as SDK 54 will remove expo-av.",
+    "Investigate negative SVG width/height/r warnings on /library (unrelated to this feature but noisy in console).",
+    "Optional polish: migrate shadow*/textShadow* style props to boxShadow/textShadow for RN-Web forward-compat (e.g. fab in /app/frontend/src/NinetySixGuide.tsx:202-205).",
+    "Consider adding testID props to NinetySixGuide.tsx interactive elements (fab, send button, close button, text input) for more robust future testing — I had to fall back to bounding-box/text selectors."
+  ],
+  "critical_code_review_comments": [
+    "server.py: guide_chat correctly persists the user message BEFORE calling stream (good) so it survives OpenAI failures — matches the requirement.",
+    "server.py: NINETY_SIX_SYSTEM prompt is well-crafted; `with_model('openai','gpt-5.5')` used as required by user.",
+    "NinetySixGuide.tsx: uses `expo/fetch` for SSE streaming (correct for RN), decodes UTF-8 via TextDecoder, buffers partial lines — solid implementation.",
+    "NinetySixGuide.tsx: uses AsyncStorage for session persistence and loads history via /api/guide/history/{sid} on modal open — verified working.",
+    "server.py is 2000+ lines — beyond the 700-line guideline; consider splitting into routers (already flagged in previous iterations)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100% (all listed flows verified)"},
+  "seed_data_creation": "Test sessions created with 'TEST-96-*' / 'TEST-persist-*' prefixes in guide_messages collection.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "96 Guide is production-ready in its degraded-mode (quota-blocked). Once user funds OPENAI_API_KEY, retest to confirm real TextDelta frames render into the assistant bubble progressively (streaming) and full response is persisted to guide_messages with role='assistant'. Backend already handles success path (parts collected, joined, inserted). Frontend already accumulates delta and updates bubble text.",
+  "rca_of_issue": "N/A — feature works as designed. Quota-error path was the target behavior and is confirmed."
+}
