@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  TextInput,
   Platform,
 } from 'react-native';
 import Svg, { Circle, Line, Text as SvgText, G } from 'react-native-svg';
@@ -141,6 +142,19 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
     setLayers(prev => prev.map(l => l.id === id ? { ...l, frequency: Math.round(freq * 10) / 10 } : l));
   };
 
+  // One-tap frequency editing
+  const [editingFreqId, setEditingFreqId] = useState<number | null>(null);
+  const [freqInput, setFreqInput] = useState('');
+
+  const commitFreqEdit = (id: number) => {
+    const parsed = parseFloat(freqInput.replace(',', '.'));
+    if (!isNaN(parsed)) {
+      updateLayerFrequency(id, Math.min(2000, Math.max(1, parsed)));
+    }
+    setEditingFreqId(null);
+    setFreqInput('');
+  };
+
   const updateLayerGain = (id: number, gain: number) => {
     setLayers(prev => prev.map(l => l.id === id ? { ...l, gain } : l));
   };
@@ -253,7 +267,28 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
             </View>
           </View>
           <View style={styles.digitalReadout}>
-            <Text style={styles.digitalHz}>{layer.frequency.toFixed(1)} Hz</Text>
+            {editingFreqId === layer.id ? (
+              <TextInput
+                style={styles.digitalHzInput}
+                value={freqInput}
+                onChangeText={setFreqInput}
+                keyboardType="decimal-pad"
+                autoFocus
+                selectTextOnFocus
+                maxLength={6}
+                onBlur={() => commitFreqEdit(layer.id)}
+                onSubmitEditing={() => commitFreqEdit(layer.id)}
+                returnKeyType="done"
+              />
+            ) : (
+              <TouchableOpacity
+                onPress={() => { setEditingFreqId(layer.id); setFreqInput(String(layer.frequency)); }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.digitalHz}>{layer.frequency.toFixed(1)} Hz</Text>
+                <Text style={styles.digitalTapHint}>TAP TO EDIT</Text>
+              </TouchableOpacity>
+            )}
             <Text style={styles.digitalLabel}>Digital</Text>
           </View>
           {layer.isPlaying && (
@@ -425,6 +460,22 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '300',
     letterSpacing: 1,
+  },
+  digitalHzInput: {
+    color: '#ff0a0a',
+    fontSize: 28,
+    fontWeight: '300',
+    letterSpacing: 1,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#ff0a0a',
+    paddingVertical: 0,
+    minWidth: 120,
+  },
+  digitalTapHint: {
+    color: '#5a1a1a',
+    fontSize: 7,
+    letterSpacing: 2,
+    marginTop: 2,
   },
   digitalLabel: {
     color: '#3a1010',

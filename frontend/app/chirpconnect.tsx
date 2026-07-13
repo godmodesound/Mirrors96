@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
@@ -96,6 +97,7 @@ interface Contact {
 // ═══════════════════════════════════════════════════════════
 export default function ChirpConnect() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   // Core State
   const [mirrorsId, setMirrorsId] = useState<string | null>(null);
@@ -526,6 +528,18 @@ export default function ChirpConnect() {
     }
     AudioEngine.stopMulti();
     setPlayingId(null);
+  };
+
+  // Load a shared CODES message straight into the CODES LAB on the main terminal
+  const loadCodesInLab = async (item: ChirpMessage) => {
+    if (!item.frequencies?.length) return;
+    await AsyncStorage.setItem('@pending_lab_load', JSON.stringify({
+      name: item.frequency_name || 'SHARED CODES',
+      frequencies: item.frequencies,
+    }));
+    fireHaptic('MEDIUM', 1, true);
+    await stopPlayback();
+    router.push('/');
   };
 
   const playMessage = async (item: ChirpMessage) => {
@@ -1168,6 +1182,13 @@ export default function ChirpConnect() {
                         <View style={styles.messageFreq}>
                           <Text style={[styles.messageFreqName, { color: theme.text }]}>{item.frequency_name}</Text>
                           <Text style={[styles.messageFreqHz, { color: theme.accent }]}>{item.frequencies?.join(' · ')} Hz</Text>
+                          <TouchableOpacity
+                            style={[styles.loadInLabBtn, { borderColor: theme.accent }]}
+                            onPress={() => loadCodesInLab(item)}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={[styles.loadInLabText, { color: theme.accent }]}>⧉ TAP TO LOAD IN LAB</Text>
+                          </TouchableOpacity>
                         </View>
                       )}
                       <Text style={[styles.messagePlayHint, { color: isPlaying ? theme.accent : theme.text }]}>
@@ -1679,6 +1700,8 @@ const styles = StyleSheet.create({
   messageType: { color: '#ff0a0a', fontSize: 11, fontWeight: '700' },
   messageDuration: { color: '#5a1a1a', fontSize: 10 },
   messageFreq: { backgroundColor: '#1a0808', padding: 8, borderRadius: 6, marginBottom: 8 },
+  loadInLabBtn: { marginTop: 8, borderWidth: 1, borderRadius: 6, paddingVertical: 8, alignItems: 'center' },
+  loadInLabText: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
   messageFreqName: { color: '#ff0a0a', fontSize: 12, fontWeight: '600' },
   messageFreqHz: { color: '#5a1a1a', fontSize: 10, marginTop: 2 },
   messageFooter: { flexDirection: 'row', justifyContent: 'space-between' },

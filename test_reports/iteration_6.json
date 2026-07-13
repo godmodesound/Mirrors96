@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only testing of two new features: (1) Interactive CODES 'TAP TO LOAD IN LAB' handoff from /chirpconnect MESSAGES to / CODES_LAB via AsyncStorage @pending_lab_load + useFocusEffect, and (2) one-tap frequency editing on the digital Hz readout in / and /library. Found 1 critical import bug (useFocusEffect was used but not imported in app/index.tsx) which crashed the / route with a React red-screen and completely broke feature #1 — fixed by adding useFocusEffect to the expo-router import. After the fix all 5 scenarios pass on mobile viewport (390x844): CODES send-to-messages bubble shows the '⧉ TAP TO LOAD IN LAB' button; tapping it navigates to / and populates CODES_LAB with layers (528/264/1056 Hz — multi-frequency created 3 layers) and shows 'LOADED: 528 Hz - Love Frequency' banner; tap-to-edit swaps the readout to a focused TextInput; typing 528 commits to 528.0 Hz; 5000 clamps to 2000.0 Hz; non-numeric 'abc' leaves value unchanged at 2000.0 Hz; same behavior verified on /library (777→777.0 Hz, 9999→2000.0 Hz). EXECUTE button still present, MESSAGES/CONTACTS/SETTINGS tabs render. Note: deprecated expo-av still in use (already reported in prior iterations).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "expo-av", "issue": "expo-av is deprecated in SDK 54 — must migrate to expo-audio (Audio/Recording) and expo-video (Video). Reference: /app/frontend/app/chirpconnect.tsx:30 and /app/frontend/app/index.tsx:25. Console emits deprecation warning on every load."}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(FIXED by tester) Add `useFocusEffect` to the expo-router import in /app/frontend/app/index.tsx line 17. Without it, navigating to / threw 'ReferenceError: useFocusEffect is not defined' and the whole terminal screen red-screened, blocking feature #1 entirely.",
+    "Migrate expo-av → expo-audio + expo-video (SDK 54 deprecation, already flagged previously).",
+    "Add testID attributes to key interactive elements for stable automated testing: 'load-in-lab-btn' on the codes bubble button, 'digital-hz-readout', 'digital-hz-input', 'loaded-banner', 'execute-btn'. Currently only text-based selectors work."
+  ],
+  "critical_code_review_comments": [
+    "app/index.tsx (2562 lines) is well over the 700-line guideline — should be split into feature modules (CODES_LAB, MirrorsWheel container, Archive modal, SendCodes modal wrapper, etc.).",
+    "Duplicate frequency-edit state logic exists in both app/index.tsx (editingFreqId/freqInput/commitFreqEdit) and src/CodesLabShared.tsx — could be extracted into a shared hook useEditableFrequency().",
+    "app/index.tsx uses useFocusEffect which triggers applyPendingLabLoad on every focus. On web this fires on initial load and on router.push('/') from chirpconnect — currently works because we removeItem before applying, but the effect dependency array [applyPendingLabLoad] with a useCallback that has empty deps is fine; keep the removeItem-before-apply order to avoid double-load."
+  ],
+  "updated_files": ["/app/frontend/app/index.tsx"],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% after fix"},
+  "seed_data_creation": "None — used the app's own SEND VIA PLATFORM flow to create a codes chirp in AsyncStorage chirp_history.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The useFocusEffect import fix on index.tsx line 17 is the ONLY code change made during this iteration. Both new features are verified working end-to-end on mobile viewport (390x844). Feature #1 uses '@pending_lab_load' AsyncStorage key; feature #2 swaps Text→TextInput with clamp 1-2000 Hz. The received-codes edge case was not exercised via a second device but the loadCodesInLab handler in chirpconnect.tsx does not check is_outgoing, so it works for both sent and received bubbles by design (same button rendered from same code path in the FlatList renderItem).",
+  "rca_of_issue": "RCA for the crash: /app/frontend/app/index.tsx used `useFocusEffect(useCallback(...))` at line 389 but the symbol was never imported. Only `useRouter, useLocalSearchParams` were imported from 'expo-router' on line 17. Because JSX renders the whole TerminalScreen synchronously, ReferenceError bubbled up as an uncaught exception on / and the red-screen dev overlay swallowed the whole UI. Reproduction: navigate to / (via LOAD IN LAB or direct URL) → 'Uncaught Error: useFocusEffect is not defined' at app/index.tsx (389:3). Fix: import useFocusEffect from 'expo-router' — expo-router re-exports it from @react-navigation/native so this is the correct source. Verified after fix: no console errors, feature works."
+}

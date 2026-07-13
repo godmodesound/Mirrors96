@@ -14,7 +14,7 @@ import {
   FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import GodmodeSlider from '../src/GodmodeSlider';
 import Svg, { Path, Circle as SvgCircle, Text as SvgText, G, Line } from 'react-native-svg';
 import { AudioEngine } from '../src/AudioEngine';
@@ -353,6 +353,45 @@ export default function TerminalScreen() {
     if (isPlaying) AudioEngine.updateFreq(id, frequency);
   };
 
+  // ═══ One-tap frequency editing ═══
+  const [editingFreqId, setEditingFreqId] = useState<number | null>(null);
+  const [freqInput, setFreqInput] = useState('');
+
+  const commitFreqEdit = (id: number) => {
+    const parsed = parseFloat(freqInput.replace(',', '.'));
+    if (!isNaN(parsed)) {
+      const clamped = Math.min(2000, Math.max(1, Math.round(parsed * 10) / 10));
+      updateLayerFrequency(id, clamped);
+    }
+    setEditingFreqId(null);
+    setFreqInput('');
+  };
+
+  // ═══ Pending lab load (shared CODES tapped in CODES I.D.) ═══
+  const applyPendingLabLoad = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem('@pending_lab_load');
+      if (!raw) return;
+      await AsyncStorage.removeItem('@pending_lab_load');
+      const { name, frequencies } = JSON.parse(raw);
+      if (!Array.isArray(frequencies) || frequencies.length === 0) return;
+      const newLayers = frequencies.slice(0, 5).map((f: number, i: number) => ({
+        id: i + 1,
+        frequency: Math.min(2000, Math.max(1, f)),
+        gain: 0.5,
+        isPlaying: false,
+      }));
+      setLayers(newLayers);
+      setLoadedArchiveName(name || 'SHARED CODES');
+    } catch {}
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      applyPendingLabLoad();
+    }, [applyPendingLabLoad])
+  );
+
   const updateLayerGain = (id: number, gain: number) => {
     setLayers(layers.map(l => l.id === id ? { ...l, gain } : l));
     if (isPlaying) AudioEngine.updateGain(id, gain);
@@ -656,9 +695,30 @@ export default function TerminalScreen() {
                     </View>
                   </View>
                 </View>
-                {/* Digital Readout */}
+                {/* Digital Readout — tap to edit */}
                 <View style={styles.digitalReadout}>
-                  <Text style={styles.digitalHz}>{layer.frequency.toFixed(1)} Hz</Text>
+                  {editingFreqId === layer.id ? (
+                    <TextInput
+                      style={styles.digitalHzInput}
+                      value={freqInput}
+                      onChangeText={setFreqInput}
+                      keyboardType="decimal-pad"
+                      autoFocus
+                      selectTextOnFocus
+                      maxLength={6}
+                      onBlur={() => commitFreqEdit(layer.id)}
+                      onSubmitEditing={() => commitFreqEdit(layer.id)}
+                      returnKeyType="done"
+                    />
+                  ) : (
+                    <TouchableOpacity
+                      onPress={() => { setEditingFreqId(layer.id); setFreqInput(String(layer.frequency)); }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.digitalHz}>{layer.frequency.toFixed(1)} Hz</Text>
+                      <Text style={styles.digitalTapHint}>TAP TO EDIT</Text>
+                    </TouchableOpacity>
+                  )}
                   <Text style={styles.digitalLabel}>Digital</Text>
                 </View>
                 {layer.isPlaying && (
@@ -1457,6 +1517,22 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '200',
     letterSpacing: 2,
+  },
+  digitalHzInput: {
+    color: '#ff0a0a',
+    fontSize: 28,
+    fontWeight: '300',
+    letterSpacing: 2,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#ff0a0a',
+    paddingVertical: 0,
+    minWidth: 120,
+  },
+  digitalTapHint: {
+    color: '#5a1a1a',
+    fontSize: 7,
+    letterSpacing: 2,
+    marginTop: 2,
   },
   digitalLabel: {
     color: '#444',
