@@ -9,7 +9,6 @@ import { AudioEngine } from '../src/AudioEngine';
 import { FREQUENCY_ARCHIVE, FrequencyEntry } from '../src/FrequencyArchiveData';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
-import NinetySixGuide from '../src/NinetySixGuide';
 import CodesLabShared, { loadFrequencyToLab } from '../src/CodesLabShared';
 
 // ═══════════════════════════════════════════════
@@ -458,9 +457,6 @@ export default function LibraryScreen() {
             )}
             <DisclaimerFooter />
           </ScrollView>
-
-          {/* 96 — AI FREQUENCY GUIDE */}
-          <NinetySixGuide />
         </View>
       </View>
     </View>

@@ -16,7 +16,7 @@ interface GuideMsg {
   text: string;
 }
 
-export default function NinetySixGuide() {
+export default function NinetySixGuide({ variant = 'fab' }: { variant?: 'fab' | 'line' }) {
   const insets = useSafeAreaInsets();
   const [visible, setVisible] = useState(false);
   const [messages, setMessages] = useState<GuideMsg[]>([]);
@@ -111,11 +111,17 @@ export default function NinetySixGuide() {
 
   return (
     <>
-      {/* Floating 96 trigger */}
-      <TouchableOpacity style={st.fab} onPress={() => setVisible(true)} activeOpacity={0.85}>
-        <Text style={st.fabText}>96</Text>
-        <View style={st.fabDot} />
-      </TouchableOpacity>
+      {/* Trigger */}
+      {variant === 'fab' ? (
+        <TouchableOpacity style={st.fab} onPress={() => setVisible(true)} activeOpacity={0.85}>
+          <Text style={st.fabText}>96</Text>
+          <View style={st.fabDot} />
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity style={st.lineTrigger} onPress={() => setVisible(true)} activeOpacity={0.6}>
+          <Text style={st.lineTriggerText}>· the future now ·</Text>
+        </TouchableOpacity>
+      )}
 
       <Modal visible={visible} animationType="slide" onRequestClose={() => setVisible(false)}>
         <KeyboardAvoidingView
@@ -207,6 +213,8 @@ const st = StyleSheet.create({
   },
   fabText: { color: '#ff0a0a', fontSize: 18, fontWeight: '900', letterSpacing: 1 },
   fabDot: { position: 'absolute', top: 6, right: 8, width: 6, height: 6, borderRadius: 3, backgroundColor: '#ff0a0a' },
+  lineTrigger: { alignItems: 'center', paddingVertical: 14 },
+  lineTriggerText: { color: '#3a1010', fontSize: 9, letterSpacing: 3, fontStyle: 'italic' },
   container: { flex: 1, backgroundColor: '#000' },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

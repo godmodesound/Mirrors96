@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Linking, TouchableOpacity } from 'r
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
+import NinetySixGuide from '../src/NinetySixGuide';
 
 // Chakra Colors
 const C = {
@@ -432,6 +433,9 @@ export default function HowScreen() {
 
           <View style={{ height: 20 }} />
           <DisclaimerFooter />
+
+          {/* last line of curiosity */}
+          <NinetySixGuide variant="line" />
         </ScrollView>
       </View>
     </View>
