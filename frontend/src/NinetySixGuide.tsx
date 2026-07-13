@@ -129,7 +129,7 @@ export default function NinetySixGuide() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={st.headerTitle}>96 · FREQUENCY GUIDE</Text>
-              <Text style={st.headerSub}>ASK ANYTHING — FREQUENCIES · PROTOCOLS · THE APP</Text>
+              <Text style={st.headerSub}>THE FUTURE NOW — FREQUENCIES · PROTOCOLS · THE APP</Text>
             </View>
             <TouchableOpacity style={st.closeBtn} onPress={() => setVisible(false)}>
               <Text style={st.closeText}>✕</Text>
@@ -144,9 +144,9 @@ export default function NinetySixGuide() {
             onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
             ListEmptyComponent={
               <View style={st.empty}>
-                <Text style={st.emptyBig}>⏱ 96</Text>
+                <Text style={st.emptyBig}>◈ 96</Text>
                 <Text style={st.emptyText}>
-                  {`Well hey there, sugar! I'm 96 — your frequency guide.\n\nAsk me things like:\n"What frequency helps with sleep?"\n"Build me a 15-minute focus protocol"\n"How does the MERKABA geometry work?"`}
+                  {`THE FUTURE NOW\n\nI'm 96 — your frequency guide.\n\nAsk me things like:\n"What frequency helps with sleep?"\n"Build me a 15-minute focus protocol"\n"How does the MERKABA geometry work?"`}
                 </Text>
               </View>
             }
