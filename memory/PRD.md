@@ -37,6 +37,10 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - Codes bubbles in CODES I.D. MESSAGES now have '⧉ TAP TO LOAD IN LAB' → saves AsyncStorage '@pending_lab_load' → router.push('/') → useFocusEffect in index.tsx loads layers + LOADED banner (works for sent & received).
 - Digital Hz readouts in CODES_LAB (index.tsx) and library lab (CodesLabShared.tsx) are tap-to-edit: numeric TextInput, clamps 1-2000, live audio update when playing.
 
+### CODES LAB meters + archive load cleanup (done, screenshot-verified)
+- LOADED banner (index lab + CodesLabShared) now has inline ▶ PLAY / ■ STOP next to the loaded archive name (syncs with EXECUTE); archive LOAD now correctly sets the banner and loads multi-frequency entries (stale-state bug fixed).
+- Two frequency meters per layer: (top) FULL SPECTRUM — log-scale EM bar 10^0→10^21 Hz (Hz/kHz/MHz/GHz/IR/VIS/UV/X/γ segments, audio window outlined, white marker, "PLUG-INS SOON" for future bandwidths) in `src/SpectrumMeters.tsx`; (bottom) audio editor extended to 0Hz–26kHz with tick scale; tap-to-edit + dial clamps updated to 26000.
+
 ## Pending user verification (physical iPhone via Expo Go)
 - Video capture (96s) + camera permissions
 - Notch/safe-area spacing

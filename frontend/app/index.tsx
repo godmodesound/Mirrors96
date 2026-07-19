@@ -28,6 +28,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
 import { FrequencyMap } from '../src/FrequencyMap';
+import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
 import SendCodesModal from '../src/SendCodesModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -359,7 +360,7 @@ export default function TerminalScreen() {
   const commitFreqEdit = (id: number) => {
     const parsed = parseFloat(freqInput.replace(',', '.'));
     if (!isNaN(parsed)) {
-      const clamped = Math.min(2000, Math.max(1, Math.round(parsed * 10) / 10));
+      const clamped = Math.min(26000, Math.max(1, Math.round(parsed * 10) / 10));
       updateLayerFrequency(id, clamped);
     }
     setEditingFreqId(null);
@@ -376,7 +377,7 @@ export default function TerminalScreen() {
       if (!Array.isArray(frequencies) || frequencies.length === 0) return;
       const newLayers = frequencies.slice(0, 5).map((f: number, i: number) => ({
         id: i + 1,
-        frequency: Math.min(2000, Math.max(1, f)),
+        frequency: Math.min(26000, Math.max(1, f)),
         gain: 0.5,
         isPlaying: false,
       }));
@@ -504,21 +505,17 @@ export default function TerminalScreen() {
   }, [user]);
 
   const handleArchiveLoadFrequency = (entry: FrequencyEntry) => {
-    // Load first frequency into layer 1
-    const firstFreq = entry.frequencies[0];
-    updateLayerFrequency(layers[0].id, firstFreq);
-
-    // If multi-frequency, add additional layers
-    if (entry.frequencies.length > 1) {
-      const newLayers = [...layers];
-      entry.frequencies.slice(1).forEach((freq, idx) => {
-        const existingLayer = newLayers[idx + 1];
-        if (existingLayer) {
-          newLayers[idx + 1] = { ...existingLayer, frequency: freq };
-        }
-      });
-      setLayers(newLayers);
+    const freqs = entry.frequencies.slice(0, 5).map(f => Math.min(26000, Math.max(1, f)));
+    let nextId = layers.length ? Math.max(...layers.map(l => l.id)) + 1 : 1;
+    const next = layers.map((l, i) => (i < freqs.length ? { ...l, frequency: freqs[i] } : l));
+    for (let i = layers.length; i < freqs.length; i++) {
+      next.push({ id: nextId++, frequency: freqs[i], gain: 0.5, isPlaying: false });
     }
+    setLayers(next);
+    if (isPlaying) {
+      next.slice(0, freqs.length).forEach(l => AudioEngine.updateFreq(l.id, l.frequency));
+    }
+    setLoadedArchiveName(entry.name);
     // Save to history
     saveToFreqHistory(entry);
     setArchiveModalVisible(false);
@@ -632,7 +629,15 @@ export default function TerminalScreen() {
               <View style={styles.loadedBanner}>
                 <View style={styles.loadedDot} />
                 <Text style={styles.loadedText}>LOADED: {loadedArchiveName}</Text>
-                <TouchableOpacity onPress={() => { setLoadedArchiveName(null); setLayers([{ id: 1, frequency: 432, gain: 0.5, isPlaying: false }]); }}>
+                <TouchableOpacity
+                  style={[styles.loadedPlayBtn, isPlaying && styles.loadedPlayBtnActive]}
+                  onPress={handlePlay}
+                >
+                  <Text style={[styles.loadedPlayText, isPlaying && styles.loadedPlayTextActive]}>
+                    {isPlaying ? '■ STOP' : '▶ PLAY'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { if (isPlaying) handlePlay(); setLoadedArchiveName(null); setLayers([{ id: 1, frequency: 432, gain: 0.5, isPlaying: false }]); }}>
                   <Text style={styles.loadedClear}>✕</Text>
                 </TouchableOpacity>
               </View>
@@ -642,7 +647,7 @@ export default function TerminalScreen() {
               <View key={layer.id} style={styles.layerCard}>
                 <View style={styles.layerTopRow}>
                   {/* Analog Dial */}
-                  <AnalogDial frequency={layer.frequency} />
+                  <AnalogDial frequency={layer.frequency} maxFreq={26000} />
                   {/* Controls */}
                   <View style={styles.layerControls}>
                     <View style={styles.layerLabelRow}>
@@ -653,17 +658,20 @@ export default function TerminalScreen() {
                         </TouchableOpacity>
                       )}
                     </View>
-                    {/* Frequency Slider */}
+                    {/* Full EM Spectrum Meter (future plug-in bandwidths) */}
+                    <FullSpectrumMeter frequency={layer.frequency} />
+                    {/* Frequency Slider — 0Hz-26kHz audio meter */}
                     <GodmodeSlider
                       style={styles.slider}
                       minimumValue={1}
-                      maximumValue={2000}
+                      maximumValue={26000}
                       value={layer.frequency}
-                      onValueChange={(val) => updateLayerFrequency(layer.id, val)}
+                      onValueChange={(val) => updateLayerFrequency(layer.id, Math.round(val * 10) / 10)}
                       minimumTrackTintColor="#ff0a0a"
                       maximumTrackTintColor="#333333"
                       thumbTintColor="#ff6060"
                     />
+                    <AudioMeterScale />
                     {/* Band Labels */}
                     <View style={styles.bandRow}>
                       {BANDS.map((band, i) => (
@@ -1409,7 +1417,27 @@ const styles = StyleSheet.create({
   loadedClear: {
     color: '#666',
     fontSize: 14,
-    padding: 4,
+    paddingHorizontal: 4,
+  },
+  loadedPlayBtn: {
+    borderWidth: 1,
+    borderColor: '#ff0a0a',
+    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    marginRight: 10,
+  },
+  loadedPlayBtnActive: {
+    backgroundColor: '#ff0a0a',
+  },
+  loadedPlayText: {
+    color: '#ff0a0a',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  loadedPlayTextActive: {
+    color: '#000',
   },
   sectionTitle: {
     color: '#ffffff',

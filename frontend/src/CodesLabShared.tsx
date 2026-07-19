@@ -11,6 +11,7 @@ import Svg, { Circle, Line, Text as SvgText, G } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AudioEngine } from './AudioEngine';
 import GodmodeSlider from './GodmodeSlider';
+import { FullSpectrumMeter, AudioMeterScale } from './SpectrumMeters';
 
 // ═══════════════════════════════════
 // SHARED CODES LAB COMPONENT
@@ -39,10 +40,10 @@ const AnalogDial = ({ frequency }: { frequency: number }) => {
   const center = size / 2;
   const radius = 28;
   
-  // Map frequency (1-2000) to angle (-135 to 135 degrees)
+  // Map frequency (1-26000) to angle (-135 to 135 degrees)
   const minAngle = -135;
   const maxAngle = 135;
-  const angle = minAngle + ((frequency - 1) / 1999) * (maxAngle - minAngle);
+  const angle = minAngle + Math.min((frequency - 1) / 25999, 1) * (maxAngle - minAngle);
   const radians = (angle * Math.PI) / 180;
   
   const needleLength = radius - 6;
@@ -149,7 +150,7 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
   const commitFreqEdit = (id: number) => {
     const parsed = parseFloat(freqInput.replace(',', '.'));
     if (!isNaN(parsed)) {
-      updateLayerFrequency(id, Math.min(2000, Math.max(1, parsed)));
+      updateLayerFrequency(id, Math.min(26000, Math.max(1, parsed)));
     }
     setEditingFreqId(null);
     setFreqInput('');
@@ -185,10 +186,10 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
   };
 
   const getBandPosition = (freq: number): number => {
-    if (freq < 40) return 0;
-    if (freq < 200) return 1;
-    if (freq < 800) return 2;
-    if (freq < 1400) return 3;
+    if (freq < 60) return 0;
+    if (freq < 250) return 1;
+    if (freq < 2000) return 2;
+    if (freq < 8000) return 3;
     return 4;
   };
 
@@ -209,6 +210,14 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
         <View style={styles.loadedBanner}>
           <View style={styles.loadedDot} />
           <Text style={styles.loadedText}>LOADED: {loadedArchiveName}</Text>
+          <TouchableOpacity
+            style={[styles.loadedPlayBtn, isPlaying && styles.loadedPlayBtnActive]}
+            onPress={handlePlay}
+          >
+            <Text style={[styles.loadedPlayText, isPlaying && styles.loadedPlayTextActive]}>
+              {isPlaying ? '■ STOP' : '▶ PLAY'}
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={clearLoaded}>
             <Text style={styles.loadedClear}>✕</Text>
           </TouchableOpacity>
@@ -229,16 +238,19 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
                   </TouchableOpacity>
                 )}
               </View>
+              {/* Full EM Spectrum Meter (future plug-in bandwidths) */}
+              <FullSpectrumMeter frequency={layer.frequency} />
               <GodmodeSlider
                 style={styles.slider}
                 minimumValue={1}
-                maximumValue={2000}
+                maximumValue={26000}
                 value={layer.frequency}
                 onValueChange={(val) => updateLayerFrequency(layer.id, val)}
                 minimumTrackTintColor="#ff0a0a"
                 maximumTrackTintColor="#333333"
                 thumbTintColor="#ff6060"
               />
+              <AudioMeterScale />
               <View style={styles.bandRow}>
                 {BANDS.map((band, i) => (
                   <Text
@@ -381,6 +393,26 @@ const styles = StyleSheet.create({
     color: '#5a1a1a',
     fontSize: 14,
     paddingHorizontal: 4,
+  },
+  loadedPlayBtn: {
+    borderWidth: 1,
+    borderColor: '#ff0a0a',
+    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    marginRight: 10,
+  },
+  loadedPlayBtnActive: {
+    backgroundColor: '#ff0a0a',
+  },
+  loadedPlayText: {
+    color: '#ff0a0a',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  loadedPlayTextActive: {
+    color: '#000',
   },
   layerCard: {
     backgroundColor: '#0a0505',
