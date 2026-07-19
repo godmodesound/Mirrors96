@@ -41,6 +41,11 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - LOADED banner (index lab + CodesLabShared) now has inline ▶ PLAY / ■ STOP next to the loaded archive name (syncs with EXECUTE); archive LOAD now correctly sets the banner and loads multi-frequency entries (stale-state bug fixed).
 - Two frequency meters per layer: (top) FULL SPECTRUM — log-scale EM bar 10^0→10^21 Hz (Hz/kHz/MHz/GHz/IR/VIS/UV/X/γ segments, audio window outlined, white marker, "PLUG-INS SOON" for future bandwidths) in `src/SpectrumMeters.tsx`; (bottom) audio editor extended to 0Hz–26kHz with tick scale; tap-to-edit + dial clamps updated to 26000.
 
+### CODES ARCHIVE scroll fix + lab uniformity (done, tested — iteration_7.json)
+- /library restructured to ONE outer ScrollView (header/lab/search/tabs/content/footer scroll together); inner content + A-Z sidebar ScrollViews converted to Views (contentCol style added).
+- Library CodesLabShared now matches home lab exactly: compact prop dropped (gain visible), digital readout white/200-weight.
+- Known cosmetic: negative-SVG console noise from AnalogDial pre-layout sizing (pre-existing).
+
 ## Pending user verification (physical iPhone via Expo Go)
 - Video capture (96s) + camera permissions
 - Notch/safe-area spacing
