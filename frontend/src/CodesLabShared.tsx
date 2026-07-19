@@ -488,10 +488,10 @@ const styles = StyleSheet.create({
     borderTopColor: '#1a0808',
   },
   digitalHz: {
-    color: '#ff0a0a',
+    color: '#ffffff',
     fontSize: 28,
-    fontWeight: '300',
-    letterSpacing: 1,
+    fontWeight: '200',
+    letterSpacing: 2,
   },
   digitalHzInput: {
     color: '#ff0a0a',

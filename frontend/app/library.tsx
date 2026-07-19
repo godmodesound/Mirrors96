@@ -232,6 +232,12 @@ export default function LibraryScreen() {
     <View style={s.container}>
       <View style={[s.safeArea, { paddingTop: insets.top }]}>
         <MirrorsIdBanner />
+      <ScrollView
+        style={s.scroll}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* ═══ VATICAN HEADER ═══ */}
         <View style={s.header}>
           <View style={s.headerOrnament}>
@@ -265,9 +271,9 @@ export default function LibraryScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* ═══ CODES LAB (Synced) ═══ */}
+        {/* ═══ CODES LAB (Synced — matches home version) ═══ */}
         {showCodesLab && (
-          <CodesLabShared key={codesLabKey} compact={true} />
+          <CodesLabShared key={codesLabKey} />
         )}
 
         {/* ═══ SEARCH ═══ */}
@@ -324,7 +330,7 @@ export default function LibraryScreen() {
           {/* Alpha sidebar for A-Z view */}
           {viewMode === 'alpha' && (
             <View style={s.alphaSidebar}>
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <View>
                 {alphaLetters.map(letter => (
                   <TouchableOpacity
                     key={letter}
@@ -336,15 +342,11 @@ export default function LibraryScreen() {
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </View>
             </View>
           )}
 
-          <ScrollView
-            style={s.scroll}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
-          >
+          <View style={s.contentCol}>
             {/* Search Results */}
             {filteredArchive ? (
               <View>
@@ -456,8 +458,9 @@ export default function LibraryScreen() {
               </View>
             )}
             <DisclaimerFooter />
-          </ScrollView>
+          </View>
         </View>
+      </ScrollView>
       </View>
     </View>
   );
@@ -534,8 +537,9 @@ const s = StyleSheet.create({
   npStop: { color: '#ff3040', fontSize: 9, fontWeight: '700' },
 
   // Content
-  contentWrap: { flex: 1, flexDirection: 'row' },
-  scroll: { flex: 1, paddingHorizontal: 16 },
+  contentWrap: { flexDirection: 'row' },
+  scroll: { flex: 1 },
+  contentCol: { flex: 1, paddingHorizontal: 16 },
 
   // Search results
   resultLabel: { color: '#5a1a1a', fontSize: 9, marginVertical: 8, letterSpacing: 1 },

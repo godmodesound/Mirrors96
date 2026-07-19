@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only verification of the /library (CODES ARCHIVE) scroll fix + CODES_LAB uniformity with home. ALL 6 requested scenarios PASS on mobile viewport (390x844). SCROLL FIX VERIFIED: DOM audit found exactly ONE scrollable container on /library (the outer ScrollView) with scrollHeight=1925 / clientHeight=727 / max=1198px — programmatic scroll to bottom reveals the DisclaimerFooter ('MIRRORS is a sound experience...') at the very bottom of the page. Content flow with lab expanded: CODES ARCHIVE header → SHOW/HIDE CODES LAB toggle → CodesLabShared (with all elements) → Search bar → CODEX/A-Z/LAB tabs → categorized entries (RESONANTIA TERRAE, FLUCTUS MENTIS, ... CUTIS) → DisclaimerFooter. LAB UNIFORMITY VERIFIED: /library and / both render the same CodesLabShared structure top-to-bottom — ANALOG dial (SVG needle), FULL SPECTRUM meter, frequency slider, 1Hz-26kHz tick scale, SUB/LOW/MID/HIGH/ULTRA band row, Gain slider (now VISIBLE on /library — compact=false fix confirmed), white '432.0 Hz' readout with TAP TO EDIT hint, [+] ADD_LAYER, [ ▶ EXECUTE ]. INTERACTIONS: tap-to-edit → typed 528 → readout updates to 528.0 Hz; EXECUTE toggles to [ ■ STOP ]. REGRESSIONS: Search 'RESULTS FOR 432' filter works; CODEX/A-Z/LAB tabs switch; A-Z view renders letter sidebar (A, B, ... visible after scroll); FREQUENCY LAB quick-stacks (SOLFEGGIO SACRUM, RESONANTIA TERRAE, MOOD STACKS) all render and scroll. Home / regression PASS (CODES_LAB unchanged, LOAD IN LAB banner path still intact from prior iteration). Deprecated packages detected: expo-av (SDK 54 deprecation warning fires on every load). Console errors detected on / page load: repeated 'negative value is not valid' errors from SVG rendering when a SpectrumMeter/Godmode UI child is mounted with width=0 before layout (cosmetic, does not break UI).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "expo-av", "issue": "expo-av is deprecated in SDK 54 — must migrate to expo-audio (Audio/Recording) and expo-video (Video). Reference: /app/frontend/app/chirpconnect.tsx:30 and /app/frontend/app/index.tsx (audio imports). Console emits deprecation warning on every load."},
+      {"component": "SpectrumMeters (SVG)", "issue": "On / initial load the console repeatedly logs 'Error: <svg> attribute width/height: A negative value is not valid (\"-32\", \"-32.64\", \"-4.8\", etc.)'. Likely a spectrum meter/dial or a fill circle is being sized with (containerWidth - padding) before the flex layout has resolved, yielding negative values. Not visually broken but pollutes the dev console. Reference: /app/frontend/src/SpectrumMeters.tsx and dial rects. Suggest guarding sizes with Math.max(0, ...) before passing to Svg props."}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "None for the reported bug — the /library outer-ScrollView refactor and the compact={false} + white digitalHz uniformity change both verify green. Safe to close the bug.",
+    "(Housekeeping) Guard negative SVG width/height in SpectrumMeters/dials with Math.max(0, ...) to silence 20+ red console errors on / initial mount.",
+    "(Housekeeping, previously flagged) Migrate expo-av → expo-audio + expo-video before SDK 54 removes it.",
+    "(Housekeeping) Add testIDs on library.tsx: 'library-scroll', 'lab-toggle-btn', 'view-tab-archive|alpha|lab', 'search-input' — right now everything is text-selector based."
+  ],
+  "critical_code_review_comments": [
+    "library.tsx now has a single ScrollView wrapping the entire page (lines 235-463) and correctly removed the inner content ScrollView + inner alphaSidebar ScrollView — matches the fix description exactly. No nested scrollers detected by DOM audit.",
+    "CodesLabShared.tsx respects compact prop: gainRow only renders when !compact (line 264). /library now renders <CodesLabShared /> without passing compact, so gain slider shows. /index.tsx should be double-checked to also NOT pass compact={true}; a quick grep to confirm parity is recommended.",
+    "digitalHz style now color:'#ffffff' fontWeight:'200' (CodesLabShared.tsx:490-495) — matches the described home style. ✓",
+    "library.tsx line 354 unescaped-quotes lint warning still present (RESULTS FOR \"{searchQuery}\") — cosmetic, per instructions ignored.",
+    "library.tsx contentWrap uses flexDirection:'row' with the alpha sidebar as a sibling to contentCol — this only expands in the alpha view. Because the outer ScrollView is column-scrolling, the row layout at that level works but the alpha letter column will scroll AWAY with the rest of the page (no longer sticky). This is acceptable per the fix (inner ScrollView removed), just be aware users need to scroll back up to change letters."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% (6/6 scenarios pass)"},
+  "seed_data_creation": "None.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Bug fix verified. The /library page is now a single outer ScrollView (contentContainerStyle paddingBottom insets.bottom+100) with 1198px of scroll travel; DisclaimerFooter reachable at the bottom. Gain slider now visible on /library CODES_LAB (compact defaults to false and library.tsx passes no compact prop). White '432.0 Hz' fontWeight 200 readout matches home. Tap-to-edit + EXECUTE→STOP both still work. Console noise: (a) expo-av deprecation warning (long-standing), (b) negative SVG attribute errors on / mount from a spectrum-meter/dial component — cosmetic only, does not break rendering.",
+  "rca_of_issue": "Original bug: /library had a fixed outer wrapper (header + lab toggle + lab + search + tabs) and an inner ScrollView holding only the archive entries. When SHOW CODES LAB expanded the tall lab card, the fixed wrapper consumed most of the 844px viewport, leaving the inner list scrollable within a tiny window — users perceived the page as 'unscrollable'. Fix (verified): the entire page is now inside a single ScrollView (line 235), the previous inner ScrollView(s) and the alpha-sidebar inner ScrollView were converted to plain <View>s (contentCol / contentWrap re-styled). The whole page — header, lab, search, tabs, archive list, footer — now scrolls together as one document (1198px scroll range measured). Uniformity bug: library previously passed compact={true} to CodesLabShared which hid the gain slider — the fix removes that prop so !compact renders the gainRow, matching home. Verified by DOM inspection of both /library and / — same visible children in the same order."
+}
