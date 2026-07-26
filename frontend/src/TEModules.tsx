@@ -3,12 +3,11 @@ import { View, Text, TouchableOpacity, StyleSheet, PanResponder, Animated } from
 import { AudioEngine } from './AudioEngine';
 
 // ═══════════════════════════════════════════════════════════
-// GM-96 TE MODULES — Frequency Sweep + Scalar Resonator
-// Teenage Engineering-inspired: flat panels, chunky knobs,
-// dot accents, mono labels, tactile keys.
+// GM-96 SCALAR RESONATOR — Teenage Engineering-style panel.
+// Merged into CODES LAB. Frequency Sweep has been removed;
+// touch-sweep now lives on the Analog Dial inside each layer.
 // ═══════════════════════════════════════════════════════════
 
-const SWEEP_ID = 90;
 const SCALAR_A = 91;
 const SCALAR_B = 92;
 
@@ -77,85 +76,6 @@ const TEKey = ({ label, active, onPress, color = '#ff0a0a', wide = false }: {
     <Text style={[st.keyText, active && { color: '#000' }]}>{label}</Text>
   </TouchableOpacity>
 );
-
-// ═══════════════ FREQUENCY SWEEP ═══════════════
-function SweepModule() {
-  const [from, setFrom] = useState(100);
-  const [to, setTo] = useState(1000);
-  const [duration, setDuration] = useState(30);
-  const [logCurve, setLogCurve] = useState(true);
-  const [loop, setLoop] = useState(false);
-  const [running, setRunning] = useState(false);
-  const [currentHz, setCurrentHz] = useState(100);
-  const [progress, setProgress] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const stateRef = useRef({ from, to, duration, logCurve, loop });
-  stateRef.current = { from, to, duration, logCurve, loop };
-
-  const stopSweep = useCallback(() => {
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-    AudioEngine.stopTone(SWEEP_ID);
-    setRunning(false);
-    setProgress(0);
-  }, []);
-
-  const startSweep = () => {
-    stopSweep();
-    const s = stateRef.current;
-    AudioEngine.startTone(SWEEP_ID, s.from, 0.4);
-    setRunning(true);
-    setCurrentHz(s.from);
-    let start = Date.now();
-    timerRef.current = setInterval(() => {
-      const cfg = stateRef.current;
-      let p = (Date.now() - start) / (cfg.duration * 1000);
-      if (p >= 1) {
-        if (cfg.loop) { start = Date.now(); p = 0; }
-        else { stopSweep(); return; }
-      }
-      const f = cfg.logCurve
-        ? cfg.from * Math.pow(cfg.to / cfg.from, p)
-        : cfg.from + (cfg.to - cfg.from) * p;
-      AudioEngine.updateFreq(SWEEP_ID, f);
-      setCurrentHz(f);
-      setProgress(p);
-    }, 60);
-  };
-
-  useEffect(() => () => { stopSweep(); }, [stopSweep]);
-
-  return (
-    <View style={st.panel}>
-      <View style={st.panelHeader}>
-        <Text style={st.panelTitle}>GM–96 · FREQUENCY SWEEP</Text>
-        <View style={st.dotRow}>
-          <View style={[st.legendDot, { backgroundColor: '#ff0a0a' }]} />
-          <View style={[st.legendDot, { backgroundColor: '#ffd75e' }]} />
-          <View style={[st.legendDot, { backgroundColor: '#5fc9ff' }]} />
-        </View>
-      </View>
-
-      <View style={st.lcd}>
-        <Text style={st.lcdText}>{running ? `▸ ${currentHz.toFixed(1)} Hz` : '— STANDBY —'}</Text>
-        <View style={st.lcdBar}>
-          <View style={[st.lcdBarFill, { width: `${Math.round(progress * 100)}%` }]} />
-        </View>
-      </View>
-
-      <View style={st.knobRow}>
-        <Knob label="FROM" value={from} min={1} max={26000} onChange={setFrom} log />
-        <Knob label="TO" value={to} min={1} max={26000} onChange={setTo} log accent="#ffd75e" />
-        <Knob label="TIME" value={duration} min={1} max={300} onChange={v => setDuration(Math.round(v))} unit="s" accent="#5fc9ff" />
-      </View>
-
-      <View style={st.keyRow}>
-        <TEKey label={logCurve ? 'LOG' : 'LIN'} active={logCurve} onPress={() => setLogCurve(!logCurve)} color="#ffd75e" />
-        <TEKey label="LOOP" active={loop} onPress={() => setLoop(!loop)} color="#5fc9ff" />
-        <TEKey label={running ? '■ STOP' : '▶ RUN'} active={running} onPress={running ? stopSweep : startSweep} wide />
-      </View>
-    </View>
-  );
-}
 
 // ═══════════════ SCALAR RESONATOR ═══════════════
 function ScalarResonator() {
@@ -237,10 +157,10 @@ function ScalarResonator() {
   );
 }
 
+export { ScalarResonator };
 export default function TEModules() {
   return (
     <View>
-      <SweepModule />
       <ScalarResonator />
     </View>
   );

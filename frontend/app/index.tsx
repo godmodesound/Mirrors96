@@ -12,6 +12,7 @@ import {
   Modal,
   TextInput,
   FlatList,
+  PanResponder,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -64,38 +65,81 @@ interface ToneLayer {
   isPlaying: boolean;
 }
 
-// Analog Dial Component
-const AnalogDial = ({ frequency, maxFreq = 2000 }: { frequency: number; maxFreq?: number }) => {
+// Analog Dial Component — touch-drag to sweep frequency live (log scale, 1 Hz — 26 kHz)
+const AnalogDial = ({
+  frequency,
+  maxFreq = 26000,
+  onChange,
+  onSweepStart,
+  onSweepEnd,
+}: {
+  frequency: number;
+  maxFreq?: number;
+  onChange?: (f: number) => void;
+  onSweepStart?: () => void;
+  onSweepEnd?: () => void;
+}) => {
   const size = 90;
   const cx = size / 2;
   const cy = size / 2;
   const radius = size / 2 - 8;
   const innerRadius = radius - 10;
-  // Map frequency to angle (-135deg to 135deg, 270 deg sweep)
-  const ratio = Math.min(frequency / maxFreq, 1);
+  const ratio = Math.min(Math.max(frequency, 1) / maxFreq, 1);
   const angle = -135 + ratio * 270;
   const radians = (angle * Math.PI) / 180;
   const needleLen = innerRadius - 4;
   const nx = cx + needleLen * Math.cos(radians);
   const ny = cy + needleLen * Math.sin(radians);
 
+  // Touch-sweep: log-scale drag on the dial (horizontal or diagonal)
+  const freqRef = useRef(frequency);
+  freqRef.current = frequency;
+  const startRef = useRef(frequency);
+  const [sweeping, setSweeping] = useState(false);
+
+  const pan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => !!onChange,
+      onMoveShouldSetPanResponder: (_, g) => !!onChange && (Math.abs(g.dx) > 1 || Math.abs(g.dy) > 1),
+      onPanResponderGrant: () => {
+        startRef.current = freqRef.current;
+        setSweeping(true);
+        onSweepStart && onSweepStart();
+      },
+      onPanResponderMove: (_, g) => {
+        if (!onChange) return;
+        // Combined horizontal + inverted vertical drag = log sweep
+        const delta = (g.dx - g.dy) / 220; // full travel ≈ 220px per octave-decade
+        const min = 1;
+        const max = maxFreq;
+        const lmin = Math.log(min);
+        const lmax = Math.log(max);
+        const cur = Math.log(Math.max(startRef.current, min));
+        const nv = Math.exp(Math.min(lmax, Math.max(lmin, cur + delta * (lmax - lmin))));
+        onChange(Math.round(nv * 10) / 10);
+      },
+      onPanResponderRelease: () => { setSweeping(false); onSweepEnd && onSweepEnd(); },
+      onPanResponderTerminate: () => { setSweeping(false); onSweepEnd && onSweepEnd(); },
+    })
+  ).current;
+
   return (
-    <View style={dialStyles.container}>
+    <View style={dialStyles.container} {...(onChange ? pan.panHandlers : {})}>
       <Svg width={size} height={size}>
         {/* Outer ring */}
-        <SvgCircle cx={cx} cy={cy} r={radius} stroke="#ff0a0a" strokeWidth={1.5} fill="none" opacity={0.6} />
+        <SvgCircle cx={cx} cy={cy} r={radius} stroke="#ff0a0a" strokeWidth={sweeping ? 2 : 1.5} fill="none" opacity={sweeping ? 0.95 : 0.6} />
         {/* Middle ring */}
         <SvgCircle cx={cx} cy={cy} r={radius - 5} stroke="#ff0a0a" strokeWidth={0.5} fill="none" opacity={0.3} />
         {/* Inner ring */}
         <SvgCircle cx={cx} cy={cy} r={innerRadius} stroke="#ff0a0a" strokeWidth={1} fill="#0a0505" opacity={0.8} />
         {/* Glow circle */}
-        <SvgCircle cx={cx} cy={cy} r={4} fill="#ff0a0a" opacity={0.6} />
+        <SvgCircle cx={cx} cy={cy} r={sweeping ? 6 : 4} fill="#ff0a0a" opacity={sweeping ? 0.9 : 0.6} />
         {/* Needle */}
-        <Line x1={cx} y1={cy} x2={nx} y2={ny} stroke="#ff6060" strokeWidth={2} strokeLinecap="round" />
+        <Line x1={cx} y1={cy} x2={nx} y2={ny} stroke={sweeping ? '#ffb0b0' : '#ff6060'} strokeWidth={sweeping ? 2.5 : 2} strokeLinecap="round" />
         {/* Needle tip */}
-        <SvgCircle cx={nx} cy={ny} r={3} fill="#ff8080" />
+        <SvgCircle cx={nx} cy={ny} r={sweeping ? 4 : 3} fill={sweeping ? '#ffffff' : '#ff8080'} />
       </Svg>
-      <Text style={dialStyles.label}>Analog</Text>
+      <Text style={[dialStyles.label, sweeping && dialStyles.labelActive]}>{sweeping ? 'SWEEP' : 'ANALOG'}</Text>
     </View>
   );
 };
@@ -107,6 +151,9 @@ const dialStyles = StyleSheet.create({
     fontSize: 8,
     fontFamily: 'TerminatorRealNFI',
     marginTop: 2,
+  },
+  labelActive: {
+    color: '#ff8080',
   },
 });
 
@@ -655,8 +702,12 @@ export default function TerminalScreen() {
             {layers.map((layer, index) => (
               <View key={layer.id} style={styles.layerCard}>
                 <View style={styles.layerTopRow}>
-                  {/* Analog Dial */}
-                  <AnalogDial frequency={layer.frequency} maxFreq={26000} />
+                  {/* Analog Dial — touch-drag to sweep this layer's frequency live */}
+                  <AnalogDial
+                    frequency={layer.frequency}
+                    maxFreq={26000}
+                    onChange={(f) => updateLayerFrequency(layer.id, f)}
+                  />
                   {/* Controls */}
                   <View style={styles.layerControls}>
                     <View style={styles.layerLabelRow}>

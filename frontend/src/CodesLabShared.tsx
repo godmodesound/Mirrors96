@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   TextInput,
   Platform,
+  PanResponder,
 } from 'react-native';
 import Svg, { Circle, Line, Text as SvgText, G } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -36,30 +37,64 @@ interface CodesLabProps {
   compact?: boolean;
 }
 
-// Analog Dial Component
-const AnalogDial = ({ frequency }: { frequency: number }) => {
+// Analog Dial Component — touch-drag to sweep frequency (log scale, 1 Hz — 26 kHz)
+const AnalogDial = ({
+  frequency,
+  onChange,
+  onSweepStart,
+  onSweepEnd,
+}: {
+  frequency: number;
+  onChange?: (f: number) => void;
+  onSweepStart?: () => void;
+  onSweepEnd?: () => void;
+}) => {
   const size = 70;
   const center = size / 2;
   const radius = 28;
-  
-  // Map frequency (1-26000) to angle (-135 to 135 degrees)
+
   const minAngle = -135;
   const maxAngle = 135;
   const angle = minAngle + Math.min((frequency - 1) / 25999, 1) * (maxAngle - minAngle);
   const radians = (angle * Math.PI) / 180;
-  
+
   const needleLength = radius - 6;
   const needleX = center + needleLength * Math.sin(radians);
   const needleY = center - needleLength * Math.cos(radians);
 
+  const freqRef = useRef(frequency);
+  freqRef.current = frequency;
+  const startRef = useRef(frequency);
+  const [sweeping, setSweeping] = useState(false);
+
+  const pan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => !!onChange,
+      onMoveShouldSetPanResponder: (_, g) => !!onChange && (Math.abs(g.dx) > 1 || Math.abs(g.dy) > 1),
+      onPanResponderGrant: () => {
+        startRef.current = freqRef.current;
+        setSweeping(true);
+        onSweepStart && onSweepStart();
+      },
+      onPanResponderMove: (_, g) => {
+        if (!onChange) return;
+        const delta = (g.dx - g.dy) / 220;
+        const min = 1, max = 26000;
+        const lmin = Math.log(min), lmax = Math.log(max);
+        const cur = Math.log(Math.max(startRef.current, min));
+        const nv = Math.exp(Math.min(lmax, Math.max(lmin, cur + delta * (lmax - lmin))));
+        onChange(Math.round(nv * 10) / 10);
+      },
+      onPanResponderRelease: () => { setSweeping(false); onSweepEnd && onSweepEnd(); },
+      onPanResponderTerminate: () => { setSweeping(false); onSweepEnd && onSweepEnd(); },
+    })
+  ).current;
+
   return (
-    <View style={dialStyles.dialContainer}>
+    <View style={dialStyles.dialContainer} {...(onChange ? pan.panHandlers : {})}>
       <Svg width={size} height={size}>
-        {/* Outer ring */}
-        <Circle cx={center} cy={center} r={radius} fill="none" stroke="#1a0808" strokeWidth={2} />
-        {/* Inner dark circle */}
+        <Circle cx={center} cy={center} r={radius} fill="none" stroke={sweeping ? '#ff0a0a' : '#1a0808'} strokeWidth={2} />
         <Circle cx={center} cy={center} r={radius - 4} fill="#050303" />
-        {/* Tick marks */}
         {[-135, -90, -45, 0, 45, 90, 135].map((tickAngle, i) => {
           const tickRad = (tickAngle * Math.PI) / 180;
           const inner = radius - 8;
@@ -71,25 +106,23 @@ const AnalogDial = ({ frequency }: { frequency: number }) => {
               y1={center - inner * Math.cos(tickRad)}
               x2={center + outer * Math.sin(tickRad)}
               y2={center - outer * Math.cos(tickRad)}
-              stroke="#3a1010"
+              stroke={sweeping ? '#ff4040' : '#3a1010'}
               strokeWidth={1}
             />
           );
         })}
-        {/* Needle */}
         <Line
           x1={center}
           y1={center}
           x2={needleX}
           y2={needleY}
-          stroke="#ff0a0a"
-          strokeWidth={2}
+          stroke={sweeping ? '#ffb0b0' : '#ff0a0a'}
+          strokeWidth={sweeping ? 2.5 : 2}
           strokeLinecap="round"
         />
-        {/* Center dot */}
-        <Circle cx={center} cy={center} r={3} fill="#ff0a0a" />
+        <Circle cx={center} cy={center} r={sweeping ? 4 : 3} fill={sweeping ? '#ffffff' : '#ff0a0a'} />
       </Svg>
-      <Text style={dialStyles.dialLabel}>ANALOG</Text>
+      <Text style={[dialStyles.dialLabel, sweeping && dialStyles.dialLabelActive]}>{sweeping ? 'SWEEP' : 'ANALOG'}</Text>
     </View>
   );
 };
@@ -97,6 +130,7 @@ const AnalogDial = ({ frequency }: { frequency: number }) => {
 const dialStyles = StyleSheet.create({
   dialContainer: { alignItems: 'center' },
   dialLabel: { color: '#3a1010', fontSize: 7, marginTop: 2, letterSpacing: 2 },
+  dialLabelActive: { color: '#ff8080' },
 });
 
 export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, compact = false }: CodesLabProps) {
@@ -141,8 +175,32 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
     } catch {}
   };
 
+  // Throttled live-audio update — restart playMulti with new freqs while sweeping (only when playing)
+  const sweepRAFRef = useRef<number | null>(null);
+  const pendingFreqsRef = useRef<number[] | null>(null);
+  const isPlayingRef = useRef(isPlaying);
+  isPlayingRef.current = isPlaying;
+
+  const scheduleLiveResync = (nextLayers: { frequency: number; gain: number }[]) => {
+    if (!isPlayingRef.current) return;
+    pendingFreqsRef.current = nextLayers.map(l => l.frequency);
+    if (sweepRAFRef.current != null) return;
+    sweepRAFRef.current = requestAnimationFrame(() => {
+      sweepRAFRef.current = null;
+      const freqs = pendingFreqsRef.current;
+      pendingFreqsRef.current = null;
+      if (!freqs || !isPlayingRef.current) return;
+      const avgGain = nextLayers.reduce((s, l) => s + l.gain, 0) / nextLayers.length;
+      AudioEngine.playMulti(freqs, avgGain);
+    });
+  };
+
   const updateLayerFrequency = (id: number, freq: number) => {
-    setLayers(prev => prev.map(l => l.id === id ? { ...l, frequency: Math.round(freq * 10) / 10 } : l));
+    setLayers(prev => {
+      const next = prev.map(l => l.id === id ? { ...l, frequency: Math.round(freq * 10) / 10 } : l);
+      scheduleLiveResync(next);
+      return next;
+    });
   };
 
   // One-tap frequency editing
@@ -233,7 +291,10 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
       {layers.map((layer, index) => (
         <View key={layer.id} style={styles.layerCard}>
           <View style={styles.layerTopRow}>
-            <AnalogDial frequency={layer.frequency} />
+            <AnalogDial
+              frequency={layer.frequency}
+              onChange={(f) => updateLayerFrequency(layer.id, f)}
+            />
             <View style={styles.layerControls}>
               <View style={styles.layerLabelRow}>
                 <Text style={styles.layerTitle}>Layer {index + 1}</Text>
