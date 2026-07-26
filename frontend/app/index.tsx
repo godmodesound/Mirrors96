@@ -32,6 +32,7 @@ import { FrequencyMap } from '../src/FrequencyMap';
 import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
 import CymaticScope from '../src/CymaticScope';
 import TEModules from '../src/TEModules';
+import FrequencyCatalog, { FreqPreset } from '../src/FrequencyCatalog';
 import SendCodesModal from '../src/SendCodesModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -407,6 +408,23 @@ export default function TerminalScreen() {
 
   // ═══ LINK LAYERS — when enabled, dragging any Analog dial shifts all layers by the same ratio ═══
   const [layersLinked, setLayersLinked] = useState(false);
+  // ═══ FREQUENCY CATALOG modal ═══
+  const [catalogOpen, setCatalogOpen] = useState(false);
+
+  const applyPreset = (preset: FreqPreset, mode: 'add' | 'replace') => {
+    if (mode === 'replace') {
+      const firstId = layers[0]?.id;
+      if (firstId == null) return;
+      setLayers(prev => prev.map(l => l.id === firstId ? { ...l, frequency: preset.hz } : l));
+      if (isPlaying) AudioEngine.updateFreq(firstId, preset.hz);
+    } else {
+      const newId = Math.max(...layers.map(l => l.id), 0) + 1;
+      const newLayer = { id: newId, frequency: preset.hz, gain: 0.5, isPlaying: false };
+      setLayers(prev => [...prev, newLayer]);
+      if (isPlaying) AudioEngine.startTone(newId, preset.hz, 0.5);
+    }
+    setCatalogOpen(false);
+  };
 
   const updateLayerFrequency = (id: number, frequency: number) => {
     if (layersLinked && layers.length > 1) {
@@ -731,15 +749,24 @@ export default function TerminalScreen() {
                   NODES {'\u2192'} {layers.length}
                 </Text>
               </View>
-              <TouchableOpacity
-                style={[styles.linkBtn, layersLinked && styles.linkBtnActive]}
-                onPress={() => setLayersLinked(v => !v)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.linkBtnText, layersLinked && styles.linkBtnTextActive]}>
-                  {layersLinked ? '◈ LINKED' : '◇ LINK ALL'}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.linkBarRight}>
+                <TouchableOpacity
+                  style={styles.catalogBtn}
+                  onPress={() => setCatalogOpen(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.catalogBtnText}>{'\u2261 CATALOG'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.linkBtn, layersLinked && styles.linkBtnActive]}
+                  onPress={() => setLayersLinked(v => !v)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.linkBtnText, layersLinked && styles.linkBtnTextActive]}>
+                    {layersLinked ? '◈ LINKED' : '◇ LINK ALL'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {layers.map((layer, index) => (
@@ -1338,6 +1365,12 @@ export default function TerminalScreen() {
         layers={layers}
         loadedArchiveName={loadedArchiveName}
       />
+      {/* Frequency Catalog */}
+      <FrequencyCatalog
+        visible={catalogOpen}
+        onClose={() => setCatalogOpen(false)}
+        onPickPreset={applyPreset}
+      />
     </View>
   );
 }
@@ -1707,6 +1740,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   linkBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  linkBarRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  catalogBtn: {
+    borderWidth: 1,
+    borderColor: '#ff0a0a',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#0a0505',
+  },
+  catalogBtnText: {
+    color: '#ff8080',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
   linkBarDot: {
     width: 7, height: 7, borderRadius: 3.5,
     backgroundColor: '#3a1010',
