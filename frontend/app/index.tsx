@@ -32,7 +32,6 @@ import { FrequencyMap } from '../src/FrequencyMap';
 import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
 import CymaticScope from '../src/CymaticScope';
 import TEModules from '../src/TEModules';
-import FrequencyCatalog, { FreqPreset } from '../src/FrequencyCatalog';
 import SendCodesModal from '../src/SendCodesModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -408,23 +407,6 @@ export default function TerminalScreen() {
 
   // ═══ LINK LAYERS — when enabled, dragging any Analog dial shifts all layers by the same ratio ═══
   const [layersLinked, setLayersLinked] = useState(false);
-  // ═══ FREQUENCY CATALOG modal ═══
-  const [catalogOpen, setCatalogOpen] = useState(false);
-
-  const applyPreset = (preset: FreqPreset, mode: 'add' | 'replace') => {
-    if (mode === 'replace') {
-      const firstId = layers[0]?.id;
-      if (firstId == null) return;
-      setLayers(prev => prev.map(l => l.id === firstId ? { ...l, frequency: preset.hz } : l));
-      if (isPlaying) AudioEngine.updateFreq(firstId, preset.hz);
-    } else {
-      const newId = Math.max(...layers.map(l => l.id), 0) + 1;
-      const newLayer = { id: newId, frequency: preset.hz, gain: 0.5, isPlaying: false };
-      setLayers(prev => [...prev, newLayer]);
-      if (isPlaying) AudioEngine.startTone(newId, preset.hz, 0.5);
-    }
-    setCatalogOpen(false);
-  };
 
   const updateLayerFrequency = (id: number, frequency: number) => {
     if (layersLinked && layers.length > 1) {
@@ -749,28 +731,54 @@ export default function TerminalScreen() {
                   NODES {'\u2192'} {layers.length}
                 </Text>
               </View>
-              <View style={styles.linkBarRight}>
-                <TouchableOpacity
-                  style={styles.catalogBtn}
-                  onPress={() => setCatalogOpen(true)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.catalogBtnText}>{'\u2261 CATALOG'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.linkBtn, layersLinked && styles.linkBtnActive]}
-                  onPress={() => setLayersLinked(v => !v)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.linkBtnText, layersLinked && styles.linkBtnTextActive]}>
-                    {layersLinked ? '◈ LINKED' : '◇ LINK ALL'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[styles.linkBtn, layersLinked && styles.linkBtnActive]}
+                onPress={() => setLayersLinked(v => !v)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.linkBtnText, layersLinked && styles.linkBtnTextActive]}>
+                  {layersLinked ? '◈ LINKED' : '◇ LINK ALL'}
+                </Text>
+              </TouchableOpacity>
             </View>
 
-            {layers.map((layer, index) => (
+            {layers.map((layer, index) => {
+              // XYZ coordinates for this Node — X: log-freq position, Y: gain, Z: depth
+              const xPct = Math.min(1, Math.max(0, (Math.log(Math.max(layer.frequency, 1)) - Math.log(1)) / (Math.log(26000) - Math.log(1))));
+              const yPct = Math.min(1, Math.max(0, layer.gain));
+              const zPct = layers.length > 1 ? index / (layers.length - 1) : 0;
+              return (
               <View key={layer.id} style={[styles.layerCard, layersLinked && styles.layerCardLinked]}>
+                {/* XYZ NODE header — dedicated coordinate area per Node */}
+                <View style={styles.xyzHeader}>
+                  <View style={styles.xyzLabelBlock}>
+                    <Text style={styles.xyzNodeName}>◈ NODE {index + 1}</Text>
+                    <Text style={styles.xyzOrbTag}>ORB · {layer.frequency.toFixed(1)} Hz</Text>
+                  </View>
+                  <View style={styles.xyzAxes}>
+                    <View style={styles.xyzAxis}>
+                      <Text style={styles.xyzAxisLabel}>X</Text>
+                      <View style={styles.xyzTrack}><View style={[styles.xyzFill, { width: `${xPct * 100}%`, backgroundColor: '#ff0a0a' }]} /></View>
+                      <Text style={styles.xyzAxisVal}>{Math.round(xPct * 100)}</Text>
+                    </View>
+                    <View style={styles.xyzAxis}>
+                      <Text style={styles.xyzAxisLabel}>Y</Text>
+                      <View style={styles.xyzTrack}><View style={[styles.xyzFill, { width: `${yPct * 100}%`, backgroundColor: '#ffd75e' }]} /></View>
+                      <Text style={styles.xyzAxisVal}>{Math.round(yPct * 100)}</Text>
+                    </View>
+                    <View style={styles.xyzAxis}>
+                      <Text style={styles.xyzAxisLabel}>Z</Text>
+                      <View style={styles.xyzTrack}><View style={[styles.xyzFill, { width: `${zPct * 100}%`, backgroundColor: '#5fc9ff' }]} /></View>
+                      <Text style={styles.xyzAxisVal}>{index + 1}/{layers.length}</Text>
+                    </View>
+                  </View>
+                  {layers.length > 1 && (
+                    <TouchableOpacity onPress={() => removeLayer(layer.id)} style={styles.removeBtn}>
+                      <Text style={styles.removeBtnText}>X</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
                 <View style={styles.layerTopRow}>
                   {/* Analog Dial — touch-drag to sweep this layer's frequency live */}
                   <AnalogDial
@@ -780,14 +788,6 @@ export default function TerminalScreen() {
                   />
                   {/* Controls */}
                   <View style={styles.layerControls}>
-                    <View style={styles.layerLabelRow}>
-                      <Text style={styles.layerTitle}>Layer {index + 1}</Text>
-                      {layers.length > 1 && (
-                        <TouchableOpacity onPress={() => removeLayer(layer.id)} style={styles.removeBtn}>
-                          <Text style={styles.removeBtnText}>X</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
                     {/* Full EM Spectrum Meter (future plug-in bandwidths) */}
                     <FullSpectrumMeter frequency={layer.frequency} />
                     {/* Frequency Slider — 0Hz-26kHz audio meter */}
@@ -862,7 +862,8 @@ export default function TerminalScreen() {
                   <Text style={styles.transmitting}>■ TRANSMITTING</Text>
                 )}
               </View>
-            ))}
+              );
+            })}
 
             <TouchableOpacity style={styles.addLayerBtn} onPress={addLayer}>
               <Text style={styles.addLayerText}>[+] ADD_LAYER</Text>
@@ -1365,12 +1366,6 @@ export default function TerminalScreen() {
         layers={layers}
         loadedArchiveName={loadedArchiveName}
       />
-      {/* Frequency Catalog */}
-      <FrequencyCatalog
-        visible={catalogOpen}
-        onClose={() => setCatalogOpen(false)}
-        onPickPreset={applyPreset}
-      />
     </View>
   );
 }
@@ -1740,21 +1735,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   linkBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  linkBarRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  catalogBtn: {
-    borderWidth: 1,
-    borderColor: '#ff0a0a',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 8,
-    backgroundColor: '#0a0505',
-  },
-  catalogBtnText: {
-    color: '#ff8080',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-  },
   linkBarDot: {
     width: 7, height: 7, borderRadius: 3.5,
     backgroundColor: '#3a1010',
@@ -1791,6 +1771,65 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
+  },
+  // ═══ XYZ NODE HEADER — dedicated coordinate area per Node ═══
+  xyzHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#050303',
+    borderWidth: 1,
+    borderColor: '#180808',
+  },
+  xyzLabelBlock: { minWidth: 78 },
+  xyzNodeName: {
+    color: '#ff0a0a',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  xyzOrbTag: {
+    color: '#8a4040',
+    fontSize: 8,
+    letterSpacing: 1,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  xyzAxes: {
+    flex: 1,
+    gap: 3,
+  },
+  xyzAxis: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  xyzAxisLabel: {
+    color: '#8a8a8a',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1,
+    width: 8,
+  },
+  xyzTrack: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#0a0505',
+    overflow: 'hidden',
+  },
+  xyzFill: { height: '100%', borderRadius: 2 },
+  xyzAxisVal: {
+    color: '#c8c8c8',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    minWidth: 26,
+    textAlign: 'right',
   },
   controlsContainer: { alignItems: 'center', marginTop: 24 },
   playButton: {

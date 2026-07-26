@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { AudioEngine, ScopeFrame } from './AudioEngine';
 
@@ -338,13 +338,43 @@ export default function CymaticScope({ frequencies, playing }: Props) {
   const mainFreq = frequencies[0] || 432;
   const audioActive = livePeak > 3;
 
+  const cycleMedium = () => {
+    const idx = MEDIUMS.indexOf(medium);
+    setMedium(MEDIUMS[(idx + 1) % MEDIUMS.length]);
+  };
+  const cycleGeometry = () => {
+    const idx = GEOMETRIES.indexOf(geometry);
+    setGeometry(GEOMETRIES[(idx + 1) % GEOMETRIES.length]);
+  };
+
   return (
     <View style={st.wrap}>
-      {/* Readout */}
-      <View style={[st.readout, { borderColor: color }]}>
-        <Text style={[st.readoutText, { color }]}>
-          {mainFreq.toFixed(2)} Hz · {medium}{geometry !== 'NONE' ? ` · ${geometry}` : ''} · {audioActive ? `LIVE ${Math.round((livePeak / 128) * 100)}%` : (playing ? 'ACTIVE' : 'STANDBY')}
-        </Text>
+      {/* Compact readout header — Hz · MEDIUM cycler · GEOMETRY cycler · LIVE % */}
+      <View style={[st.headerBar, { borderColor: color }]}>
+        <View style={st.headerHz}>
+          <Text style={[st.hzTxt, { color }]}>{mainFreq.toFixed(2)}</Text>
+          <Text style={[st.hzUnit, { color }]}>Hz</Text>
+        </View>
+        <TouchableOpacity onPress={cycleMedium} style={[st.cycler, { borderColor: color }]} activeOpacity={0.7}>
+          <Text style={[st.cyclerLabel, { color: '#5a5a5a' }]}>MED</Text>
+          <Text style={[st.cyclerVal, { color }]}>{medium}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={cycleGeometry}
+          style={[st.cycler, { borderColor: geometry === 'NONE' ? '#3a1a1a' : '#ff0a0a' }]}
+          activeOpacity={0.7}
+        >
+          <Text style={[st.cyclerLabel, { color: '#5a5a5a' }]}>GEO</Text>
+          <Text style={[st.cyclerVal, { color: geometry === 'NONE' ? '#8a4a4a' : '#ff0a0a' }]}>
+            {geometry === 'NONE' ? '—' : GEOMETRY_LABEL[geometry]}
+          </Text>
+        </TouchableOpacity>
+        <View style={st.statePill}>
+          <View style={[st.stateDot, { backgroundColor: audioActive ? color : '#3a1010' }]} />
+          <Text style={[st.stateTxt, { color: audioActive ? color : '#5a5a5a' }]}>
+            {audioActive ? `${Math.round((livePeak / 128) * 100)}%` : (playing ? 'ACT' : 'STBY')}
+          </Text>
+        </View>
       </View>
 
       {/* Scope canvas */}
@@ -368,65 +398,48 @@ export default function CymaticScope({ frequencies, playing }: Props) {
           />
         )}
       </View>
-
-      {/* Medium selector */}
-      <View style={st.selectorRow}>
-        <Text style={st.selectorLabel}>MEDIUM</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.pillRow}>
-          {MEDIUMS.map(mm => (
-            <TouchableOpacity
-              key={mm}
-              style={[st.pill, { borderColor: MEDIUM_COLORS[mm] }, medium === mm && { backgroundColor: MEDIUM_COLORS[mm] }]}
-              onPress={() => setMedium(mm)}
-            >
-              <Text style={[st.pillText, { color: medium === mm ? '#000' : MEDIUM_COLORS[mm] }]}>{mm}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Sacred Geometry selector */}
-      <View style={st.selectorRow}>
-        <Text style={st.selectorLabel}>SACRED</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.pillRow}>
-          {GEOMETRIES.map(g => (
-            <TouchableOpacity
-              key={g}
-              style={[
-                st.pill,
-                { borderColor: g === 'NONE' ? '#3a1a1a' : '#ff0a0a' },
-                geometry === g && (g === 'NONE' ? st.pillActiveDim : st.pillActive),
-              ]}
-              onPress={() => setGeometry(g)}
-            >
-              <Text
-                style={[
-                  st.pillText,
-                  { color: geometry === g ? '#000' : (g === 'NONE' ? '#8a4a4a' : '#ff0a0a') },
-                ]}
-              >
-                {GEOMETRY_LABEL[g]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
     </View>
   );
 }
 
 const st = StyleSheet.create({
   wrap: { marginBottom: 16 },
-  readout: {
-    alignSelf: 'center',
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     borderWidth: 1,
     borderRadius: 6,
     paddingVertical: 6,
-    paddingHorizontal: 14,
+    paddingHorizontal: 8,
     marginBottom: 8,
     backgroundColor: '#020402',
   },
-  readoutText: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+  headerHz: { flexDirection: 'row', alignItems: 'baseline', gap: 3, marginRight: 4 },
+  hzTxt: { fontSize: 14, fontWeight: '900', letterSpacing: 1 },
+  hzUnit: { fontSize: 9, fontWeight: '800', letterSpacing: 1, opacity: 0.7 },
+  cycler: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: '#050705',
+  },
+  cyclerLabel: { fontSize: 7, fontWeight: '900', letterSpacing: 1.5 },
+  cyclerVal: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  statePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+  },
+  stateDot: { width: 6, height: 6, borderRadius: 3 },
+  stateTxt: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   scope: {
     height: 260,
     borderWidth: 1,
@@ -435,19 +448,4 @@ const st = StyleSheet.create({
     backgroundColor: '#000',
   },
   webview: { flex: 1, backgroundColor: '#000' },
-  selectorRow: { marginTop: 8 },
-  selectorLabel: {
-    color: '#5a5a5a', fontSize: 8, letterSpacing: 2, fontWeight: '900',
-    marginBottom: 4, paddingHorizontal: 2,
-  },
-  pillRow: { gap: 6, paddingVertical: 2 },
-  pill: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-  },
-  pillActive: { backgroundColor: '#ff0a0a' },
-  pillActiveDim: { backgroundColor: '#3a1a1a' },
-  pillText: { fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
 });

@@ -127,19 +127,16 @@ function ScalarResonator() {
 
   return (
     <View style={st.panel}>
-      <View style={st.panelHeader}>
-        <Text style={st.panelTitle}>GM–96 · SCALAR RESONATOR</Text>
+      <View style={st.scalarHeaderRow}>
+        <Text style={st.scalarLabel}>SCALAR</Text>
+        <Text style={st.scalarState}>
+          {engaged ? `◈ ${carrier.toFixed(1)}Hz ± ${(pulse / 2).toFixed(2)} · ${pulse.toFixed(1)} FIELD` : '— COLLAPSED —'}
+        </Text>
         <Animated.View
           style={[st.led, {
             backgroundColor: led.interpolate({ inputRange: [0, 1], outputRange: ['#2a0a0a', '#ff0a0a'] }),
           }]}
         />
-      </View>
-
-      <View style={st.lcd}>
-        <Text style={st.lcdText}>
-          {engaged ? `◈ ${carrier.toFixed(1)} Hz ± ${(pulse / 2).toFixed(2)} · ${pulse.toFixed(1)} Hz FIELD` : '— FIELD COLLAPSED —'}
-        </Text>
       </View>
 
       <View style={st.knobRow}>
@@ -168,13 +165,29 @@ export default function TEModules() {
 
 // ═══════════════ TE STYLES ═══════════════
 const st = StyleSheet.create({
+  // Flush into CODES LAB flow — no separate box/border
   panel: {
-    backgroundColor: '#101010',
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 4,
+    paddingTop: 4,
+    paddingBottom: 12,
+    marginBottom: 4,
+  },
+  scalarHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  scalarLabel: { color: '#ff0a0a', fontSize: 10, fontWeight: '900', letterSpacing: 2 },
+  scalarState: {
+    flex: 1,
+    color: '#8a8a8a',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textAlign: 'center',
   },
   panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   panelTitle: { color: '#c8c8c8', fontSize: 10, fontWeight: '900', letterSpacing: 2 },
@@ -193,28 +206,28 @@ const st = StyleSheet.create({
   lcdText: { color: '#ff0a0a', fontSize: 12, fontWeight: '700', letterSpacing: 1.5, textAlign: 'center' },
   lcdBar: { height: 3, backgroundColor: '#1a1a1a', borderRadius: 2, marginTop: 7, overflow: 'hidden' },
   lcdBarFill: { height: '100%', backgroundColor: '#ff0a0a', borderRadius: 2 },
-  knobRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 12 },
+  knobRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 10 },
   knobBlock: { alignItems: 'center', width: 90 },
   knobOuter: {
-    width: 62, height: 62, borderRadius: 31,
-    backgroundColor: '#1a1a1a',
-    borderWidth: 2, borderColor: '#2e2e2e',
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: '#0d0d0d',
+    borderWidth: 1.5, borderColor: '#2a2a2a',
     alignItems: 'center', justifyContent: 'center',
   },
-  knob: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#242424', alignItems: 'center' },
-  knobPointer: { width: 3, height: 14, borderRadius: 2, marginTop: 4 },
+  knob: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#1a1a1a', alignItems: 'center' },
+  knobPointer: { width: 3, height: 12, borderRadius: 2, marginTop: 3 },
   knobDot: { position: 'absolute', bottom: 5, width: 4, height: 4, borderRadius: 2, opacity: 0.7 },
-  knobValue: { color: '#fff', fontSize: 12, fontWeight: '800', marginTop: 6, letterSpacing: 0.5 },
-  knobUnit: { color: '#666', fontSize: 9, fontWeight: '600' },
+  knobValue: { color: '#fff', fontSize: 11, fontWeight: '800', marginTop: 5, letterSpacing: 0.5 },
+  knobUnit: { color: '#666', fontSize: 8, fontWeight: '600' },
   knobLabel: { color: '#6a6a6a', fontSize: 8, letterSpacing: 2, marginTop: 2, fontWeight: '700' },
   keyRow: { flexDirection: 'row', gap: 8 },
   key: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#0d0d0d',
     borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 9,
-    paddingVertical: 12,
+    borderColor: '#2a2a2a',
+    borderRadius: 8,
+    paddingVertical: 10,
     alignItems: 'center',
   },
   keyWide: { flex: 2 },
