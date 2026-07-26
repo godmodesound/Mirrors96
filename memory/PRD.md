@@ -51,6 +51,11 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - 7 mediums: CHLADNI (nodal), WATER (ripples), SAND (grains), CYMATICS (default green, matches reference), MERCURY, GOLD (glossy), FIRE (orange drift).
 - Mounted in both labs (index.tsx + CodesLabShared.tsx) between LOADED banner and layer cards; config pushed via injectJavaScript / contentWindow.updateScope.
 
+### TE Modules — Frequency Sweep + Scalar Resonator (done, screenshot-verified)
+- `src/TEModules.tsx`, Teenage Engineering-styled panels (flat dark, chunky drag-knobs w/ PanResponder, yellow/blue/red dot accents, tactile keys, LCD readouts) mounted at bottom of both labs.
+- SWEEP: FROM/TO (1-26k, log knobs) + TIME (1-300s), LIN/LOG curve, LOOP, RUN/STOP; interval-driven AudioEngine.updateFreq on tone id 90 with live Hz + progress bar.
+- SCALAR RESONATOR: CARRIER/PULSE/FIELD knobs; two detuned tones (ids 91/92, carrier ± pulse/2) create interference beating at pulse rate; LED blinks at pulse rate; presets 7.83 Hz (Schumann) + 432 Hz; ENGAGE/COLLAPSE.
+
 ## Pending user verification (physical iPhone via Expo Go)
 - Video capture (96s) + camera permissions
 - Notch/safe-area spacing

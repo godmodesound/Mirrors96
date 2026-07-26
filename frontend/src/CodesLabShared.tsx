@@ -13,6 +13,7 @@ import { AudioEngine } from './AudioEngine';
 import GodmodeSlider from './GodmodeSlider';
 import { FullSpectrumMeter, AudioMeterScale } from './SpectrumMeters';
 import CymaticScope from './CymaticScope';
+import TEModules from './TEModules';
 
 // ═══════════════════════════════════
 // SHARED CODES LAB COMPONENT
@@ -331,6 +332,9 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* ══════ TE MODULES — SWEEP + SCALAR ══════ */}
+      <TEModules />
     </View>
   );
 }

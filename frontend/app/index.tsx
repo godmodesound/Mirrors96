@@ -30,6 +30,7 @@ import DisclaimerFooter from '../src/DisclaimerFooter';
 import { FrequencyMap } from '../src/FrequencyMap';
 import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
 import CymaticScope from '../src/CymaticScope';
+import TEModules from '../src/TEModules';
 import SendCodesModal from '../src/SendCodesModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -757,6 +758,9 @@ export default function TerminalScreen() {
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* ══════ TE MODULES — SWEEP + SCALAR ══════ */}
+          <TEModules />
 
           {/* ══════ SOUND LAB ══════ */}
           <View style={slabStyles.container}>
