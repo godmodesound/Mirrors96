@@ -320,7 +320,8 @@ export default function TerminalScreen() {
   };
 
   useEffect(() => {
-    return () => { AudioEngine.stopAll(); AudioEngine.stopCamelot(); };
+    // Audio persists across pages for universal sync (harmonic layering).
+    // Users stop audio via explicit STOP controls, not by navigation.
   }, []);
 
   const handlePlay = () => {

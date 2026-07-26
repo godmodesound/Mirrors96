@@ -112,7 +112,7 @@ export default function MoodsScreen() {
   const [section, setSection] = useState<'states' | 'brain'>('states');
   const insets = useSafeAreaInsets();
 
-  useEffect(() => { return () => AudioEngine.stopMulti(); }, []);
+  // Audio persists across pages for universal sync (harmonic layering).
 
   const handleMoodPress = (mood: MoodState) => {
     if (activeMood === mood.name && isPlaying) {

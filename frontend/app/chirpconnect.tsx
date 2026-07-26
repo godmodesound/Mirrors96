@@ -234,11 +234,10 @@ export default function ChirpConnect() {
     setEditId(mirrorsId || '');
   }, [displayName, mirrorsId]);
 
-  // Cleanup playback on unmount
+  // Cleanup playback on unmount (voice memo playback only — generator layers persist for universal sync)
   useEffect(() => {
     return () => {
       playbackSoundRef.current?.unloadAsync().catch(() => {});
-      AudioEngine.stopMulti();
     };
   }, []);
 

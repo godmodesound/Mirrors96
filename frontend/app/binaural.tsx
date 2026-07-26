@@ -580,7 +580,8 @@ export default function BinauralScreen() {
 
   useEffect(() => {
     return () => {
-      AudioEngine.stopBinaural();
+      // Audio persists across pages for universal sync (harmonic layering).
+      // Only clear the on-screen timer; keep binaural running.
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);

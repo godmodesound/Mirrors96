@@ -54,9 +54,8 @@ export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  useEffect(() => {
-    return () => { AudioEngine.stopMulti(); AudioEngine.stopAll(); };
-  }, []);
+  // Audio persists across pages for universal sync (harmonic layering).
+  // Users stop audio via explicit STOP controls, not by navigation.
 
   // ═══ DATA PROCESSING ═══
   const totalFreqs = FREQUENCY_ARCHIVE.length;

@@ -14,6 +14,10 @@ let masterGain = null;
 let audioUnlocked = false;
 let sessionTimerState = null;
 
+let analyser = null;
+let scopeBuffer = null;
+let scopeStreamActive = false;
+let scopeRAF = null;
 function ensureCtx() {
   if (!ctx) {
     try {
@@ -22,11 +26,53 @@ function ensureCtx() {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
     }
     masterGain = ctx.createGain();
-    masterGain.connect(ctx.destination);
+    // Global analyser tap: masterGain -> analyser -> destination
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 1024;
+    analyser.smoothingTimeConstant = 0.65;
+    masterGain.connect(analyser);
+    analyser.connect(ctx.destination);
+    scopeBuffer = new Uint8Array(analyser.fftSize);
     masterGain.gain.value = 0.5;
   }
   if (ctx.state === 'suspended') ctx.resume();
   return true;
+}
+
+// Live scope stream — broadcasts time-domain frames to RN at ~30fps
+function startScopeStream() {
+  if (scopeStreamActive || !analyser || !scopeBuffer) return;
+  scopeStreamActive = true;
+  var last = 0;
+  function tick(ts) {
+    if (!scopeStreamActive) return;
+    if (ts - last >= 33) {
+      last = ts;
+      try {
+        analyser.getByteTimeDomainData(scopeBuffer);
+        // Downsample to 128 pts to keep payload light
+        var out = new Array(128);
+        var step = scopeBuffer.length / 128;
+        var peak = 0;
+        for (var i = 0; i < 128; i++) {
+          var v = scopeBuffer[Math.floor(i * step)];
+          out[i] = v;
+          var dev = Math.abs(v - 128);
+          if (dev > peak) peak = dev;
+        }
+        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'scope', wave: out, peak: peak,
+        }));
+      } catch(e) {}
+    }
+    scopeRAF = requestAnimationFrame(tick);
+  }
+  scopeRAF = requestAnimationFrame(tick);
+}
+function stopScopeStream() {
+  scopeStreamActive = false;
+  if (scopeRAF) cancelAnimationFrame(scopeRAF);
+  scopeRAF = null;
 }
 
 // iOS Safari: suspend on background, resume on foreground (preserves timer)
@@ -271,6 +317,8 @@ function handleMsg(raw) {
       case 'stopCamelot': stopCamelot(); break;
       case 'unlockAudio': ensureCtx(); audioUnlocked = true; break;
       case 'detectSilentSwitch': detectSilentSwitch(); break;
+      case 'startScopeStream': ensureCtx(); startScopeStream(); break;
+      case 'stopScopeStream': stopScopeStream(); break;
     }
     window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ ok: true, type: msg.type }));
   } catch(err) {
@@ -448,12 +496,31 @@ export const AudioEngine = {
       sendToWebView({ type: 'detectSilentSwitch' });
     }
   },
+  // Global master-bus scope: subscribe to live time-domain waveform frames
+  subscribeScope: (cb: (frame: ScopeFrame) => void) => {
+    scopeSubs.push(cb);
+    // Kick native scope stream on first subscriber
+    if (Platform.OS !== 'web' && scopeSubs.length === 1) {
+      sendToWebView({ type: 'startScopeStream' });
+    }
+    // Immediately push latest cached frame
+    try { cb(latestFrame); } catch {}
+    return () => {
+      scopeSubs = scopeSubs.filter(s => s !== cb);
+      if (Platform.OS !== 'web' && scopeSubs.length === 0) {
+        sendToWebView({ type: 'stopScopeStream' });
+      }
+    };
+  },
+  getLatestScope: (): ScopeFrame => latestFrame,
 };
 
 // ===== Web-only direct implementations =====
 let audioCtx: AudioContext | null = null;
 const webOscs: { [key: number]: { osc: OscillatorNode; gain: GainNode } } = {};
 let webMasterGain: GainNode | null = null;
+let webAnalyser: AnalyserNode | null = null;
+let webScopeBuf: Uint8Array | null = null;
 
 const ensureWebCtx = () => {
   if (Platform.OS !== 'web') return false;
@@ -464,8 +531,14 @@ const ensureWebCtx = () => {
       audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
     webMasterGain = audioCtx.createGain();
-    webMasterGain.connect(audioCtx.destination);
+    webAnalyser = audioCtx.createAnalyser();
+    webAnalyser.fftSize = 1024;
+    webAnalyser.smoothingTimeConstant = 0.65;
+    webMasterGain.connect(webAnalyser);
+    webAnalyser.connect(audioCtx.destination);
+    webScopeBuf = new Uint8Array(webAnalyser.fftSize);
     webMasterGain.gain.value = 0.5;
+    startWebScopeLoop();
 
     // iOS Safari: suspend/resume on visibility change
     if (typeof document !== 'undefined') {
@@ -658,6 +731,45 @@ const webStopCamelot = () => {
   webCamelotOscs = [];
 };
 
+// ===== Global scope subscribers (real-time master-bus waveform) =====
+export type ScopeFrame = { wave: number[]; peak: number };
+type ScopeSub = (frame: ScopeFrame) => void;
+let scopeSubs: ScopeSub[] = [];
+let latestFrame: ScopeFrame = { wave: new Array(128).fill(128), peak: 0 };
+
+const dispatchScope = (frame: ScopeFrame) => {
+  latestFrame = frame;
+  for (let i = 0; i < scopeSubs.length; i++) {
+    try { scopeSubs[i](frame); } catch {}
+  }
+};
+
+const startWebScopeLoop = () => {
+  if (Platform.OS !== 'web') return;
+  let last = 0;
+  const tick = (ts: number) => {
+    if (!webAnalyser || !webScopeBuf) return;
+    if (ts - last >= 33) {
+      last = ts;
+      try {
+        webAnalyser.getByteTimeDomainData(webScopeBuf);
+        const out: number[] = new Array(128);
+        const step = webScopeBuf.length / 128;
+        let peak = 0;
+        for (let i = 0; i < 128; i++) {
+          const v = webScopeBuf[Math.floor(i * step)];
+          out[i] = v;
+          const dev = Math.abs(v - 128);
+          if (dev > peak) peak = dev;
+        }
+        dispatchScope({ wave: out, peak });
+      } catch {}
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+};
+
 // ===== Hidden WebView Component (rendered only on native) =====
 export const AudioBridgeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const wvRef = useRef<WebView>(null);
@@ -689,6 +801,10 @@ export const AudioBridgeProvider: React.FC<{ children: React.ReactNode }> = ({ c
       // iOS silent switch detected
       if (data.type === 'silentSwitch' && data.silent) {
         console.warn('[AudioEngine] Silent switch may be ON — sessions will be inaudible');
+      }
+      // Live master-bus scope frame
+      if (data.type === 'scope' && Array.isArray(data.wave)) {
+        dispatchScope({ wave: data.wave, peak: data.peak || 0 });
       }
     } catch (e) {}
   }, []);
