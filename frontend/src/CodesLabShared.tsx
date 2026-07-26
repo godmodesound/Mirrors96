@@ -65,28 +65,35 @@ const AnalogDial = ({
   const freqRef = useRef(frequency);
   freqRef.current = frequency;
   const startRef = useRef(frequency);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const onSweepStartRef = useRef(onSweepStart);
+  onSweepStartRef.current = onSweepStart;
+  const onSweepEndRef = useRef(onSweepEnd);
+  onSweepEndRef.current = onSweepEnd;
   const [sweeping, setSweeping] = useState(false);
 
   const pan = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => !!onChange,
-      onMoveShouldSetPanResponder: (_, g) => !!onChange && (Math.abs(g.dx) > 1 || Math.abs(g.dy) > 1),
+      onStartShouldSetPanResponder: () => !!onChangeRef.current,
+      onMoveShouldSetPanResponder: (_, g) => !!onChangeRef.current && (Math.abs(g.dx) > 1 || Math.abs(g.dy) > 1),
       onPanResponderGrant: () => {
         startRef.current = freqRef.current;
         setSweeping(true);
-        onSweepStart && onSweepStart();
+        onSweepStartRef.current && onSweepStartRef.current();
       },
       onPanResponderMove: (_, g) => {
-        if (!onChange) return;
+        const cb = onChangeRef.current;
+        if (!cb) return;
         const delta = (g.dx - g.dy) / 220;
         const min = 1, max = 26000;
         const lmin = Math.log(min), lmax = Math.log(max);
         const cur = Math.log(Math.max(startRef.current, min));
         const nv = Math.exp(Math.min(lmax, Math.max(lmin, cur + delta * (lmax - lmin))));
-        onChange(Math.round(nv * 10) / 10);
+        cb(Math.round(nv * 10) / 10);
       },
-      onPanResponderRelease: () => { setSweeping(false); onSweepEnd && onSweepEnd(); },
-      onPanResponderTerminate: () => { setSweeping(false); onSweepEnd && onSweepEnd(); },
+      onPanResponderRelease: () => { setSweeping(false); onSweepEndRef.current && onSweepEndRef.current(); },
+      onPanResponderTerminate: () => { setSweeping(false); onSweepEndRef.current && onSweepEndRef.current(); },
     })
   ).current;
 
@@ -195,9 +202,26 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
     });
   };
 
+  // LINK LAYERS — sync all layers by ratio when any is swept
+  const [layersLinked, setLayersLinked] = useState(false);
+
   const updateLayerFrequency = (id: number, freq: number) => {
     setLayers(prev => {
-      const next = prev.map(l => l.id === id ? { ...l, frequency: Math.round(freq * 10) / 10 } : l);
+      let next;
+      if (layersLinked && prev.length > 1) {
+        const source = prev.find(l => l.id === id);
+        if (!source || source.frequency <= 0) {
+          next = prev;
+        } else {
+          const ratio = freq / source.frequency;
+          next = prev.map(l => ({
+            ...l,
+            frequency: Math.min(26000, Math.max(1, Math.round(l.frequency * ratio * 10) / 10)),
+          }));
+        }
+      } else {
+        next = prev.map(l => l.id === id ? { ...l, frequency: Math.round(freq * 10) / 10 } : l);
+      }
       scheduleLiveResync(next);
       return next;
     });
@@ -287,9 +311,26 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
       {/* Cymatic Oscilloscope — real-time frequency feedback */}
       <CymaticScope frequencies={layers.map(l => l.frequency)} playing={isPlaying} />
 
+      {/* LINK LAYERS — sync all Analog nodes so a sweep on one shifts all together (ratio-locked) */}
+      <View style={styles.linkBar}>
+        <View style={styles.linkBarLeft}>
+          <View style={[styles.linkBarDot, layersLinked && styles.linkBarDotActive]} />
+          <Text style={styles.linkBarLabel}>NODES {'\u2192'} {layers.length}</Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.linkBtn, layersLinked && styles.linkBtnActive]}
+          onPress={() => setLayersLinked(v => !v)}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.linkBtnText, layersLinked && styles.linkBtnTextActive]}>
+            {layersLinked ? '◈ LINKED' : '◇ LINK ALL'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Layer Cards */}
       {layers.map((layer, index) => (
-        <View key={layer.id} style={styles.layerCard}>
+        <View key={layer.id} style={[styles.layerCard, layersLinked && styles.layerCardLinked]}>
           <View style={styles.layerTopRow}>
             <AnalogDial
               frequency={layer.frequency}
@@ -490,6 +531,41 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 8,
   },
+  layerCardLinked: {
+    borderColor: '#ff0a0a',
+    shadowColor: '#ff0a0a',
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  linkBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    marginTop: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#080606',
+    borderWidth: 1,
+    borderColor: '#1a0a0a',
+    borderRadius: 8,
+  },
+  linkBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  linkBarDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#3a1010' },
+  linkBarDotActive: { backgroundColor: '#ff0a0a' },
+  linkBarLabel: { color: '#8a8a8a', fontSize: 10, letterSpacing: 2, fontWeight: '800' },
+  linkBtn: {
+    borderWidth: 1,
+    borderColor: '#333',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#0a0a0a',
+  },
+  linkBtnActive: { borderColor: '#ff0a0a', backgroundColor: '#ff0a0a' },
+  linkBtnText: { color: '#c8c8c8', fontSize: 10, fontWeight: '900', letterSpacing: 2 },
+  linkBtnTextActive: { color: '#000' },
   layerTopRow: {
     flexDirection: 'row',
     gap: 12,
