@@ -29,6 +29,7 @@ import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
 import { FrequencyMap } from '../src/FrequencyMap';
 import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
+import CymaticScope from '../src/CymaticScope';
 import SendCodesModal from '../src/SendCodesModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -642,6 +643,12 @@ export default function TerminalScreen() {
                 </TouchableOpacity>
               </View>
             )}
+
+            {/* Cymatic Oscilloscope — real-time frequency feedback */}
+            <CymaticScope
+              frequencies={layers.map(l => l.frequency)}
+              playing={isPlaying}
+            />
 
             {layers.map((layer, index) => (
               <View key={layer.id} style={styles.layerCard}>

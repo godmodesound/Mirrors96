@@ -46,6 +46,11 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - Library CodesLabShared now matches home lab exactly: compact prop dropped (gain visible), digital readout white/200-weight.
 - Known cosmetic: negative-SVG console noise from AnalogDial pre-layout sizing (pre-existing).
 
+### Cymatic Oscilloscope (done, screenshot-verified)
+- `src/CymaticScope.tsx`: canvas renderer (WebView native / iframe web) with real-time frequency feedback — readout "432.00 Hz · <MEDIUM> PROTOCOL ACTIVE/STANDBY", radial grid, mode-derived cymatic point cloud (angular n from f%12, radial m from f/100), glowing rim, breathing/spin when playing.
+- 7 mediums: CHLADNI (nodal), WATER (ripples), SAND (grains), CYMATICS (default green, matches reference), MERCURY, GOLD (glossy), FIRE (orange drift).
+- Mounted in both labs (index.tsx + CodesLabShared.tsx) between LOADED banner and layer cards; config pushed via injectJavaScript / contentWindow.updateScope.
+
 ## Pending user verification (physical iPhone via Expo Go)
 - Video capture (96s) + camera permissions
 - Notch/safe-area spacing

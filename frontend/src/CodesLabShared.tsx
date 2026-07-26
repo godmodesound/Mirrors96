@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AudioEngine } from './AudioEngine';
 import GodmodeSlider from './GodmodeSlider';
 import { FullSpectrumMeter, AudioMeterScale } from './SpectrumMeters';
+import CymaticScope from './CymaticScope';
 
 // ═══════════════════════════════════
 // SHARED CODES LAB COMPONENT
@@ -223,6 +224,9 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Cymatic Oscilloscope — real-time frequency feedback */}
+      <CymaticScope frequencies={layers.map(l => l.frequency)} playing={isPlaying} />
 
       {/* Layer Cards */}
       {layers.map((layer, index) => (
