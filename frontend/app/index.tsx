@@ -31,7 +31,6 @@ import DisclaimerFooter from '../src/DisclaimerFooter';
 import { FrequencyMap } from '../src/FrequencyMap';
 import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
 import CymaticScope from '../src/CymaticScope';
-import TEModules from '../src/TEModules';
 import SendCodesModal from '../src/SendCodesModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -408,6 +407,39 @@ export default function TerminalScreen() {
   // ═══ LINK LAYERS — when enabled, dragging any Analog dial shifts all layers by the same ratio ═══
   const [layersLinked, setLayersLinked] = useState(false);
 
+  // ═══ SCALAR — folded into the LINK bar (no dedicated section). Uses Layer 1's freq as carrier. ═══
+  const SCALAR_A_ID = 91;
+  const SCALAR_B_ID = 92;
+  const SCALAR_PULSE = 7.83; // Schumann default
+  const SCALAR_GAIN = 0.25;
+  const [scalarOn, setScalarOn] = useState(false);
+  const scalarOnRef = useRef(scalarOn);
+  scalarOnRef.current = scalarOn;
+
+  const carrierFreqRef = useRef(432);
+  useEffect(() => { carrierFreqRef.current = layers[0]?.frequency || 432; }, [layers]);
+
+  const toggleScalar = () => {
+    if (scalarOn) {
+      AudioEngine.stopTone(SCALAR_A_ID);
+      AudioEngine.stopTone(SCALAR_B_ID);
+      setScalarOn(false);
+    } else {
+      const c = carrierFreqRef.current;
+      AudioEngine.startTone(SCALAR_A_ID, Math.max(1, c - SCALAR_PULSE / 2), SCALAR_GAIN);
+      AudioEngine.startTone(SCALAR_B_ID, c + SCALAR_PULSE / 2, SCALAR_GAIN);
+      setScalarOn(true);
+    }
+  };
+
+  // Track carrier live — when Layer 1's freq changes, retune scalar
+  useEffect(() => {
+    if (!scalarOnRef.current) return;
+    const c = layers[0]?.frequency || 432;
+    AudioEngine.updateFreq(SCALAR_A_ID, Math.max(1, c - SCALAR_PULSE / 2));
+    AudioEngine.updateFreq(SCALAR_B_ID, c + SCALAR_PULSE / 2);
+  }, [layers]);
+
   const updateLayerFrequency = (id: number, frequency: number) => {
     if (layersLinked && layers.length > 1) {
       const source = layers.find(l => l.id === id);
@@ -732,6 +764,15 @@ export default function TerminalScreen() {
                 </Text>
               </View>
               <TouchableOpacity
+                style={[styles.scalarBtn, scalarOn && styles.scalarBtnActive]}
+                onPress={toggleScalar}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.scalarBtnText, scalarOn && styles.scalarBtnTextActive]}>
+                  {scalarOn ? '◈ SCALAR' : '◇ SCALAR'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[styles.linkBtn, layersLinked && styles.linkBtnActive]}
                 onPress={() => setLayersLinked(v => !v)}
                 activeOpacity={0.7}
@@ -882,8 +923,7 @@ export default function TerminalScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* ══════ TE MODULES — SWEEP + SCALAR ══════ */}
-          <TEModules />
+          {/* SCALAR is now folded into the LINK bar (◈ SCALAR toggle) — no dedicated section */}
 
           {/* ══════ SOUND LAB ══════ */}
           <View style={slabStyles.container}>
@@ -1765,6 +1805,26 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   linkBtnTextActive: { color: '#000' },
+  scalarBtn: {
+    borderWidth: 1,
+    borderColor: '#5fc9ff',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#020a10',
+    marginRight: 6,
+  },
+  scalarBtnActive: {
+    borderColor: '#5fc9ff',
+    backgroundColor: '#5fc9ff',
+  },
+  scalarBtnText: {
+    color: '#5fc9ff',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  scalarBtnTextActive: { color: '#000' },
   layerCardLinked: {
     borderColor: '#ff0a0a',
     shadowColor: '#ff0a0a',

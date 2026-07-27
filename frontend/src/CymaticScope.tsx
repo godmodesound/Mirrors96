@@ -25,7 +25,7 @@ const MEDIUM_COLORS: Record<Medium, string> = {
   FIRE: '#ff5a2a',
 };
 
-export const GEOMETRIES = ['NONE', 'FLOWER', 'METATRON', 'SRI', 'VESICA', 'MERKABA', 'SPIRAL', 'NGON'] as const;
+export const GEOMETRIES = ['NONE', 'FLOWER', 'METATRON', 'SRI', 'VESICA', 'MERKABA', 'SPIRAL', 'NGON', 'LISSAJOUS', 'JULIA'] as const;
 export type Geometry = typeof GEOMETRIES[number];
 
 const GEOMETRY_LABEL: Record<Geometry, string> = {
@@ -37,6 +37,8 @@ const GEOMETRY_LABEL: Record<Geometry, string> = {
   MERKABA: 'MERKABA',
   SPIRAL: 'PHI SPIRAL',
   NGON: 'N-GON',
+  LISSAJOUS: 'LISSAJOUS',
+  JULIA: 'JULIA / MANDELBROT',
 };
 
 const SCOPE_HTML = `<!DOCTYPE html>
@@ -196,6 +198,86 @@ function drawNgon(R,rot,pal,env,freq){
   ctx.stroke();
 }
 
+// LISSAJOUS — X/Y parametric using live audio wave for X and time-shifted wave for Y
+function drawLissajous(R,rot,pal,env,freq){
+  var N=LIVE.wave.length;
+  var ratioA=1+Math.round(freq%7);
+  var ratioB=2+Math.round(freq%9);
+  var phase=rot;
+  ctx.save();
+  ctx.strokeStyle=pal.glow;ctx.lineWidth=1.4;ctx.globalAlpha=0.5+env*0.5;
+  ctx.shadowColor=pal.glow;ctx.shadowBlur=8+env*18;
+  ctx.beginPath();
+  for(var i=0;i<N;i++){
+    var t=i/N*6.2832;
+    // Audio-driven Lissajous: two audio-modulated sine parametrics
+    var wIdx=(i+Math.floor(freq/10))%N;
+    var w1=(LIVE.wave[i]-128)/128;
+    var w2=(LIVE.wave[wIdx]-128)/128;
+    var x=CX+Math.sin(ratioA*t+phase)*(R*0.75)*(0.85+w1*0.35);
+    var y=CY+Math.sin(ratioB*t)*(R*0.75)*(0.85+w2*0.35);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  // Second overlay curve — inverted ratios
+  ctx.strokeStyle=pal.main;ctx.globalAlpha=0.35+env*0.35;
+  ctx.beginPath();
+  for(var j=0;j<N;j++){
+    var t2=j/N*6.2832;
+    var w=(LIVE.wave[j]-128)/128;
+    var x2=CX+Math.sin(ratioB*t2+phase*2)*(R*0.55)*(0.9+w*0.25);
+    var y2=CY+Math.cos(ratioA*t2)*(R*0.55)*(0.9+w*0.25);
+    j===0?ctx.moveTo(x2,y2):ctx.lineTo(x2,y2);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+// JULIA — quadratic complex-plane fractal with c-param driven by frequency + audio envelope
+function drawJulia(R,rot,pal,env,freq){
+  var cols=90,rows=54;
+  var maxIter=Math.min(48,16+Math.floor(env*40));
+  // c = seed derived from freq + slow phase + audio env
+  var phase=rot*0.5;
+  var cr=Math.cos(phase)*0.7885*(0.5+((freq%600)/600)*0.5);
+  var ci=Math.sin(phase)*0.7885*(0.5+((freq%800)/800)*0.5)+env*0.08*Math.sin(phase*7);
+  var scale=R*0.9;
+  var stepX=(scale*2)/cols;
+  var stepY=(scale*2)/rows;
+  var baseR=(parseInt(pal.glow.slice(1,3),16))||150;
+  var baseG=(parseInt(pal.glow.slice(3,5),16))||255;
+  var baseB=(parseInt(pal.glow.slice(5,7),16))||150;
+  for(var yi=0;yi<rows;yi++){
+    for(var xi=0;xi<cols;xi++){
+      var x0=(-scale+xi*stepX)/(scale*0.9);
+      var y0=(-scale+yi*stepY)/(scale*0.9);
+      var zx=x0,zy=y0,it=0;
+      while(zx*zx+zy*zy<4&&it<maxIter){
+        var xt=zx*zx-zy*zy+cr;
+        zy=2*zx*zy+ci;
+        zx=xt;
+        it++;
+      }
+      if(it===maxIter)continue;
+      var norm=it/maxIter;
+      // Color grade toward palette main; interior stays background
+      var alpha=0.28+norm*0.62+env*0.15;
+      var r=Math.floor(baseR*norm);
+      var g=Math.floor(baseG*norm);
+      var b=Math.floor(baseB*norm);
+      ctx.fillStyle='rgba('+r+','+g+','+b+','+alpha.toFixed(3)+')';
+      var px=CX+(xi-cols/2)*stepX;
+      var py=CY+(yi-rows/2)*stepY;
+      ctx.fillRect(px,py,stepX+1,stepY+1);
+    }
+  }
+  // Rim ring so it feels contained
+  ctx.save();
+  ctx.strokeStyle=pal.main;ctx.lineWidth=1.2;ctx.globalAlpha=0.5+env*0.4;
+  ctx.beginPath();ctx.arc(CX,CY,R*0.9,0,6.2832);ctx.stroke();
+  ctx.restore();
+}
+
 // Audio-reactive envelope smoothing
 var envSmooth=0;
 function draw(t){
@@ -267,6 +349,8 @@ function draw(t){
       case 'MERKABA':  drawMerkaba(geomR,geomRot,p,envSmooth);break;
       case 'SPIRAL':   drawSpiral(geomR,geomRot,p,envSmooth);break;
       case 'NGON':     drawNgon(geomR,geomRot,p,envSmooth,f);break;
+      case 'LISSAJOUS':drawLissajous(geomR,geomRot,p,envSmooth,f);break;
+      case 'JULIA':    drawJulia(geomR,geomRot,p,envSmooth,f);break;
     }
     ctx.restore();
     ctx.globalAlpha=1;
