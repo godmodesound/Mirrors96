@@ -25,20 +25,20 @@ const MEDIUM_COLORS: Record<Medium, string> = {
   FIRE: '#ff5a2a',
 };
 
-export const GEOMETRIES = ['NONE', 'FLOWER', 'METATRON', 'SRI', 'VESICA', 'MERKABA', 'SPIRAL', 'NGON', 'LISSAJOUS', 'JULIA'] as const;
+export const GEOMETRIES = ['FLOWER', 'METATRON', 'SRI', 'VESICA', 'MERKABA', 'SPIRAL', 'NGON', 'LISSAJOUS', 'PHASE', 'JULIA'] as const;
 export type Geometry = typeof GEOMETRIES[number];
 
 const GEOMETRY_LABEL: Record<Geometry, string> = {
-  NONE: '— NONE',
-  FLOWER: 'FLOWER OF LIFE',
-  METATRON: "METATRON",
-  SRI: 'SRI YANTRA',
-  VESICA: 'VESICA PISCIS',
+  FLOWER: 'FLOWER',
+  METATRON: 'METATRON',
+  SRI: 'SRI',
+  VESICA: 'VESICA',
   MERKABA: 'MERKABA',
-  SPIRAL: 'PHI SPIRAL',
+  SPIRAL: 'SPIRAL',
   NGON: 'N-GON',
   LISSAJOUS: 'LISSAJOUS',
-  JULIA: 'JULIA / MANDELBROT',
+  PHASE: 'PHASE',
+  JULIA: 'JULIA',
 };
 
 const SCOPE_HTML = `<!DOCTYPE html>
@@ -51,7 +51,7 @@ var canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
 var W=0,H=0,CX=0,CY=0,R0=0;
 function resize(){W=window.innerWidth;H=window.innerHeight;canvas.width=W;canvas.height=H;CX=W/2;CY=H/2;R0=Math.min(W,H)*0.40;}
 resize();window.addEventListener('resize',resize);
-var cfg={freqs:[432],playing:false,medium:'CYMATICS',geometry:'NONE'};
+var cfg={freqs:[432],playing:false,medium:'CYMATICS',geometries:[]};
 var LIVE={wave:new Array(128).fill(128),peak:0,ts:0};
 var PAL={
   CHLADNI:{main:'#9be89b',glow:'#3aff6e',dim:'rgba(125,232,125,0.10)'},
@@ -62,7 +62,7 @@ var PAL={
   GOLD:{main:'#ffe08a',glow:'#ffaa00',dim:'rgba(255,215,94,0.10)'},
   FIRE:{main:'#ff9a5a',glow:'#ff2a0a',dim:'rgba(255,90,42,0.10)'}
 };
-window.updateScope=function(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.freqs)cfg.freqs=c.freqs;if(typeof c.playing==='boolean')cfg.playing=c.playing;if(c.medium)cfg.medium=c.medium;if(c.geometry)cfg.geometry=c.geometry;}catch(e){}};
+window.updateScope=function(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.freqs)cfg.freqs=c.freqs;if(typeof c.playing==='boolean')cfg.playing=c.playing;if(c.medium)cfg.medium=c.medium;if(Array.isArray(c.geometries))cfg.geometries=c.geometries;}catch(e){}};
 window.pushWave=function(w){try{if(typeof w==='string')w=JSON.parse(w);if(w&&w.wave){LIVE.wave=w.wave;LIVE.peak=w.peak||0;LIVE.ts=performance.now();}}catch(e){}};
 window.addEventListener('message',function(e){
   var d=e.data;try{var p=typeof d==='string'?JSON.parse(d):d;if(p&&p.__wave){window.pushWave(p);return;}}catch(_){}
@@ -178,6 +178,28 @@ function drawSpiral(R,rot,pal,env){
     j===0?ctx.moveTo(x2,y2):ctx.lineTo(x2,y2);
   }
   ctx.stroke();
+}
+
+// PHASE — classic oscilloscope XY plot using two channels of live audio wave
+function drawPhase(R,rot,pal,env){
+  var N=LIVE.wave.length;
+  ctx.save();
+  ctx.strokeStyle=pal.glow;ctx.lineWidth=1.2;ctx.globalAlpha=0.6+env*0.4;
+  ctx.shadowColor=pal.glow;ctx.shadowBlur=6+env*15;
+  ctx.beginPath();
+  // X = wave[i], Y = wave[(i+shift)%N] — classic Lissajous-style phase
+  var shift=Math.floor(N/4);
+  for(var i=0;i<N;i++){
+    var x=CX+((LIVE.wave[i]-128)/128)*(R*0.85);
+    var y=CY+((LIVE.wave[(i+shift)%N]-128)/128)*(R*0.85);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.closePath();ctx.stroke();
+  // Cross hairs
+  ctx.globalAlpha=0.18;ctx.lineWidth=0.5;
+  ctx.beginPath();ctx.moveTo(CX-R,CY);ctx.lineTo(CX+R,CY);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(CX,CY-R);ctx.lineTo(CX,CY+R);ctx.stroke();
+  ctx.restore();
 }
 
 function drawNgon(R,rot,pal,env,freq){
@@ -335,22 +357,26 @@ function draw(t){
     ctx.closePath();ctx.stroke();ctx.restore();
   }
 
-  // ═══ SACRED GEOMETRY OVERLAY ═══
-  if(cfg.geometry && cfg.geometry !== 'NONE'){
+  // ═══ SACRED GEOMETRY OVERLAYS — layered (multiple can stack) ═══
+  if(cfg.geometries && cfg.geometries.length){
     ctx.save();
     ctx.shadowColor=p.glow;ctx.shadowBlur=audioActive?12+envSmooth*18:6;
     var geomRot=spin*0.6;
     var geomR=R*0.92;
-    switch(cfg.geometry){
-      case 'FLOWER':   drawFlower(geomR,geomRot,p,envSmooth);break;
-      case 'METATRON': drawMetatron(geomR,geomRot,p,envSmooth);break;
-      case 'SRI':      drawSri(geomR,geomRot,p,envSmooth);break;
-      case 'VESICA':   drawVesica(geomR,geomRot,p,envSmooth);break;
-      case 'MERKABA':  drawMerkaba(geomR,geomRot,p,envSmooth);break;
-      case 'SPIRAL':   drawSpiral(geomR,geomRot,p,envSmooth);break;
-      case 'NGON':     drawNgon(geomR,geomRot,p,envSmooth,f);break;
-      case 'LISSAJOUS':drawLissajous(geomR,geomRot,p,envSmooth,f);break;
-      case 'JULIA':    drawJulia(geomR,geomRot,p,envSmooth,f);break;
+    for(var gi=0;gi<cfg.geometries.length;gi++){
+      var g=cfg.geometries[gi];
+      switch(g){
+        case 'FLOWER':   drawFlower(geomR,geomRot,p,envSmooth);break;
+        case 'METATRON': drawMetatron(geomR,geomRot,p,envSmooth);break;
+        case 'SRI':      drawSri(geomR,geomRot,p,envSmooth);break;
+        case 'VESICA':   drawVesica(geomR,geomRot,p,envSmooth);break;
+        case 'MERKABA':  drawMerkaba(geomR,geomRot,p,envSmooth);break;
+        case 'SPIRAL':   drawSpiral(geomR,geomRot,p,envSmooth);break;
+        case 'NGON':     drawNgon(geomR,geomRot,p,envSmooth,f);break;
+        case 'LISSAJOUS':drawLissajous(geomR,geomRot,p,envSmooth,f);break;
+        case 'PHASE':    drawPhase(geomR,geomRot,p,envSmooth);break;
+        case 'JULIA':    drawJulia(geomR,geomRot,p,envSmooth,f);break;
+      }
     }
     ctx.restore();
     ctx.globalAlpha=1;
@@ -382,8 +408,10 @@ interface Props {
 
 export default function CymaticScope({ frequencies, playing }: Props) {
   const [medium, setMedium] = useState<Medium>('CYMATICS');
-  const [geometry, setGeometry] = useState<Geometry>('NONE');
+  const [geometries, setGeometries] = useState<Set<Geometry>>(new Set());
   const [livePeak, setLivePeak] = useState(0);
+  const [measuredHz, setMeasuredHz] = useState(0);
+  const [geoPickerOpen, setGeoPickerOpen] = useState(false);
   const webRef = useRef<WebView>(null);
   const iframeRef = useRef<any>(null);
 
@@ -407,13 +435,14 @@ export default function CymaticScope({ frequencies, playing }: Props) {
   }, []);
 
   useEffect(() => {
-    pushConfig({ freqs: frequencies, playing, medium, geometry });
-  }, [frequencies, playing, medium, geometry, pushConfig]);
+    pushConfig({ freqs: frequencies, playing, medium, geometries: Array.from(geometries) });
+  }, [frequencies, playing, medium, geometries, pushConfig]);
 
   useEffect(() => {
     const unsub = AudioEngine.subscribeScope((frame) => {
       pushWave(frame);
       setLivePeak(frame.peak);
+      if (typeof frame.measuredHz === 'number') setMeasuredHz(frame.measuredHz);
     });
     return unsub;
   }, [pushWave]);
@@ -421,37 +450,50 @@ export default function CymaticScope({ frequencies, playing }: Props) {
   const color = MEDIUM_COLORS[medium];
   const mainFreq = frequencies[0] || 432;
   const audioActive = livePeak > 3;
+  const measuredValid = audioActive && measuredHz > 5;
 
   const cycleMedium = () => {
     const idx = MEDIUMS.indexOf(medium);
     setMedium(MEDIUMS[(idx + 1) % MEDIUMS.length]);
   };
-  const cycleGeometry = () => {
-    const idx = GEOMETRIES.indexOf(geometry);
-    setGeometry(GEOMETRIES[(idx + 1) % GEOMETRIES.length]);
+  const toggleGeometry = (g: Geometry) => {
+    setGeometries(prev => {
+      const next = new Set(prev);
+      if (next.has(g)) next.delete(g); else next.add(g);
+      return next;
+    });
   };
+  const geoSummary = geometries.size === 0
+    ? '—'
+    : geometries.size === 1
+      ? GEOMETRY_LABEL[Array.from(geometries)[0]]
+      : `${geometries.size}× LAYERED`;
 
   return (
     <View style={st.wrap}>
-      {/* Compact readout header — Hz · MEDIUM cycler · GEOMETRY cycler · LIVE % */}
+      {/* Compact readout header — Hz · MEASURED · MED · GEO · LIVE% */}
       <View style={[st.headerBar, { borderColor: color }]}>
         <View style={st.headerHz}>
           <Text style={[st.hzTxt, { color }]}>{mainFreq.toFixed(2)}</Text>
           <Text style={[st.hzUnit, { color }]}>Hz</Text>
+          {measuredValid && (
+            <>
+              <Text style={st.measuredArrow}>→</Text>
+              <Text style={[st.measuredVal, { color }]}>{measuredHz.toFixed(1)}</Text>
+            </>
+          )}
         </View>
         <TouchableOpacity onPress={cycleMedium} style={[st.cycler, { borderColor: color }]} activeOpacity={0.7}>
           <Text style={[st.cyclerLabel, { color: '#5a5a5a' }]}>MED</Text>
           <Text style={[st.cyclerVal, { color }]}>{medium}</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={cycleGeometry}
-          style={[st.cycler, { borderColor: geometry === 'NONE' ? '#3a1a1a' : '#ff0a0a' }]}
+          onPress={() => setGeoPickerOpen(o => !o)}
+          style={[st.cycler, { borderColor: geometries.size ? '#ff0a0a' : '#3a1a1a' }]}
           activeOpacity={0.7}
         >
           <Text style={[st.cyclerLabel, { color: '#5a5a5a' }]}>GEO</Text>
-          <Text style={[st.cyclerVal, { color: geometry === 'NONE' ? '#8a4a4a' : '#ff0a0a' }]}>
-            {geometry === 'NONE' ? '—' : GEOMETRY_LABEL[geometry]}
-          </Text>
+          <Text style={[st.cyclerVal, { color: geometries.size ? '#ff0a0a' : '#8a4a4a' }]}>{geoSummary}</Text>
         </TouchableOpacity>
         <View style={st.statePill}>
           <View style={[st.stateDot, { backgroundColor: audioActive ? color : '#3a1010' }]} />
@@ -461,6 +503,19 @@ export default function CymaticScope({ frequencies, playing }: Props) {
         </View>
       </View>
 
+      {geoPickerOpen && (
+        <View style={st.geoPicker}>
+          {GEOMETRIES.map(g => {
+            const isOn = geometries.has(g);
+            return (
+              <TouchableOpacity key={g} onPress={() => toggleGeometry(g)} style={[st.geoPill, isOn && st.geoPillActive]} activeOpacity={0.7}>
+                <Text style={[st.geoPillText, isOn && st.geoPillTextActive]}>{GEOMETRY_LABEL[g]}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
       {/* Scope canvas */}
       <View style={[st.scope, { borderColor: `${color}40` }]}>
         {Platform.OS === 'web' ? (
@@ -468,7 +523,7 @@ export default function CymaticScope({ frequencies, playing }: Props) {
             ref: iframeRef,
             srcDoc: SCOPE_HTML,
             style: { width: '100%', height: '100%', border: 'none', backgroundColor: '#000' },
-            onLoad: () => pushConfig({ freqs: frequencies, playing, medium, geometry }),
+            onLoad: () => pushConfig({ freqs: frequencies, playing, medium, geometries: Array.from(geometries) }),
           })
         ) : (
           <WebView
@@ -478,7 +533,7 @@ export default function CymaticScope({ frequencies, playing }: Props) {
             javaScriptEnabled
             scrollEnabled={false}
             androidLayerType="hardware"
-            onLoadEnd={() => pushConfig({ freqs: frequencies, playing, medium, geometry })}
+            onLoadEnd={() => pushConfig({ freqs: frequencies, playing, medium, geometries: Array.from(geometries) })}
           />
         )}
       </View>
@@ -502,6 +557,8 @@ const st = StyleSheet.create({
   headerHz: { flexDirection: 'row', alignItems: 'baseline', gap: 3, marginRight: 4 },
   hzTxt: { fontSize: 14, fontWeight: '900', letterSpacing: 1 },
   hzUnit: { fontSize: 9, fontWeight: '800', letterSpacing: 1, opacity: 0.7 },
+  measuredArrow: { color: '#5a5a5a', fontSize: 10, marginLeft: 4, marginRight: 2, fontWeight: '900' },
+  measuredVal: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5, opacity: 0.9 },
   cycler: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -532,4 +589,29 @@ const st = StyleSheet.create({
     backgroundColor: '#000',
   },
   webview: { flex: 1, backgroundColor: '#000' },
+  geoPicker: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginBottom: 8,
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#0a0505',
+    borderWidth: 1,
+    borderColor: '#1a0808',
+  },
+  geoPill: {
+    borderWidth: 1,
+    borderColor: '#3a1a1a',
+    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    backgroundColor: '#0a0505',
+  },
+  geoPillActive: {
+    borderColor: '#ff0a0a',
+    backgroundColor: '#ff0a0a',
+  },
+  geoPillText: { fontSize: 9, fontWeight: '900', letterSpacing: 1, color: '#8a4a4a' },
+  geoPillTextActive: { color: '#000' },
 });

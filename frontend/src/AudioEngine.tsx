@@ -60,8 +60,26 @@ function startScopeStream() {
           var dev = Math.abs(v - 128);
           if (dev > peak) peak = dev;
         }
+        // MEASURED Hz — FFT peak-bin detection with parabolic interpolation
+        var measuredHz = 0;
+        try {
+          var fftLen = analyser.frequencyBinCount;
+          if (!window.__freqBuf || window.__freqBuf.length !== fftLen) window.__freqBuf = new Uint8Array(fftLen);
+          analyser.getByteFrequencyData(window.__freqBuf);
+          var maxV = 0, maxI = 0;
+          for (var k = 1; k < fftLen - 1; k++) {
+            if (window.__freqBuf[k] > maxV) { maxV = window.__freqBuf[k]; maxI = k; }
+          }
+          if (maxV > 30 && maxI > 0 && maxI < fftLen - 1) {
+            var yL = window.__freqBuf[maxI - 1], yC = window.__freqBuf[maxI], yR = window.__freqBuf[maxI + 1];
+            var denom = (yL - 2 * yC + yR);
+            var offset = denom !== 0 ? 0.5 * (yL - yR) / denom : 0;
+            var binHz = ctx.sampleRate / analyser.fftSize;
+            measuredHz = (maxI + offset) * binHz;
+          }
+        } catch(e) {}
         window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-          type: 'scope', wave: out, peak: peak,
+          type: 'scope', wave: out, peak: peak, measuredHz: measuredHz,
         }));
       } catch(e) {}
     }
@@ -732,10 +750,10 @@ const webStopCamelot = () => {
 };
 
 // ===== Global scope subscribers (real-time master-bus waveform) =====
-export type ScopeFrame = { wave: number[]; peak: number };
+export type ScopeFrame = { wave: number[]; peak: number; measuredHz?: number };
 type ScopeSub = (frame: ScopeFrame) => void;
 let scopeSubs: ScopeSub[] = [];
-let latestFrame: ScopeFrame = { wave: new Array(128).fill(128), peak: 0 };
+let latestFrame: ScopeFrame = { wave: new Array(128).fill(128), peak: 0, measuredHz: 0 };
 
 const dispatchScope = (frame: ScopeFrame) => {
   latestFrame = frame;
@@ -747,6 +765,7 @@ const dispatchScope = (frame: ScopeFrame) => {
 const startWebScopeLoop = () => {
   if (Platform.OS !== 'web') return;
   let last = 0;
+  let freqBuf: Uint8Array | null = null;
   const tick = (ts: number) => {
     if (!webAnalyser || !webScopeBuf) return;
     if (ts - last >= 33) {
@@ -762,7 +781,25 @@ const startWebScopeLoop = () => {
           const dev = Math.abs(v - 128);
           if (dev > peak) peak = dev;
         }
-        dispatchScope({ wave: out, peak });
+        // MEASURED Hz — FFT peak bin + parabolic interpolation
+        let measuredHz = 0;
+        try {
+          const fftLen = webAnalyser.frequencyBinCount;
+          if (!freqBuf || freqBuf.length !== fftLen) freqBuf = new Uint8Array(fftLen);
+          webAnalyser.getByteFrequencyData(freqBuf);
+          let maxV = 0, maxI = 0;
+          for (let k = 1; k < fftLen - 1; k++) {
+            if (freqBuf[k] > maxV) { maxV = freqBuf[k]; maxI = k; }
+          }
+          if (maxV > 30 && maxI > 0 && maxI < fftLen - 1 && audioCtx) {
+            const yL = freqBuf[maxI - 1], yC = freqBuf[maxI], yR = freqBuf[maxI + 1];
+            const denom = (yL - 2 * yC + yR);
+            const offset = denom !== 0 ? 0.5 * (yL - yR) / denom : 0;
+            const binHz = audioCtx.sampleRate / webAnalyser.fftSize;
+            measuredHz = (maxI + offset) * binHz;
+          }
+        } catch {}
+        dispatchScope({ wave: out, peak, measuredHz });
       } catch {}
     }
     requestAnimationFrame(tick);
@@ -804,7 +841,7 @@ export const AudioBridgeProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       // Live master-bus scope frame
       if (data.type === 'scope' && Array.isArray(data.wave)) {
-        dispatchScope({ wave: data.wave, peak: data.peak || 0 });
+        dispatchScope({ wave: data.wave, peak: data.peak || 0, measuredHz: data.measuredHz || 0 });
       }
     } catch (e) {}
   }, []);

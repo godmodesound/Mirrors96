@@ -31,6 +31,7 @@ import DisclaimerFooter from '../src/DisclaimerFooter';
 import { FrequencyMap } from '../src/FrequencyMap';
 import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
 import CymaticScope from '../src/CymaticScope';
+import NodeConstellation from '../src/NodeConstellation';
 import SendCodesModal from '../src/SendCodesModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -416,6 +417,60 @@ export default function TerminalScreen() {
   const scalarOnRef = useRef(scalarOn);
   scalarOnRef.current = scalarOn;
 
+  // ═══ PRESETS — save/load current layer session to AsyncStorage ═══
+  type LayerPreset = { id: number; frequency: number; gain: number };
+  type Preset = { name: string; ts: number; layers: LayerPreset[]; scalar: boolean; linked: boolean };
+  const [presets, setPresets] = useState<Preset[]>([]);
+  const [presetListOpen, setPresetListOpen] = useState(false);
+  const PRESET_KEY = '@codes_lab_presets_v1';
+
+  const loadPresets = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem(PRESET_KEY);
+      if (raw) setPresets(JSON.parse(raw));
+    } catch {}
+  }, []);
+  useEffect(() => { loadPresets(); }, [loadPresets]);
+
+  const savePreset = async () => {
+    const name = `PRESET ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+    const p: Preset = {
+      name,
+      ts: Date.now(),
+      layers: layers.map(l => ({ id: l.id, frequency: l.frequency, gain: l.gain })),
+      scalar: scalarOnRef.current,
+      linked: layersLinked,
+    };
+    const next = [p, ...presets].slice(0, 12);
+    setPresets(next);
+    try { await AsyncStorage.setItem(PRESET_KEY, JSON.stringify(next)); } catch {}
+  };
+
+  const applyPresetById = (ts: number) => {
+    const p = presets.find(x => x.ts === ts);
+    if (!p) return;
+    // stop existing layers
+    layers.forEach(l => AudioEngine.stopTone(l.id));
+    // rehydrate
+    const nextLayers = p.layers.map(l => ({ ...l, isPlaying: false }));
+    setLayers(nextLayers);
+    setLayersLinked(!!p.linked);
+    // restart audio if currently playing
+    if (isPlaying) {
+      nextLayers.forEach(l => AudioEngine.startTone(l.id, l.frequency, l.gain));
+    }
+    // scalar
+    if (p.scalar && !scalarOnRef.current) toggleScalar();
+    if (!p.scalar && scalarOnRef.current) toggleScalar();
+    setPresetListOpen(false);
+  };
+
+  const deletePreset = async (ts: number) => {
+    const next = presets.filter(p => p.ts !== ts);
+    setPresets(next);
+    try { await AsyncStorage.setItem(PRESET_KEY, JSON.stringify(next)); } catch {}
+  };
+
   const carrierFreqRef = useRef(432);
   useEffect(() => { carrierFreqRef.current = layers[0]?.frequency || 432; }, [layers]);
 
@@ -749,6 +804,12 @@ export default function TerminalScreen() {
               </View>
             )}
 
+            {/* Node Constellation — cosmic lattice showing all Node Orbs */}
+            <NodeConstellation
+              layers={layers.map(l => ({ id: l.id, frequency: l.frequency, isPlaying: l.isPlaying }))}
+              playing={isPlaying}
+            />
+
             {/* Cymatic Oscilloscope — real-time frequency feedback */}
             <CymaticScope
               frequencies={layers.map(l => l.frequency)}
@@ -763,13 +824,19 @@ export default function TerminalScreen() {
                   NODES {'\u2192'} {layers.length}
                 </Text>
               </View>
+              <TouchableOpacity style={styles.labPresetChip} onPress={savePreset} activeOpacity={0.7}>
+                <Text style={styles.labPresetChipTxt}>◆ SAVE</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.labPresetChip} onPress={() => setPresetListOpen(o => !o)} activeOpacity={0.7}>
+                <Text style={styles.labPresetChipTxt}>◆ LOAD {presets.length > 0 ? `(${presets.length})` : ''}</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.scalarBtn, scalarOn && styles.scalarBtnActive]}
                 onPress={toggleScalar}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.scalarBtnText, scalarOn && styles.scalarBtnTextActive]}>
-                  {scalarOn ? '◈ SCALAR' : '◇ SCALAR'}
+                  {scalarOn ? '◈ SCLR' : '◇ SCLR'}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -778,10 +845,31 @@ export default function TerminalScreen() {
                 activeOpacity={0.7}
               >
                 <Text style={[styles.linkBtnText, layersLinked && styles.linkBtnTextActive]}>
-                  {layersLinked ? '◈ LINKED' : '◇ LINK ALL'}
+                  {layersLinked ? '◈ LNK' : '◇ LNK'}
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {presetListOpen && (
+              <View style={styles.presetPanel}>
+                {presets.length === 0 && (
+                  <Text style={styles.presetEmpty}>NO PRESETS SAVED · tap ◆ SAVE to snapshot the current lab</Text>
+                )}
+                {presets.map(p => (
+                  <View key={p.ts} style={styles.presetRow}>
+                    <TouchableOpacity style={styles.presetRowMain} onPress={() => applyPresetById(p.ts)} activeOpacity={0.7}>
+                      <Text style={styles.presetRowName}>{p.name}</Text>
+                      <Text style={styles.presetRowMeta}>
+                        {p.layers.length}× · {p.layers[0]?.frequency.toFixed(1)}Hz{p.scalar ? ' · SCLR' : ''}{p.linked ? ' · LNK' : ''}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.presetDelBtn} onPress={() => deletePreset(p.ts)} activeOpacity={0.7}>
+                      <Text style={styles.presetDelTxt}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
 
             {layers.map((layer, index) => {
               // XYZ coordinates for this Node — X: log-freq position, Y: gain, Z: depth
@@ -1764,17 +1852,18 @@ const styles = StyleSheet.create({
   linkBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 6,
     marginBottom: 10,
     marginTop: 4,
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     backgroundColor: '#080606',
     borderWidth: 1,
     borderColor: '#1a0a0a',
     borderRadius: 8,
   },
-  linkBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  linkBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 'auto' },
   linkBarDot: {
     width: 7, height: 7, borderRadius: 3.5,
     backgroundColor: '#3a1010',
@@ -1825,6 +1914,50 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   scalarBtnTextActive: { color: '#000' },
+  labPresetChip: {
+    borderWidth: 1,
+    borderColor: '#8a4040',
+    paddingHorizontal: 7,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#0a0505',
+  },
+  labPresetChipTxt: {
+    color: '#c8a0a0',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  presetPanel: {
+    marginTop: 6,
+    padding: 8,
+    backgroundColor: '#050303',
+    borderWidth: 1,
+    borderColor: '#180808',
+    borderRadius: 8,
+    gap: 4,
+  },
+  presetEmpty: {
+    color: '#5a3a3a',
+    fontSize: 9,
+    fontStyle: 'italic',
+    letterSpacing: 1,
+    textAlign: 'center',
+    paddingVertical: 8,
+  },
+  presetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0a0505',
+    borderWidth: 1,
+    borderColor: '#1a0a0a',
+    borderRadius: 6,
+  },
+  presetRowMain: { flex: 1, paddingVertical: 8, paddingHorizontal: 10 },
+  presetRowName: { color: '#ffb0b0', fontSize: 11, fontWeight: '900', letterSpacing: 1 },
+  presetRowMeta: { color: '#7a5050', fontSize: 8, letterSpacing: 1, marginTop: 2 },
+  presetDelBtn: { paddingHorizontal: 12, paddingVertical: 8 },
+  presetDelTxt: { color: '#ff6060', fontSize: 16, fontWeight: '900' },
   layerCardLinked: {
     borderColor: '#ff0a0a',
     shadowColor: '#ff0a0a',
