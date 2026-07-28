@@ -26,19 +26,38 @@ export interface CamelotKey {
   colorDim: string;
 }
 
+// ═══ 432 Hz CHAKRA-CORRECT COLOR SPECTRUM ═══
+// Colors mapped from each Camelot number's MAJOR-KEY note using the
+// 7 primary chakras (C=Root/Red → B=Crown/Violet), with accurate
+// semitone interpolations. Both A (minor) and B (major) at a given
+// number share the same chakra hue since they are relative modes.
+//
+//  Num  Major  Note  → Chakra              Color
+//   1    B     Bmaj  → Crown / Violet     #E040FB
+//   2    F♯    F♯maj → Heart-Throat / Cyan #00BCD4
+//   3    D♭    D♭maj → Sacral-Root / Red-Orange #FF5722
+//   4    A♭    A♭maj → Throat-Third Eye / Blue-Indigo #3F51B5
+//   5    E♭    E♭maj → Solar-Sacral / Yellow-Orange   #FFC400
+//   6    B♭    B♭maj → Third Eye-Crown / Indigo-Violet #9C27B0
+//   7    F     Fmaj  → Heart / Green      #4CAF50
+//   8    C     Cmaj  → Root / Red         #FF1A1A
+//   9    G     Gmaj  → Throat / Blue      #2196F3
+//  10    D     Dmaj  → Sacral / Orange    #FF9500
+//  11    A     Amaj  → Third Eye / Indigo #673AB7
+//  12    E     Emaj  → Solar / Yellow     #FFEB00
 const SPECTRUM: Record<number, { bright: string; dim: string }> = {
-  1:  { bright: '#FF2D87', dim: '#6B1A3D' },
-  2:  { bright: '#FF1A1A', dim: '#6B1A1A' },
-  3:  { bright: '#FF5722', dim: '#6B2810' },
-  4:  { bright: '#FF9100', dim: '#6B4200' },
-  5:  { bright: '#FFD600', dim: '#6B5A00' },
-  6:  { bright: '#AEEA00', dim: '#4A6B00' },
-  7:  { bright: '#00E676', dim: '#006B35' },
-  8:  { bright: '#00E5FF', dim: '#006B76' },
-  9:  { bright: '#2979FF', dim: '#0A2E6B' },
-  10: { bright: '#651FFF', dim: '#2A0E6B' },
-  11: { bright: '#AA00FF', dim: '#4A006B' },
-  12: { bright: '#D500F9', dim: '#5A006B' },
+  1:  { bright: '#E040FB', dim: '#4D1655' }, // B    · Crown Violet
+  2:  { bright: '#00BCD4', dim: '#004954' }, // F♯   · Cyan
+  3:  { bright: '#FF5722', dim: '#5A1F0D' }, // D♭   · Red-Orange
+  4:  { bright: '#3F51B5', dim: '#1A2148' }, // A♭   · Blue-Indigo
+  5:  { bright: '#FFC400', dim: '#5A4600' }, // E♭   · Yellow-Orange
+  6:  { bright: '#9C27B0', dim: '#3C0F45' }, // B♭   · Violet
+  7:  { bright: '#4CAF50', dim: '#173D19' }, // F    · Heart Green
+  8:  { bright: '#FF1A1A', dim: '#5C0808' }, // C    · Root Red
+  9:  { bright: '#2196F3', dim: '#0B3960' }, // G    · Throat Blue
+  10: { bright: '#FF9500', dim: '#5A3600' }, // D    · Sacral Orange
+  11: { bright: '#673AB7', dim: '#25164A' }, // A    · Third Eye Indigo
+  12: { bright: '#FFEB00', dim: '#5A5400' }, // E    · Solar Yellow
 };
 
 export const CAMELOT_KEYS: CamelotKey[] = [
@@ -184,7 +203,7 @@ function describeArc(cx: number, cy: number, innerR: number, outerR: number, sta
   return `M ${x1} ${y1} L ${x2} ${y2} A ${outerR} ${outerR} 0 ${largeArc} 1 ${x3} ${y3} L ${x4} ${y4} A ${innerR} ${innerR} 0 ${largeArc} 0 ${x1} ${y1} Z`;
 }
 
-// Positions for keys in butterfly view
+// Positions for keys in butterfly view (chakra-aligned: num=12 top, num=6 bottom)
 function getKeyPositions() {
   const outerKeys: { key: CamelotKey; x: number; y: number; r: number }[] = [];
   const innerKeys: { key: CamelotKey; x: number; y: number; r: number }[] = [];
@@ -192,13 +211,19 @@ function getKeyPositions() {
   const innerR = MAP_W * 0.28;
 
   for (let i = 0; i < 12; i++) {
-    const angle = (i * 30 - 90) * (Math.PI / 180);
+    // CAMELOT_KEYS[0..11] are 1A..12A → num = i+1. Position by chakra-aligned angle.
     const key = CAMELOT_KEYS[i];
+    const num = key.num;
+    const midAngle = (num % 12) * 30; // 12→0, 1→30, ..., 6→180
+    const angle = (midAngle - 90) * (Math.PI / 180);
     outerKeys.push({ key, x: CX + Math.cos(angle) * outerR, y: CY + Math.sin(angle) * outerR, r: 14 });
   }
   for (let i = 0; i < 12; i++) {
-    const angle = (i * 30 - 90 + 15) * (Math.PI / 180);
+    // CAMELOT_KEYS[12..23] are 1B..12B. Inner ring offset by half-segment (15°).
     const key = CAMELOT_KEYS[12 + i];
+    const num = key.num;
+    const midAngle = (num % 12) * 30 + 15;
+    const angle = (midAngle - 90) * (Math.PI / 180);
     innerKeys.push({ key, x: CX + Math.cos(angle) * innerR, y: CY + Math.sin(angle) * innerR, r: 11 });
   }
   return { outerKeys, innerKeys };
@@ -290,33 +315,36 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
         <SvgCircle cx={CX} cy={CY} r={outerRadius + 4} fill="none" stroke="#ff0a0a" strokeWidth={2} opacity={0.3} />
         <SvgCircle cx={CX} cy={CY} r={outerRadius + 8} fill="none" stroke="#ff0a0a" strokeWidth={1} opacity={0.15} />
 
-        {/* Outer ring segments (B - Major keys) */}
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num, i) => {
-          const startAngle = i * 30;
-          const endAngle = (i + 1) * 30;
+        {/* Outer ring segments (B - Major keys) — 12 at 12 o'clock, 6 at 6 o'clock */}
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => {
+          // Chakra-aligned wheel: num=12 → midAngle 0 (top), num=6 → midAngle 180 (bottom)
+          const midAngle = (num % 12) * 30;
+          const startAngle = midAngle - 15;
+          const endAngle = midAngle + 15;
           const keyId = `${num}B`;
           const key = CAMELOT_KEYS.find(k => k.id === keyId);
           const level = getHarmonicLevel(activeKey, keyId);
           const isActive = level === 'selected';
           const isPrimary = level === 'primary';
-          const midAngle = startAngle + 15;
+          const chakra = SPECTRUM[num];
           const labelR = (middleRadius + outerRadius) / 2;
           
           return (
             <G key={`outer-${num}`} onPress={() => key && onKeyPress(key)}>
-              {/* Segment background */}
+              {/* Segment background — chakra-color tinted */}
               <Path
                 d={describeArc(CX, CY, middleRadius, outerRadius, startAngle, endAngle)}
-                fill={isActive ? '#2a0808' : isPrimary ? '#1a0505' : '#050000'}
-                stroke="#ff0a0a"
+                fill={isActive ? chakra.bright : chakra.dim}
+                fillOpacity={isActive ? 0.55 : isPrimary ? 0.35 : 0.22}
+                stroke={chakra.bright}
                 strokeWidth={isActive ? 2 : 1}
-                opacity={isActive ? 1 : isPrimary ? 0.9 : 0.8}
+                opacity={isActive ? 1 : isPrimary ? 0.95 : 0.85}
               />
               {/* Key ID label */}
               <SvgText
                 x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR + 8)}
                 y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR + 8)}
-                fill={isActive ? '#ffffff' : '#ff0a0a'}
+                fill={isActive ? '#ffffff' : chakra.bright}
                 fontSize={12}
                 fontWeight="900"
                 textAnchor="middle"
@@ -351,42 +379,44 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
                 <Path
                   d={describeArc(CX, CY, middleRadius, outerRadius, startAngle, endAngle)}
                   fill="none"
-                  stroke="#ff0a0a"
+                  stroke={chakra.bright}
                   strokeWidth={3}
-                  opacity={0.6}
+                  opacity={0.7}
                 />
               )}
             </G>
           );
         })}
 
-        {/* Inner ring segments (A - Minor keys) */}
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num, i) => {
-          const startAngle = i * 30;
-          const endAngle = (i + 1) * 30;
+        {/* Inner ring segments (A - Minor keys) — chakra-aligned */}
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => {
+          const midAngle = (num % 12) * 30;
+          const startAngle = midAngle - 15;
+          const endAngle = midAngle + 15;
           const keyId = `${num}A`;
           const key = CAMELOT_KEYS.find(k => k.id === keyId);
           const level = getHarmonicLevel(activeKey, keyId);
           const isActive = level === 'selected';
           const isPrimary = level === 'primary';
-          const midAngle = startAngle + 15;
+          const chakra = SPECTRUM[num];
           const labelR = (innerRadius + middleRadius) / 2;
           
           return (
             <G key={`inner-${num}`} onPress={() => key && onKeyPress(key)}>
-              {/* Segment background */}
+              {/* Segment background — chakra-tinted */}
               <Path
                 d={describeArc(CX, CY, innerRadius, middleRadius, startAngle, endAngle)}
-                fill={isActive ? '#2a0808' : isPrimary ? '#1a0505' : '#080000'}
-                stroke="#ff0a0a"
+                fill={isActive ? chakra.bright : chakra.dim}
+                fillOpacity={isActive ? 0.5 : isPrimary ? 0.3 : 0.16}
+                stroke={chakra.bright}
                 strokeWidth={isActive ? 2 : 0.8}
-                opacity={isActive ? 1 : isPrimary ? 0.9 : 0.7}
+                opacity={isActive ? 1 : isPrimary ? 0.95 : 0.7}
               />
               {/* Key ID label */}
               <SvgText
                 x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR + 5)}
                 y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR + 5)}
-                fill={isActive ? '#ffffff' : '#ff0a0a'}
+                fill={isActive ? '#ffffff' : chakra.bright}
                 fontSize={10}
                 fontWeight="900"
                 textAnchor="middle"
@@ -420,9 +450,9 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
                 <Path
                   d={describeArc(CX, CY, innerRadius, middleRadius, startAngle, endAngle)}
                   fill="none"
-                  stroke="#ff0a0a"
+                  stroke={chakra.bright}
                   strokeWidth={3}
-                  opacity={0.6}
+                  opacity={0.7}
                 />
               )}
             </G>
@@ -446,9 +476,9 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           ═ WHEEL ═
         </SvgText>
 
-        {/* Radial lines from center */}
+        {/* Radial lines from center — on new segment boundaries (offset by -15° from top) */}
         {[...Array(12)].map((_, i) => {
-          const angle = (i * 30 - 90) * Math.PI / 180;
+          const angle = (i * 30 - 15 - 90) * Math.PI / 180;
           return (
             <Line
               key={`radial-${i}`}
