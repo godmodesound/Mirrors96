@@ -56,13 +56,20 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - SWEEP: FROM/TO (1-26k, log knobs) + TIME (1-300s), LIN/LOG curve, LOOP, RUN/STOP; interval-driven AudioEngine.updateFreq on tone id 90 with live Hz + progress bar.
 - SCALAR RESONATOR: CARRIER/PULSE/FIELD knobs; two detuned tones (ids 91/92, carrier ± pulse/2) create interference beating at pulse rate; LED blinks at pulse rate; presets 7.83 Hz (Schumann) + 432 Hz; ENGAGE/COLLAPSE.
 
+### SCOPE//NODE merged panel + T-800 skin (done, tested — iteration_8.json)
+- `src/ScopeNodePanel.tsx` replaces NodeConstellation + CymaticScope on home lab (NodeConstellation.tsx DELETED; CymaticScope kept — still used by CodesLabShared).
+- One canvas, two faces with SPIN flip switch (SCOPE | ↻ | NODE): SCOPE = full cymatic oscilloscope (MED cycler + GEO multi-layer picker + measured Hz); NODE = harmonic orb lattice.
+- NODE face: orb count chips 1/3/6/7/9/13/26/33/96 → sacred patterns (POINT/TRINITY/HEXAD/SEED/TESLA 3·6·9/FRUIT/TWIN RING/MASTER/PHYLLOTAXIS); orbs = real harmonics of layer-1 base freq, chakra-colored; ◇/◈ RSN button plays the real harmonic audio stack (AudioEngine tone IDs 201+, >20kHz skipped/dimmed, gain rolloff 1/n^0.55; auto-clears on main STOP; retunes live on base sweep).
+- Old "NODES → N" link bar removed; SAVE/LOAD/SCLR/LNK chips folded into CODES_LAB header (preset panel opens under chips).
+- T-800 reskin of whole CODES LAB: gunmetal frame (t800Frame, red top edge), "T-800 // CSM-101 HUD" tag, chrome dial rings, steel layer cards/readouts/buttons, NODE face has HUD scanlines + corner reticles.
+
 ## Pending user verification (physical iPhone via Expo Go)
 - Video capture (96s) + camera permissions
 - Notch/safe-area spacing
 - Voice→preview→SEND end-to-end + haptics feel
 
 ## Backlog
-- Refactor index.tsx (>2.4k lines) into components
-- Remove residual Stripe endpoints in backend/server.py
+- Refactor index.tsx (>3k lines) into components — HIGH RISK of edit corruption
+- App Store blockers: remove Stripe checkout (sound.tsx + /api/store/checkout, /api/sound/checkout), uninstall unused perms (expo-location/contacts/notifications/blur/symbols), delete orphaned mirrors-id.tsx + store.tsx, fix NSCameraUsageDescription "chirp"→"Mirror"
 - Migrate expo-av → expo-audio (deprecation warning)
 - Dedupe generate_mirrors_id() in server.py
