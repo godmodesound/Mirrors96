@@ -859,6 +859,7 @@ export default function TerminalScreen() {
             <ScopeNodePanel
               frequencies={layers.map(l => l.frequency)}
               playing={isPlaying}
+              scalarBeatHz={scalarOn ? SCALAR_PULSE : 0}
             />
 
             {layers.map((layer, index) => {

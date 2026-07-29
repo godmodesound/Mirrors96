@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { AudioEngine, ScopeFrame } from './AudioEngine';
+import { chakraForFreq, mapOrbitGeometry, detectBeat } from './OrbitGeometry';
 
 // ═══════════════════════════════════════════════════════════
 // SCOPE // NODE — combined T-800 visualizer panel
@@ -41,22 +42,7 @@ const PATTERN_NAME: Record<number, string> = {
   13: 'FRUIT', 26: 'TWIN RING', 33: 'MASTER', 96: 'PHYLLOTAXIS',
 };
 
-// Chakra color per chromatic-note index (0=A … 11=G#) — matches MIRRORS WHEEL
-const NOTE_TO_CHAKRA: { color: string; glow: string }[] = [
-  { color: '#673AB7', glow: '#9575CD' }, { color: '#9C27B0', glow: '#BA68C8' },
-  { color: '#E040FB', glow: '#F48FFF' }, { color: '#FF1A1A', glow: '#FF6969' },
-  { color: '#FF5722', glow: '#FF8A65' }, { color: '#FF9500', glow: '#FFB74D' },
-  { color: '#FFC400', glow: '#FFD54F' }, { color: '#FFEB00', glow: '#FFF176' },
-  { color: '#4CAF50', glow: '#81C784' }, { color: '#00BCD4', glow: '#4DD0E1' },
-  { color: '#2196F3', glow: '#64B5F6' }, { color: '#3F51B5', glow: '#7986CB' },
-];
-
-function chakraForFreq(freq: number) {
-  if (!freq || freq <= 0) return NOTE_TO_CHAKRA[0];
-  const semis = 12 * Math.log2(freq / 432);
-  const idx = ((Math.round(semis) % 12) + 12) % 12;
-  return NOTE_TO_CHAKRA[idx];
-}
+// Chakra tone mapping imported from ./OrbitGeometry (shared with orbit map)
 
 const HARMONIC_ID_BASE = 200; // reserved AudioEngine tone IDs 201..296
 const MAX_AUDIBLE_HZ = 20000;
@@ -71,7 +57,7 @@ var canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
 var W=0,H=0,CX=0,CY=0,R0=0;
 function resize(){W=window.innerWidth;H=window.innerHeight;canvas.width=W;canvas.height=H;CX=W/2;CY=H/2;R0=Math.min(W,H)*0.40;}
 resize();window.addEventListener('resize',resize);
-var cfg={freqs:[432],playing:false,medium:'CYMATICS',geometries:[],view:'SCOPE',orbs:[],resonating:false,baseFreq:432,pattern:'SEED'};
+var cfg={freqs:[432],playing:false,medium:'CYMATICS',geometries:[],view:'SCOPE',orbs:[],resonating:false,baseFreq:432,pattern:'SEED',orbit:null,beat:0};
 var LIVE={wave:new Array(128).fill(128),peak:0,ts:0};
 var PAL={
   CHLADNI:{main:'#9be89b',glow:'#3aff6e',dim:'rgba(125,232,125,0.10)'},
@@ -82,7 +68,7 @@ var PAL={
   GOLD:{main:'#ffe08a',glow:'#ffaa00',dim:'rgba(255,215,94,0.10)'},
   FIRE:{main:'#ff9a5a',glow:'#ff2a0a',dim:'rgba(255,90,42,0.10)'}
 };
-window.updateScope=function(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.freqs)cfg.freqs=c.freqs;if(typeof c.playing==='boolean')cfg.playing=c.playing;if(c.medium)cfg.medium=c.medium;if(Array.isArray(c.geometries))cfg.geometries=c.geometries;if(c.view)cfg.view=c.view;if(Array.isArray(c.orbs))cfg.orbs=c.orbs;if(typeof c.resonating==='boolean')cfg.resonating=c.resonating;if(c.baseFreq)cfg.baseFreq=c.baseFreq;if(c.pattern)cfg.pattern=c.pattern;}catch(e){}};
+window.updateScope=function(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.freqs)cfg.freqs=c.freqs;if(typeof c.playing==='boolean')cfg.playing=c.playing;if(c.medium)cfg.medium=c.medium;if(Array.isArray(c.geometries))cfg.geometries=c.geometries;if(c.view)cfg.view=c.view;if(Array.isArray(c.orbs))cfg.orbs=c.orbs;if(typeof c.resonating==='boolean')cfg.resonating=c.resonating;if(c.baseFreq)cfg.baseFreq=c.baseFreq;if(c.pattern)cfg.pattern=c.pattern;if(c.orbit!==undefined)cfg.orbit=c.orbit;if(typeof c.beat==='number')cfg.beat=c.beat;}catch(e){}};
 window.pushWave=function(w){try{if(typeof w==='string')w=JSON.parse(w);if(w&&w.wave){LIVE.wave=w.wave;LIVE.peak=w.peak||0;LIVE.ts=performance.now();}}catch(e){}};
 window.addEventListener('message',function(e){
   var d=e.data;try{var p=typeof d==='string'?JSON.parse(d):d;if(p&&p.__wave){window.pushWave(p);return;}}catch(_){}
@@ -334,28 +320,58 @@ function drawScopeFace(t,envSmooth){
     }
     ctx.closePath();ctx.stroke();ctx.restore();
   }
+  // ═══ BINAURAL BEAT SYNC — pulse locked to the beat frequency ═══
+  var beatMod=1;
+  if(cfg.beat>0){var bD=cfg.beat;while(bD>16)bD/=2;beatMod=0.78+0.22*Math.sin(t*0.001*6.2832*bD);}
+  var geoEnv=Math.min(1,envSmooth*beatMod+(cfg.beat>0&&audioActive?0.05:0));
   if(cfg.geometries && cfg.geometries.length){
     ctx.save();
     ctx.shadowColor=p.glow;ctx.shadowBlur=audioActive?12+envSmooth*18:6;
     var geomRot=spin*0.6;
-    var geomR=R*0.92;
+    var geomR=R*0.92*(cfg.beat>0&&audioActive?(0.97+0.03*beatMod):1);
     for(var gi=0;gi<cfg.geometries.length;gi++){
       var g=cfg.geometries[gi];
       switch(g){
-        case 'FLOWER':   drawFlower(geomR,geomRot,p,envSmooth);break;
-        case 'METATRON': drawMetatron(geomR,geomRot,p,envSmooth);break;
-        case 'SRI':      drawSri(geomR,geomRot,p,envSmooth);break;
-        case 'VESICA':   drawVesica(geomR,geomRot,p,envSmooth);break;
-        case 'MERKABA':  drawMerkaba(geomR,geomRot,p,envSmooth);break;
-        case 'SPIRAL':   drawSpiral(geomR,geomRot,p,envSmooth);break;
-        case 'NGON':     drawNgon(geomR,geomRot,p,envSmooth,f);break;
-        case 'LISSAJOUS':drawLissajous(geomR,geomRot,p,envSmooth,f);break;
-        case 'PHASE':    drawPhase(geomR,geomRot,p,envSmooth);break;
-        case 'JULIA':    drawJulia(geomR,geomRot,p,envSmooth,f);break;
+        case 'FLOWER':   drawFlower(geomR,geomRot,p,geoEnv);break;
+        case 'METATRON': drawMetatron(geomR,geomRot,p,geoEnv);break;
+        case 'SRI':      drawSri(geomR,geomRot,p,geoEnv);break;
+        case 'VESICA':   drawVesica(geomR,geomRot,p,geoEnv);break;
+        case 'MERKABA':  drawMerkaba(geomR,geomRot,p,geoEnv);break;
+        case 'SPIRAL':   drawSpiral(geomR,geomRot,p,geoEnv);break;
+        case 'NGON':     drawNgon(geomR,geomRot,p,geoEnv,f);break;
+        case 'LISSAJOUS':drawLissajous(geomR,geomRot,p,geoEnv,f);break;
+        case 'PHASE':    drawPhase(geomR,geomRot,p,geoEnv);break;
+        case 'JULIA':    drawJulia(geomR,geomRot,p,geoEnv,f);break;
       }
     }
     ctx.restore();
     ctx.globalAlpha=1;
+  }
+  // ═══ ORBIT — planet marker locked to the carrier's cosmic-octave orbit tone ═══
+  if(cfg.orbit){
+    var oc=cfg.orbit;
+    var orad=R*1.10;
+    ctx.save();
+    ctx.setLineDash([3,5]);
+    ctx.strokeStyle=oc.color;ctx.lineWidth=1;ctx.globalAlpha=0.20+envSmooth*0.30;
+    ctx.beginPath();ctx.arc(CX,CY,orad,0,6.2832);ctx.stroke();
+    ctx.setLineDash([]);
+    var rev=oc.hz/1024;
+    var pa=-Math.PI/2+t*0.001*6.2832*rev;
+    var px=CX+Math.cos(pa)*orad,py=CY+Math.sin(pa)*orad;
+    var pr=(3.5+envSmooth*3)*beatMod;
+    var pg=ctx.createRadialGradient(px,py,0,px,py,pr*3.2);
+    pg.addColorStop(0,oc.color);pg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.globalAlpha=0.85;ctx.fillStyle=pg;
+    ctx.beginPath();ctx.arc(px,py,pr*3.2,0,6.2832);ctx.fill();
+    ctx.globalAlpha=1;ctx.fillStyle='#ffffff';
+    ctx.beginPath();ctx.arc(px,py,Math.max(1.6,pr*0.55),0,6.2832);ctx.fill();
+    ctx.font='bold 11px monospace';ctx.fillStyle=oc.color;ctx.globalAlpha=0.95;ctx.textAlign='center';
+    ctx.fillText(oc.symbol,px,py-8);
+    ctx.font='bold 8px monospace';ctx.globalAlpha=0.8;
+    ctx.fillText(oc.symbol+' '+oc.planet+' '+oc.hz.toFixed(2)+'Hz'+(cfg.beat>0?(' \\u00B7 BEAT '+cfg.beat.toFixed(1)+'Hz SYNC'):''),CX,H-8);
+    ctx.globalAlpha=1;ctx.textAlign='left';
+    ctx.restore();
   }
   ctx.save();ctx.shadowColor=p.glow;ctx.shadowBlur=audioActive?18+envSmooth*22:8;
   ctx.strokeStyle=p.glow;ctx.lineWidth=audioActive?2:1;ctx.globalAlpha=audioActive?0.85:0.4;
@@ -565,12 +581,14 @@ requestAnimationFrame(draw);
 interface Props {
   frequencies: number[];
   playing: boolean;
+  scalarBeatHz?: number; // scalar resonator pulse (e.g. 7.83) when engaged
 }
 
-export default function ScopeNodePanel({ frequencies, playing }: Props) {
+export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 }: Props) {
   const [view, setView] = useState<'SCOPE' | 'NODE'>('SCOPE');
   const [medium, setMedium] = useState<Medium>('CYMATICS');
   const [geometries, setGeometries] = useState<Set<Geometry>>(new Set());
+  const [autoOrbit, setAutoOrbit] = useState(true);
   const [orbCount, setOrbCount] = useState<number>(7);
   const [resonating, setResonating] = useState(false);
   const [livePeak, setLivePeak] = useState(0);
@@ -580,6 +598,15 @@ export default function ScopeNodePanel({ frequencies, playing }: Props) {
   const iframeRef = useRef<any>(null);
 
   const baseFreq = frequencies[0] || 432;
+
+  // ═══ ORBIT GEOMETRY — exact Tone + Orbit pair for the current preset/codes ═══
+  const orbitInfo = useMemo(() => mapOrbitGeometry(baseFreq), [baseFreq]);
+  const beatHz = useMemo(() => detectBeat(frequencies, scalarBeatHz), [frequencies, scalarBeatHz]);
+
+  // Auto-select the orbit's sacred geometry whenever the preset/codes change
+  useEffect(() => {
+    if (autoOrbit) setGeometries(new Set([orbitInfo.geometry as Geometry]));
+  }, [autoOrbit, orbitInfo.geometry]);
 
   // Harmonic orb data — n-th orb = n-th harmonic of the base frequency
   const orbs = useMemo(() => {
@@ -689,7 +716,9 @@ export default function ScopeNodePanel({ frequencies, playing }: Props) {
     resonating,
     baseFreq,
     pattern: PATTERN_NAME[orbCount] || '',
-  }), [frequencies, playing, medium, geometries, view, orbs, resonating, baseFreq, orbCount]);
+    orbit: autoOrbit ? { planet: orbitInfo.planet, symbol: orbitInfo.symbol, color: orbitInfo.color, hz: orbitInfo.orbitHz } : null,
+    beat: beatHz,
+  }), [frequencies, playing, medium, geometries, view, orbs, resonating, baseFreq, orbCount, autoOrbit, orbitInfo, beatHz]);
 
   useEffect(() => {
     pushConfig(fullConfig());
@@ -713,6 +742,7 @@ export default function ScopeNodePanel({ frequencies, playing }: Props) {
     setMedium(MEDIUMS[(idx + 1) % MEDIUMS.length]);
   };
   const toggleGeometry = (g: Geometry) => {
+    setAutoOrbit(false); // manual geometry edits release the auto orbit lock
     setGeometries(prev => {
       const next = new Set(prev);
       if (next.has(g)) next.delete(g); else next.add(g);
@@ -776,6 +806,16 @@ export default function ScopeNodePanel({ frequencies, playing }: Props) {
       {/* ── Face-specific control strip ── */}
       {view === 'SCOPE' ? (
         <View style={st.faceRow}>
+          <TouchableOpacity
+            onPress={() => setAutoOrbit(o => !o)}
+            style={[st.cycler, { borderColor: autoOrbit ? orbitInfo.color : '#2a3340' }]}
+            activeOpacity={0.7}
+          >
+            <Text style={st.cyclerLabel}>ORB</Text>
+            <Text style={[st.cyclerVal, { color: autoOrbit ? orbitInfo.color : '#7d8794' }]} numberOfLines={1}>
+              {autoOrbit ? `${orbitInfo.symbol} ${orbitInfo.planet}` : 'MANUAL'}
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={cycleMedium} style={[st.cycler, { borderColor: `${color}60` }]} activeOpacity={0.7}>
             <Text style={st.cyclerLabel}>MED</Text>
             <Text style={[st.cyclerVal, { color }]}>{medium}</Text>
@@ -786,7 +826,9 @@ export default function ScopeNodePanel({ frequencies, playing }: Props) {
             activeOpacity={0.7}
           >
             <Text style={st.cyclerLabel}>GEO</Text>
-            <Text style={[st.cyclerVal, { color: geometries.size ? '#ff0a0a' : '#7d8794' }]}>{geoSummary}</Text>
+            <Text style={[st.cyclerVal, { color: geometries.size ? '#ff0a0a' : '#7d8794' }]}>
+              {autoOrbit ? `AUTO·${geoSummary}` : geoSummary}
+            </Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -818,6 +860,13 @@ export default function ScopeNodePanel({ frequencies, playing }: Props) {
       {view === 'NODE' && (
         <Text style={st.patternMeta}>
           {PATTERN_NAME[orbCount]} · {audibleCount}/{orbCount} AUDIBLE HARMONICS OF {baseFreq.toFixed(1)} Hz
+        </Text>
+      )}
+
+      {view === 'SCOPE' && autoOrbit && (
+        <Text style={st.patternMeta}>
+          {orbitInfo.symbol} {orbitInfo.planet} ORBIT {orbitInfo.orbitHz.toFixed(2)} Hz ({orbitInfo.cents}¢) · TONE {orbitInfo.tone.note} · {orbitInfo.geometry}
+          {beatHz > 0 ? ` · BEAT ${beatHz.toFixed(1)} Hz SYNC` : ''}
         </Text>
       )}
 

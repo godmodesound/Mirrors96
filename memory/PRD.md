@@ -63,6 +63,11 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - Old "NODES → N" link bar removed; SAVE/LOAD/SCLR/LNK chips folded into CODES_LAB header (preset panel opens under chips).
 - T-800 reskin of whole CODES LAB: gunmetal frame (t800Frame, red top edge), "T-800 // CSM-101 HUD" tag, chrome dial rings, steel layer cards/readouts/buttons, NODE face has HUD scanlines + corner reticles.
 
+### OrbitGeometry — cosmic Tone+Orbit auto-mapping (done, screenshot-verified)
+- `src/OrbitGeometry.ts`: Cousto cosmic-octave table (13 orbits: SUN/MERCURY/VENUS/EARTH DAY/EARTH YEAR(OM)/PLATONIC YR/MOON/MARS/JUPITER/SATURN/URANUS/NEPTUNE/PLUTO) — any frequency octave-reduces into [126.22, 252.44) and maps to nearest orbit tone (cents deviation), each orbit keyed to a sacred geometry (SUN→FLOWER, MOON→VESICA, VENUS→SRI, EARTH DAY→MERKABA, EARTH YEAR→SPIRAL, JUPITER→METATRON, SATURN→NGON, NEPTUNE→JULIA…). Also exports shared chakraForFreq/NOTE_TO_CHAKRA + detectBeat (min pairwise layer delta ≤48Hz, plus scalar 7.83 pulse).
+- ScopeNodePanel SCOPE face: ORB chip (auto ON by default, shows ♆ NEPTUNE etc., tap → MANUAL; manual GEO edits release auto lock, GEO shows AUTO·<geom>), meta line "♁ EARTH YEAR ORBIT 136.10 Hz (0¢) · TONE C# · SPIRAL · BEAT x Hz SYNC".
+- Canvas: dashed orbit ring + glowing planet marker revolving at orbitHz/1024 rev/s; geometry alpha/scale pulse locked to binaural beat (display beat octave-capped ≤16Hz); orbit readout drawn at canvas bottom. Auto-updates on every preset/code/dial change (frequencies prop). index.tsx passes scalarBeatHz={scalarOn ? 7.83 : 0}.
+
 ## Pending user verification (physical iPhone via Expo Go)
 - Video capture (96s) + camera permissions
 - Notch/safe-area spacing
