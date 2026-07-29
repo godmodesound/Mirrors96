@@ -30,8 +30,7 @@ import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
 import { FrequencyMap } from '../src/FrequencyMap';
 import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
-import CymaticScope from '../src/CymaticScope';
-import NodeConstellation from '../src/NodeConstellation';
+import ScopeNodePanel from '../src/ScopeNodePanel';
 import SendCodesModal from '../src/SendCodesModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -133,12 +132,12 @@ const AnalogDial = ({
   return (
     <View style={dialStyles.container} {...(onChange ? pan.panHandlers : {})}>
       <Svg width={size} height={size}>
-        {/* Outer ring */}
-        <SvgCircle cx={cx} cy={cy} r={radius} stroke="#ff0a0a" strokeWidth={sweeping ? 2 : 1.5} fill="none" opacity={sweeping ? 0.95 : 0.6} />
+        {/* Outer chrome ring */}
+        <SvgCircle cx={cx} cy={cy} r={radius} stroke="#9aa4b2" strokeWidth={sweeping ? 2 : 1.5} fill="none" opacity={sweeping ? 0.95 : 0.6} />
         {/* Middle ring */}
-        <SvgCircle cx={cx} cy={cy} r={radius - 5} stroke="#ff0a0a" strokeWidth={0.5} fill="none" opacity={0.3} />
+        <SvgCircle cx={cx} cy={cy} r={radius - 5} stroke="#5a646f" strokeWidth={0.5} fill="none" opacity={0.5} />
         {/* Inner ring */}
-        <SvgCircle cx={cx} cy={cy} r={innerRadius} stroke="#ff0a0a" strokeWidth={1} fill="#0a0505" opacity={0.8} />
+        <SvgCircle cx={cx} cy={cy} r={innerRadius} stroke="#ff0a0a" strokeWidth={1} fill="#0b0e12" opacity={0.8} />
         {/* Glow circle */}
         <SvgCircle cx={cx} cy={cy} r={sweeping ? 6 : 4} fill="#ff0a0a" opacity={sweeping ? 0.9 : 0.6} />
         {/* Needle */}
@@ -767,9 +766,12 @@ export default function TerminalScreen() {
           </View>
 
           {/* Tone Layers - Analog Style */}
-          <View style={styles.section}>
+          <View style={[styles.section, styles.t800Frame]}>
             <View style={styles.toneLayerHeaderRow}>
-              <Text style={styles.sectionTitle}>&gt; CODES_LAB</Text>
+              <View>
+                <Text style={styles.sectionTitle}>&gt; CODES_LAB</Text>
+                <Text style={styles.t800Tag}>T-800 // CSM-101 HUD</Text>
+              </View>
               <View style={styles.headerBtnRow}>
                 <TouchableOpacity
                   style={styles.sendCodesBubble}
@@ -786,44 +788,8 @@ export default function TerminalScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-            {loadedArchiveName && (
-              <View style={styles.loadedBanner}>
-                <View style={styles.loadedDot} />
-                <Text style={styles.loadedText}>LOADED: {loadedArchiveName}</Text>
-                <TouchableOpacity
-                  style={[styles.loadedPlayBtn, isPlaying && styles.loadedPlayBtnActive]}
-                  onPress={handlePlay}
-                >
-                  <Text style={[styles.loadedPlayText, isPlaying && styles.loadedPlayTextActive]}>
-                    {isPlaying ? '■ STOP' : '▶ PLAY'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { if (isPlaying) handlePlay(); setLoadedArchiveName(null); setLayers([{ id: 1, frequency: 432, gain: 0.5, isPlaying: false }]); }}>
-                  <Text style={styles.loadedClear}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Node Constellation — cosmic lattice showing all Node Orbs */}
-            <NodeConstellation
-              layers={layers.map(l => ({ id: l.id, frequency: l.frequency, isPlaying: l.isPlaying }))}
-              playing={isPlaying}
-            />
-
-            {/* Cymatic Oscilloscope — real-time frequency feedback */}
-            <CymaticScope
-              frequencies={layers.map(l => l.frequency)}
-              playing={isPlaying}
-            />
-
-            {/* LINK LAYERS — sync all Analog nodes so a sweep on one shifts all together (ratio-locked) */}
-            <View style={styles.linkBar}>
-              <View style={styles.linkBarLeft}>
-                <View style={[styles.linkBarDot, layersLinked && styles.linkBarDotActive]} />
-                <Text style={styles.linkBarLabel}>
-                  NODES {'\u2192'} {layers.length}
-                </Text>
-              </View>
+            {/* Lab controls — folded into the CODES LAB header */}
+            <View style={styles.headerChipRow}>
               <TouchableOpacity style={styles.labPresetChip} onPress={savePreset} activeOpacity={0.7}>
                 <Text style={styles.labPresetChipTxt}>◆ SAVE</Text>
               </TouchableOpacity>
@@ -870,6 +836,30 @@ export default function TerminalScreen() {
                 ))}
               </View>
             )}
+
+            {loadedArchiveName && (
+              <View style={styles.loadedBanner}>
+                <View style={styles.loadedDot} />
+                <Text style={styles.loadedText}>LOADED: {loadedArchiveName}</Text>
+                <TouchableOpacity
+                  style={[styles.loadedPlayBtn, isPlaying && styles.loadedPlayBtnActive]}
+                  onPress={handlePlay}
+                >
+                  <Text style={[styles.loadedPlayText, isPlaying && styles.loadedPlayTextActive]}>
+                    {isPlaying ? '■ STOP' : '▶ PLAY'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { if (isPlaying) handlePlay(); setLoadedArchiveName(null); setLayers([{ id: 1, frequency: 432, gain: 0.5, isPlaying: false }]); }}>
+                  <Text style={styles.loadedClear}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* SCOPE ⟷ NODE — one panel, two faces. SPIN flips the scope to the harmonic orb lattice. */}
+            <ScopeNodePanel
+              frequencies={layers.map(l => l.frequency)}
+              playing={isPlaying}
+            />
 
             {layers.map((layer, index) => {
               // XYZ coordinates for this Node — X: log-freq position, Y: gain, Z: depth
@@ -1717,14 +1707,16 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: 'center',
   },
-  // Layer Card - Angular/Cybertruck style
+  // Layer Card — T-800 gunmetal chassis
   layerCard: {
-    backgroundColor: '#0a0a0a',
-    borderWidth: 0,
+    backgroundColor: '#0b0e12',
+    borderWidth: 1,
+    borderColor: '#1c232d',
     borderLeftWidth: 2,
     borderLeftColor: '#ff0a0a',
+    borderRadius: 4,
     padding: 16,
-    marginBottom: 2,
+    marginBottom: 6,
   },
   layerTopRow: {
     flexDirection: 'row',
@@ -1763,13 +1755,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   bandLabel: {
-    color: '#333',
+    color: '#4a525e',
     fontSize: 8,
     fontWeight: '400',
     letterSpacing: 1,
   },
   bandLabelActive: {
-    color: '#ffffff',
+    color: '#ff2a2a',
     fontWeight: '600',
   },
   gainRow: {
@@ -1789,17 +1781,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0a0a0a',
-    borderWidth: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: '#222',
-    borderRadius: 0,
+    backgroundColor: '#070a0e',
+    borderWidth: 1,
+    borderColor: '#1c232d',
+    borderBottomWidth: 2,
+    borderBottomColor: '#ff0a0a',
+    borderRadius: 4,
     paddingHorizontal: 16,
     paddingVertical: 10,
     marginTop: 12,
   },
   digitalHz: {
-    color: '#ffffff',
+    color: '#d7dee8',
     fontSize: 28,
     fontWeight: '200',
     letterSpacing: 2,
@@ -1821,7 +1814,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   digitalLabel: {
-    color: '#444',
+    color: '#7d8794',
     fontSize: 10,
     fontWeight: '300',
     letterSpacing: 2,
@@ -1837,51 +1830,52 @@ const styles = StyleSheet.create({
   addLayerBtn: {
     padding: 14,
     borderWidth: 1,
-    borderColor: '#222',
+    borderColor: '#2a3340',
     borderStyle: 'dashed',
-    borderRadius: 0,
+    borderRadius: 4,
     alignItems: 'center',
+    backgroundColor: '#070a0e',
   },
   addLayerText: {
-    color: '#666',
+    color: '#8a94a2',
     fontSize: 10,
     fontWeight: '400',
     letterSpacing: 3,
   },
-  // LINK LAYERS bar
-  linkBar: {
+  // ═══ T-800 HUD SKIN — gunmetal chrome + infrared ═══
+  t800Frame: {
+    borderWidth: 1,
+    borderColor: '#232b36',
+    borderTopWidth: 2,
+    borderTopColor: '#ff0a0a',
+    borderRadius: 4,
+    marginHorizontal: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    backgroundColor: '#060809',
+  },
+  t800Tag: {
+    color: '#7d8794',
+    fontSize: 7,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginTop: 2,
+  },
+  headerChipRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 6,
     marginBottom: 10,
-    marginTop: 4,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    backgroundColor: '#080606',
-    borderWidth: 1,
-    borderColor: '#1a0a0a',
-    borderRadius: 8,
-  },
-  linkBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 'auto' },
-  linkBarDot: {
-    width: 7, height: 7, borderRadius: 3.5,
-    backgroundColor: '#3a1010',
-  },
-  linkBarDotActive: { backgroundColor: '#ff0a0a' },
-  linkBarLabel: {
-    color: '#8a8a8a',
-    fontSize: 10,
-    letterSpacing: 2,
-    fontWeight: '800',
+    marginTop: 2,
   },
   linkBtn: {
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#2a3340',
     paddingHorizontal: 14,
     paddingVertical: 7,
-    borderRadius: 8,
-    backgroundColor: '#0a0a0a',
+    borderRadius: 4,
+    backgroundColor: '#0b0e12',
   },
   linkBtnActive: {
     borderColor: '#ff0a0a',
@@ -1899,8 +1893,8 @@ const styles = StyleSheet.create({
     borderColor: '#5fc9ff',
     paddingHorizontal: 10,
     paddingVertical: 7,
-    borderRadius: 8,
-    backgroundColor: '#020a10',
+    borderRadius: 4,
+    backgroundColor: '#070a0e',
     marginRight: 6,
   },
   scalarBtnActive: {
@@ -1916,14 +1910,14 @@ const styles = StyleSheet.create({
   scalarBtnTextActive: { color: '#000' },
   labPresetChip: {
     borderWidth: 1,
-    borderColor: '#8a4040',
+    borderColor: '#2a3340',
     paddingHorizontal: 7,
     paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#0a0505',
+    borderRadius: 4,
+    backgroundColor: '#0b0e12',
   },
   labPresetChipTxt: {
-    color: '#c8a0a0',
+    color: '#c9d2dd',
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.2,
@@ -1973,10 +1967,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     paddingHorizontal: 8,
     paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#050303',
+    borderRadius: 4,
+    backgroundColor: '#070a0e',
     borderWidth: 1,
-    borderColor: '#180808',
+    borderColor: '#232b36',
   },
   xyzLabelBlock: { minWidth: 78 },
   xyzNodeName: {
@@ -2012,7 +2006,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#0a0505',
+    backgroundColor: '#10151c',
     overflow: 'hidden',
   },
   xyzFill: { height: '100%', borderRadius: 2 },
@@ -2027,15 +2021,15 @@ const styles = StyleSheet.create({
   controlsContainer: { alignItems: 'center', marginTop: 24 },
   playButton: {
     borderWidth: 1,
-    borderColor: '#ffffff',
+    borderColor: '#aab4c2',
     paddingHorizontal: 48,
     paddingVertical: 14,
-    backgroundColor: 'transparent',
-    borderRadius: 0,
+    backgroundColor: '#0b0e12',
+    borderRadius: 4,
   },
   playButtonActive: { borderColor: '#ff0a0a', backgroundColor: '#ff0a0a' },
   playButtonText: {
-    color: '#ffffff',
+    color: '#d7dee8',
     fontSize: 12,
     fontWeight: '500',
     letterSpacing: 4,

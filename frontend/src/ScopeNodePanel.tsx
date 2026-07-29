@@ -1,0 +1,993 @@
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { WebView } from 'react-native-webview';
+import { AudioEngine, ScopeFrame } from './AudioEngine';
+
+// ═══════════════════════════════════════════════════════════
+// SCOPE // NODE — combined T-800 visualizer panel
+// One canvas, two faces. Tap SPIN to flip the scope over and
+// reveal the HARMONIC NODE lattice on the back.
+//   SCOPE face → cymatic hybrid oscilloscope (medium + geometry)
+//   NODE face  → 1/3/6/7/9/13/26/33/96 harmonic-resonance orbs
+//                arranged in sacred patterns; RESONATE plays the
+//                real harmonic stack of the base frequency.
+// ═══════════════════════════════════════════════════════════
+
+export const MEDIUMS = ['CHLADNI', 'WATER', 'SAND', 'CYMATICS', 'MERCURY', 'GOLD', 'FIRE'] as const;
+export type Medium = typeof MEDIUMS[number];
+
+const MEDIUM_COLORS: Record<Medium, string> = {
+  CHLADNI: '#7de87d',
+  WATER: '#5fc9ff',
+  SAND: '#e8c87d',
+  CYMATICS: '#8dff9d',
+  MERCURY: '#d8dce8',
+  GOLD: '#ffd75e',
+  FIRE: '#ff5a2a',
+};
+
+export const GEOMETRIES = ['FLOWER', 'METATRON', 'SRI', 'VESICA', 'MERKABA', 'SPIRAL', 'NGON', 'LISSAJOUS', 'PHASE', 'JULIA'] as const;
+export type Geometry = typeof GEOMETRIES[number];
+
+const GEOMETRY_LABEL: Record<Geometry, string> = {
+  FLOWER: 'FLOWER', METATRON: 'METATRON', SRI: 'SRI', VESICA: 'VESICA', MERKABA: 'MERKABA',
+  SPIRAL: 'SPIRAL', NGON: 'N-GON', LISSAJOUS: 'LISSAJOUS', PHASE: 'PHASE', JULIA: 'JULIA',
+};
+
+// Orb counts + sacred pattern names
+export const ORB_COUNTS = [1, 3, 6, 7, 9, 13, 26, 33, 96] as const;
+const PATTERN_NAME: Record<number, string> = {
+  1: 'POINT', 3: 'TRINITY', 6: 'HEXAD', 7: 'SEED', 9: 'TESLA 3·6·9',
+  13: 'FRUIT', 26: 'TWIN RING', 33: 'MASTER', 96: 'PHYLLOTAXIS',
+};
+
+// Chakra color per chromatic-note index (0=A … 11=G#) — matches MIRRORS WHEEL
+const NOTE_TO_CHAKRA: { color: string; glow: string }[] = [
+  { color: '#673AB7', glow: '#9575CD' }, { color: '#9C27B0', glow: '#BA68C8' },
+  { color: '#E040FB', glow: '#F48FFF' }, { color: '#FF1A1A', glow: '#FF6969' },
+  { color: '#FF5722', glow: '#FF8A65' }, { color: '#FF9500', glow: '#FFB74D' },
+  { color: '#FFC400', glow: '#FFD54F' }, { color: '#FFEB00', glow: '#FFF176' },
+  { color: '#4CAF50', glow: '#81C784' }, { color: '#00BCD4', glow: '#4DD0E1' },
+  { color: '#2196F3', glow: '#64B5F6' }, { color: '#3F51B5', glow: '#7986CB' },
+];
+
+function chakraForFreq(freq: number) {
+  if (!freq || freq <= 0) return NOTE_TO_CHAKRA[0];
+  const semis = 12 * Math.log2(freq / 432);
+  const idx = ((Math.round(semis) % 12) + 12) % 12;
+  return NOTE_TO_CHAKRA[idx];
+}
+
+const HARMONIC_ID_BASE = 200; // reserved AudioEngine tone IDs 201..296
+const MAX_AUDIBLE_HZ = 20000;
+
+const PANEL_HTML = `<!DOCTYPE html>
+<html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<style>html,body{margin:0;padding:0;background:#000;overflow:hidden;}canvas{display:block;}</style>
+</head><body>
+<canvas id="c"></canvas>
+<script>
+var canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+var W=0,H=0,CX=0,CY=0,R0=0;
+function resize(){W=window.innerWidth;H=window.innerHeight;canvas.width=W;canvas.height=H;CX=W/2;CY=H/2;R0=Math.min(W,H)*0.40;}
+resize();window.addEventListener('resize',resize);
+var cfg={freqs:[432],playing:false,medium:'CYMATICS',geometries:[],view:'SCOPE',orbs:[],resonating:false,baseFreq:432,pattern:'SEED'};
+var LIVE={wave:new Array(128).fill(128),peak:0,ts:0};
+var PAL={
+  CHLADNI:{main:'#9be89b',glow:'#3aff6e',dim:'rgba(125,232,125,0.10)'},
+  WATER:{main:'#8fd8ff',glow:'#19b6ff',dim:'rgba(95,201,255,0.10)'},
+  SAND:{main:'#eed9a6',glow:'#d9a441',dim:'rgba(232,200,125,0.10)'},
+  CYMATICS:{main:'#a8f0a0',glow:'#4dff77',dim:'rgba(141,255,157,0.10)'},
+  MERCURY:{main:'#eceef5',glow:'#aab4c8',dim:'rgba(216,220,232,0.10)'},
+  GOLD:{main:'#ffe08a',glow:'#ffaa00',dim:'rgba(255,215,94,0.10)'},
+  FIRE:{main:'#ff9a5a',glow:'#ff2a0a',dim:'rgba(255,90,42,0.10)'}
+};
+window.updateScope=function(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.freqs)cfg.freqs=c.freqs;if(typeof c.playing==='boolean')cfg.playing=c.playing;if(c.medium)cfg.medium=c.medium;if(Array.isArray(c.geometries))cfg.geometries=c.geometries;if(c.view)cfg.view=c.view;if(Array.isArray(c.orbs))cfg.orbs=c.orbs;if(typeof c.resonating==='boolean')cfg.resonating=c.resonating;if(c.baseFreq)cfg.baseFreq=c.baseFreq;if(c.pattern)cfg.pattern=c.pattern;}catch(e){}};
+window.pushWave=function(w){try{if(typeof w==='string')w=JSON.parse(w);if(w&&w.wave){LIVE.wave=w.wave;LIVE.peak=w.peak||0;LIVE.ts=performance.now();}}catch(e){}};
+window.addEventListener('message',function(e){
+  var d=e.data;try{var p=typeof d==='string'?JSON.parse(d):d;if(p&&p.__wave){window.pushWave(p);return;}}catch(_){}
+  window.updateScope(d);
+});
+document.addEventListener('message',function(e){
+  var d=e.data;try{var p=typeof d==='string'?JSON.parse(d):d;if(p&&p.__wave){window.pushWave(p);return;}}catch(_){}
+  window.updateScope(d);
+});
+
+// ═════════ SCOPE FACE (cymatic hybrid oscilloscope) ═════════
+function polarGrid(p){
+  ctx.strokeStyle=p.dim;ctx.lineWidth=0.5;
+  for(var i=0;i<24;i++){var a=i*Math.PI/12;ctx.beginPath();ctx.moveTo(CX,CY);ctx.lineTo(CX+Math.cos(a)*R0*1.22,CY+Math.sin(a)*R0*1.22);ctx.stroke();}
+  for(var k=1;k<=4;k++){ctx.beginPath();ctx.arc(CX,CY,R0*1.15*k/4,0,6.2832);ctx.stroke();}
+}
+function circleAt(x,y,r){ctx.beginPath();ctx.arc(x,y,r,0,6.2832);ctx.stroke();}
+function polygon(x,y,r,n,rot){
+  ctx.beginPath();
+  for(var i=0;i<=n;i++){var a=rot+i*6.2832/n;var px=x+Math.cos(a)*r,py=y+Math.sin(a)*r;i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}
+  ctx.stroke();
+}
+function starLine(x1,y1,x2,y2){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();}
+function drawFlower(R,rot,pal,env){
+  ctx.strokeStyle=pal.glow;ctx.lineWidth=1;ctx.globalAlpha=0.35+env*0.55;
+  var r=R*0.28;
+  circleAt(CX,CY,r);
+  for(var i=0;i<6;i++){var a=rot+i*Math.PI/3;circleAt(CX+Math.cos(a)*r,CY+Math.sin(a)*r,r);}
+  ctx.globalAlpha=0.22+env*0.45;
+  for(var j=0;j<12;j++){var a2=rot+j*Math.PI/6;var d=r*Math.sqrt(3);circleAt(CX+Math.cos(a2)*d,CY+Math.sin(a2)*d,r);}
+  ctx.globalAlpha=0.5+env*0.5;
+  circleAt(CX,CY,R);
+}
+function drawMetatron(R,rot,pal,env){
+  ctx.strokeStyle=pal.glow;ctx.lineWidth=1;ctx.globalAlpha=0.55+env*0.4;
+  var r=R*0.13;
+  var pts=[[CX,CY]];
+  for(var i=0;i<6;i++){var a=rot+i*Math.PI/3;pts.push([CX+Math.cos(a)*R*0.28,CY+Math.sin(a)*R*0.28]);}
+  for(var j=0;j<6;j++){var a2=rot+Math.PI/6+j*Math.PI/3;pts.push([CX+Math.cos(a2)*R*0.56,CY+Math.sin(a2)*R*0.56]);}
+  for(var k=0;k<pts.length;k++){circleAt(pts[k][0],pts[k][1],r);}
+  ctx.globalAlpha=0.15+env*0.4;
+  ctx.strokeStyle=pal.main;
+  for(var a1=0;a1<pts.length;a1++){for(var b=a1+1;b<pts.length;b++){starLine(pts[a1][0],pts[a1][1],pts[b][0],pts[b][1]);}}
+}
+function drawSri(R,rot,pal,env){
+  ctx.strokeStyle=pal.glow;ctx.lineWidth=1.2;ctx.globalAlpha=0.55+env*0.4;
+  var scales=[1.0,0.85,0.72,0.60,0.48];
+  for(var i=0;i<scales.length;i++){polygon(CX,CY,R*scales[i]*0.72,3,rot+(i%2?Math.PI:0)+i*0.08);}
+  ctx.strokeStyle=pal.main;ctx.globalAlpha=0.35+env*0.5;
+  polygon(CX,CY,R*0.90*0.72,3,rot);
+  polygon(CX,CY,R*0.90*0.72,3,rot+Math.PI);
+  ctx.globalAlpha=0.25+env*0.4;
+  for(var p=0;p<16;p++){var pa=rot+p*Math.PI/8;ctx.beginPath();ctx.arc(CX+Math.cos(pa)*R*0.86,CY+Math.sin(pa)*R*0.86,R*0.09,0,6.2832);ctx.stroke();}
+  ctx.fillStyle=pal.glow;ctx.globalAlpha=0.9;ctx.beginPath();ctx.arc(CX,CY,3+env*3,0,6.2832);ctx.fill();
+}
+function drawVesica(R,rot,pal,env){
+  ctx.strokeStyle=pal.glow;ctx.lineWidth=1.4;ctx.globalAlpha=0.5+env*0.5;
+  var r=R*0.55;var d=r*0.5;
+  var dx=Math.cos(rot)*d,dy=Math.sin(rot)*d;
+  circleAt(CX-dx,CY-dy,r);
+  circleAt(CX+dx,CY+dy,r);
+  ctx.globalAlpha=0.3+env*0.4;
+  circleAt(CX,CY,r*1.4);
+}
+function drawMerkaba(R,rot,pal,env){
+  ctx.strokeStyle=pal.glow;ctx.lineWidth=1.4;ctx.globalAlpha=0.6+env*0.4;
+  polygon(CX,CY,R*0.72,3,rot);
+  polygon(CX,CY,R*0.72,3,rot+Math.PI);
+  ctx.strokeStyle=pal.main;ctx.globalAlpha=0.3+env*0.4;
+  circleAt(CX,CY,R*0.72);
+  circleAt(CX,CY,R*0.32);
+}
+function drawSpiral(R,rot,pal,env){
+  ctx.strokeStyle=pal.glow;ctx.lineWidth=1.4;ctx.globalAlpha=0.55+env*0.5;
+  var phi=1.61803399;
+  ctx.beginPath();
+  var r=R*0.03,a=rot;
+  for(var i=0;i<420;i++){
+    var s=i/45;
+    r=R*0.03*Math.pow(phi,s);
+    if(r>R)break;
+    a+=0.09;
+    var x=CX+Math.cos(a)*r,y=CY+Math.sin(a)*r;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  ctx.beginPath();
+  a=rot+Math.PI;
+  for(var j=0;j<420;j++){
+    var s2=j/45;
+    r=R*0.03*Math.pow(phi,s2);
+    if(r>R)break;
+    a+=0.09;
+    var x2=CX+Math.cos(a)*r,y2=CY+Math.sin(a)*r;
+    j===0?ctx.moveTo(x2,y2):ctx.lineTo(x2,y2);
+  }
+  ctx.stroke();
+}
+function drawPhase(R,rot,pal,env){
+  var N=LIVE.wave.length;
+  ctx.save();
+  ctx.strokeStyle=pal.glow;ctx.lineWidth=1.2;ctx.globalAlpha=0.6+env*0.4;
+  ctx.shadowColor=pal.glow;ctx.shadowBlur=6+env*15;
+  ctx.beginPath();
+  var shift=Math.floor(N/4);
+  for(var i=0;i<N;i++){
+    var x=CX+((LIVE.wave[i]-128)/128)*(R*0.85);
+    var y=CY+((LIVE.wave[(i+shift)%N]-128)/128)*(R*0.85);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.closePath();ctx.stroke();
+  ctx.globalAlpha=0.18;ctx.lineWidth=0.5;
+  ctx.beginPath();ctx.moveTo(CX-R,CY);ctx.lineTo(CX+R,CY);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(CX,CY-R);ctx.lineTo(CX,CY+R);ctx.stroke();
+  ctx.restore();
+}
+function drawNgon(R,rot,pal,env,freq){
+  var n=3+Math.round((freq%20)+1);
+  if(n>24)n=24;if(n<3)n=3;
+  ctx.strokeStyle=pal.glow;ctx.lineWidth=1.4;ctx.globalAlpha=0.55+env*0.45;
+  polygon(CX,CY,R*0.85,n,rot);
+  ctx.globalAlpha=0.35+env*0.4;
+  polygon(CX,CY,R*0.60,n,rot+Math.PI/n);
+  polygon(CX,CY,R*0.35,n,rot);
+  ctx.strokeStyle=pal.main;ctx.globalAlpha=0.25+env*0.35;
+  ctx.beginPath();
+  var step=Math.max(2,Math.floor(n/2));
+  for(var i=0;i<=n;i++){var a=rot+i*step*6.2832/n;var x=CX+Math.cos(a)*R*0.85,y=CY+Math.sin(a)*R*0.85;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+  ctx.stroke();
+}
+function drawLissajous(R,rot,pal,env,freq){
+  var N=LIVE.wave.length;
+  var ratioA=1+Math.round(freq%7);
+  var ratioB=2+Math.round(freq%9);
+  var phase=rot;
+  ctx.save();
+  ctx.strokeStyle=pal.glow;ctx.lineWidth=1.4;ctx.globalAlpha=0.5+env*0.5;
+  ctx.shadowColor=pal.glow;ctx.shadowBlur=8+env*18;
+  ctx.beginPath();
+  for(var i=0;i<N;i++){
+    var t=i/N*6.2832;
+    var wIdx=(i+Math.floor(freq/10))%N;
+    var w1=(LIVE.wave[i]-128)/128;
+    var w2=(LIVE.wave[wIdx]-128)/128;
+    var x=CX+Math.sin(ratioA*t+phase)*(R*0.75)*(0.85+w1*0.35);
+    var y=CY+Math.sin(ratioB*t)*(R*0.75)*(0.85+w2*0.35);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  ctx.strokeStyle=pal.main;ctx.globalAlpha=0.35+env*0.35;
+  ctx.beginPath();
+  for(var j=0;j<N;j++){
+    var t2=j/N*6.2832;
+    var w=(LIVE.wave[j]-128)/128;
+    var x2=CX+Math.sin(ratioB*t2+phase*2)*(R*0.55)*(0.9+w*0.25);
+    var y2=CY+Math.cos(ratioA*t2)*(R*0.55)*(0.9+w*0.25);
+    j===0?ctx.moveTo(x2,y2):ctx.lineTo(x2,y2);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+function drawJulia(R,rot,pal,env,freq){
+  var cols=90,rows=54;
+  var maxIter=Math.min(48,16+Math.floor(env*40));
+  var phase=rot*0.5;
+  var cr=Math.cos(phase)*0.7885*(0.5+((freq%600)/600)*0.5);
+  var ci=Math.sin(phase)*0.7885*(0.5+((freq%800)/800)*0.5)+env*0.08*Math.sin(phase*7);
+  var scale=R*0.9;
+  var stepX=(scale*2)/cols;
+  var stepY=(scale*2)/rows;
+  var baseR=(parseInt(pal.glow.slice(1,3),16))||150;
+  var baseG=(parseInt(pal.glow.slice(3,5),16))||255;
+  var baseB=(parseInt(pal.glow.slice(5,7),16))||150;
+  for(var yi=0;yi<rows;yi++){
+    for(var xi=0;xi<cols;xi++){
+      var x0=(-scale+xi*stepX)/(scale*0.9);
+      var y0=(-scale+yi*stepY)/(scale*0.9);
+      var zx=x0,zy=y0,it=0;
+      while(zx*zx+zy*zy<4&&it<maxIter){
+        var xt=zx*zx-zy*zy+cr;
+        zy=2*zx*zy+ci;
+        zx=xt;
+        it++;
+      }
+      if(it===maxIter)continue;
+      var norm=it/maxIter;
+      var alpha=0.28+norm*0.62+env*0.15;
+      var r=Math.floor(baseR*norm);
+      var g=Math.floor(baseG*norm);
+      var b=Math.floor(baseB*norm);
+      ctx.fillStyle='rgba('+r+','+g+','+b+','+alpha.toFixed(3)+')';
+      var px=CX+(xi-cols/2)*stepX;
+      var py=CY+(yi-rows/2)*stepY;
+      ctx.fillRect(px,py,stepX+1,stepY+1);
+    }
+  }
+  ctx.save();
+  ctx.strokeStyle=pal.main;ctx.lineWidth=1.2;ctx.globalAlpha=0.5+env*0.4;
+  ctx.beginPath();ctx.arc(CX,CY,R*0.9,0,6.2832);ctx.stroke();
+  ctx.restore();
+}
+
+function drawScopeFace(t,envSmooth){
+  ctx.fillStyle='rgba(0,0,0,0.22)';ctx.fillRect(0,0,W,H);
+  var p=PAL[cfg.medium]||PAL.CYMATICS;
+  polarGrid(p);
+  var audioActive=envSmooth>0.02;
+  var f=(cfg.freqs&&cfg.freqs[0])||432;
+  var n=2+Math.round(f%12);
+  var m=3+Math.round((f/100)%9);
+  var spin=audioActive?t*0.00045*(1+(f%7)*0.25)*(0.4+envSmooth*1.6):0;
+  var breathe=1+(0.04+0.14*envSmooth)*Math.sin(t*0.003*(1+(f%5)));
+  var R=R0*breathe;
+  var med=cfg.medium;
+  var fresh=(performance.now()-LIVE.ts)<400;
+  var pts=Math.floor((audioActive?(med==='SAND'?1400:900):320)*(0.4+envSmooth*1.4));
+  for(var i=0;i<pts;i++){
+    var th=Math.random()*6.2832,r=Math.sqrt(Math.random());
+    var I=Math.abs(Math.sin(n*th+spin)*Math.sin(m*Math.PI*r));
+    var wsIdx=Math.floor(((th/6.2832)+r)%1*127);
+    var wsAmp=Math.abs(LIVE.wave[wsIdx]-128)/128;
+    I=Math.min(1,I*(0.55+wsAmp*1.6));
+    var hit=false,size=1.4,alpha=0;
+    if(med==='CHLADNI'){hit=I<0.14;alpha=0.5+Math.random()*0.4;size=1.2;}
+    else if(med==='SAND'){hit=I<0.20;alpha=0.35+Math.random()*0.35;size=1.0;}
+    else if(med==='WATER'){var w=Math.abs(Math.sin(m*Math.PI*r-(audioActive?t*0.004:0)));hit=w>0.9;alpha=0.30+0.4*w;size=1.6+envSmooth*2;}
+    else if(med==='FIRE'){hit=I>0.55;alpha=0.35+0.5*I;size=1.5+I+envSmooth*2;}
+    else if(med==='MERCURY'||med==='GOLD'){hit=I>0.62;alpha=0.35+0.55*I;size=1.8+I*1.2+envSmooth;}
+    else {hit=I>0.58;alpha=0.30+0.55*I;size=1.3+I+envSmooth;}
+    if(!hit)continue;
+    var x=CX+Math.cos(th)*r*R,y=CY+Math.sin(th)*r*R;
+    if(med==='FIRE'){y-=I*10*Math.random()*(0.6+envSmooth);}
+    ctx.globalAlpha=alpha;ctx.fillStyle=p.main;
+    ctx.fillRect(x,y,size,size);
+    if((med==='MERCURY'||med==='GOLD')&&I>0.85){ctx.globalAlpha=0.9;ctx.fillStyle='#ffffff';ctx.fillRect(x,y,1,1);}
+  }
+  ctx.globalAlpha=1;
+  if(fresh){
+    ctx.save();ctx.shadowColor=p.glow;ctx.shadowBlur=8;
+    ctx.strokeStyle=p.main;ctx.lineWidth=1.2;ctx.globalAlpha=0.7;
+    ctx.beginPath();
+    var N=LIVE.wave.length;
+    for(var wi=0;wi<N;wi++){
+      var wa=(wi/N)*6.2832;
+      var wv=(LIVE.wave[wi]-128)/128;
+      var wr=R*(1.02+wv*0.14);
+      var wx=CX+Math.cos(wa)*wr,wy=CY+Math.sin(wa)*wr;
+      wi===0?ctx.moveTo(wx,wy):ctx.lineTo(wx,wy);
+    }
+    ctx.closePath();ctx.stroke();ctx.restore();
+  }
+  if(cfg.geometries && cfg.geometries.length){
+    ctx.save();
+    ctx.shadowColor=p.glow;ctx.shadowBlur=audioActive?12+envSmooth*18:6;
+    var geomRot=spin*0.6;
+    var geomR=R*0.92;
+    for(var gi=0;gi<cfg.geometries.length;gi++){
+      var g=cfg.geometries[gi];
+      switch(g){
+        case 'FLOWER':   drawFlower(geomR,geomRot,p,envSmooth);break;
+        case 'METATRON': drawMetatron(geomR,geomRot,p,envSmooth);break;
+        case 'SRI':      drawSri(geomR,geomRot,p,envSmooth);break;
+        case 'VESICA':   drawVesica(geomR,geomRot,p,envSmooth);break;
+        case 'MERKABA':  drawMerkaba(geomR,geomRot,p,envSmooth);break;
+        case 'SPIRAL':   drawSpiral(geomR,geomRot,p,envSmooth);break;
+        case 'NGON':     drawNgon(geomR,geomRot,p,envSmooth,f);break;
+        case 'LISSAJOUS':drawLissajous(geomR,geomRot,p,envSmooth,f);break;
+        case 'PHASE':    drawPhase(geomR,geomRot,p,envSmooth);break;
+        case 'JULIA':    drawJulia(geomR,geomRot,p,envSmooth,f);break;
+      }
+    }
+    ctx.restore();
+    ctx.globalAlpha=1;
+  }
+  ctx.save();ctx.shadowColor=p.glow;ctx.shadowBlur=audioActive?18+envSmooth*22:8;
+  ctx.strokeStyle=p.glow;ctx.lineWidth=audioActive?2:1;ctx.globalAlpha=audioActive?0.85:0.4;
+  ctx.beginPath();
+  for(var a2=0;a2<=6.2832;a2+=0.05){
+    var wob=1+(audioActive?(0.02+0.05*envSmooth)*Math.sin(n*a2+spin*3):0.006*Math.sin(n*a2));
+    var rx=CX+Math.cos(a2)*R*wob,ry=CY+Math.sin(a2)*R*wob;
+    a2===0?ctx.moveTo(rx,ry):ctx.lineTo(rx,ry);
+  }
+  ctx.closePath();ctx.stroke();ctx.restore();
+  ctx.globalAlpha=audioActive?0.95:0.5;ctx.save();ctx.shadowColor=p.glow;ctx.shadowBlur=14+envSmooth*20;
+  ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(CX,CY,audioActive?(2.6+envSmooth*4):1.8,0,6.2832);ctx.fill();ctx.restore();
+  ctx.globalAlpha=1;
+}
+
+// ═════════ NODE FACE (harmonic-resonance orbs, T-800 HUD) ═════════
+var particles=[];
+function orbPositions(N,spin){
+  var pts=[];
+  var R=R0*1.05;
+  function ring(cnt,r,rotOff){
+    for(var i=0;i<cnt;i++){
+      var a=-Math.PI/2+rotOff+spin+i*6.2832/cnt;
+      pts.push({x:CX+Math.cos(a)*r,y:CY+Math.sin(a)*r});
+    }
+  }
+  if(N===1){pts.push({x:CX,y:CY});}
+  else if(N===3){ring(3,R*0.52,0);}
+  else if(N===6){ring(6,R*0.60,0);}
+  else if(N===7){pts.push({x:CX,y:CY});ring(6,R*0.56,0);}
+  else if(N===9){ring(3,R*0.28,0);ring(6,R*0.64,Math.PI/6);}
+  else if(N===13){pts.push({x:CX,y:CY});ring(12,R*0.62,0);}
+  else if(N===26){ring(13,R*0.38,0);ring(13,R*0.72,Math.PI/13);}
+  else if(N===33){pts.push({x:CX,y:CY});ring(8,R*0.35,0);ring(24,R*0.72,0);}
+  else {
+    var GA=2.39996323;
+    for(var i=0;i<N;i++){
+      var r=R*0.80*Math.sqrt((i+0.5)/N);
+      var a=i*GA+spin*0.4;
+      pts.push({x:CX+Math.cos(a)*r,y:CY+Math.sin(a)*r});
+    }
+  }
+  return pts;
+}
+function drawHud(env){
+  // gunmetal base
+  ctx.fillStyle='#05070a';ctx.fillRect(0,0,W,H);
+  // scanlines
+  ctx.fillStyle='rgba(255,10,10,0.025)';
+  for(var y=0;y<H;y+=4){ctx.fillRect(0,y,W,1);}
+  // steel grid
+  ctx.strokeStyle='rgba(150,165,185,0.05)';ctx.lineWidth=1;
+  var step=44;
+  for(var x=0;x<W;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(var yy=0;yy<H;yy+=step){ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(W,yy);ctx.stroke();}
+  // targeting rings
+  ctx.strokeStyle='rgba(255,10,10,'+(0.06+env*0.10)+')';
+  for(var k=1;k<=3;k++){ctx.beginPath();ctx.arc(CX,CY,R0*0.42*k,0,6.2832);ctx.stroke();}
+  // corner reticles
+  ctx.strokeStyle='rgba(255,10,10,0.5)';ctx.lineWidth=1.4;
+  var m=10,L=16;
+  ctx.beginPath();ctx.moveTo(m,m+L);ctx.lineTo(m,m);ctx.lineTo(m+L,m);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(W-m-L,m);ctx.lineTo(W-m,m);ctx.lineTo(W-m,m+L);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(m,H-m-L);ctx.lineTo(m,H-m);ctx.lineTo(m+L,H-m);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(W-m-L,H-m);ctx.lineTo(W-m,H-m);ctx.lineTo(W-m,H-m-L);ctx.stroke();
+  // crosshair ticks
+  ctx.strokeStyle='rgba(255,10,10,'+(0.25+env*0.4)+')';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(CX-8,CY);ctx.lineTo(CX+8,CY);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(CX,CY-8);ctx.lineTo(CX,CY+8);ctx.stroke();
+}
+function drawOrb(x,y,color,glow,size,intensity,active,audible){
+  if(!audible){
+    ctx.globalAlpha=0.25;
+    ctx.strokeStyle='#5a646f';ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(x,y,size,0,6.2832);ctx.stroke();
+    ctx.globalAlpha=1;
+    return;
+  }
+  var haloR=size*2.2+intensity*size*2.4;
+  var grad=ctx.createRadialGradient(x,y,0,x,y,haloR);
+  grad.addColorStop(0,glow);
+  grad.addColorStop(0.4,color);
+  grad.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.globalAlpha=0.9;
+  ctx.fillStyle=grad;
+  ctx.beginPath();ctx.arc(x,y,haloR,0,6.2832);ctx.fill();
+  ctx.globalAlpha=1;
+  ctx.fillStyle='#ffffff';
+  ctx.beginPath();ctx.arc(x,y,active?Math.max(2,size*0.42+intensity*2):Math.max(1.4,size*0.3),0,6.2832);ctx.fill();
+  ctx.strokeStyle=color;ctx.lineWidth=1.1;
+  ctx.beginPath();ctx.arc(x,y,size*0.9+intensity*2,0,6.2832);ctx.stroke();
+}
+function spawnParticles(x,y,color,intensity){
+  var n=Math.floor(intensity*3);
+  for(var i=0;i<n;i++){
+    particles.push({x:x,y:y,vx:(Math.random()-0.5)*1.4,vy:(Math.random()-0.5)*1.4,life:1,color:color,size:1+Math.random()*1.6});
+  }
+  if(particles.length>180)particles.splice(0,particles.length-180);
+}
+function drawParticles(){
+  for(var i=particles.length-1;i>=0;i--){
+    var p=particles[i];
+    p.x+=p.vx;p.y+=p.vy;
+    p.life-=0.025;
+    if(p.life<=0){particles.splice(i,1);continue;}
+    ctx.globalAlpha=p.life*0.85;
+    ctx.fillStyle=p.color;
+    ctx.fillRect(p.x,p.y,p.size,p.size);
+  }
+  ctx.globalAlpha=1;
+}
+function drawNodeFace(t,envSmooth){
+  drawHud(envSmooth);
+  var orbs=cfg.orbs||[];
+  var N=orbs.length;
+  if(!N)return;
+  var spin=(cfg.resonating||cfg.playing)?t*0.00012*(1+envSmooth*2):t*0.00004;
+  var pts=orbPositions(N,spin);
+  var size=N<=7?10:(N<=13?7.5:(N<=33?5:3));
+  var act=cfg.resonating||cfg.playing;
+  // connections
+  ctx.globalAlpha=0.5;
+  if(N<=13){
+    for(var i=0;i<N;i++){
+      for(var j=i+1;j<N;j++){
+        var a=pts[i],b=pts[j];
+        var g=ctx.createLinearGradient(a.x,a.y,b.x,b.y);
+        g.addColorStop(0,orbs[i].c);g.addColorStop(1,orbs[j].c);
+        ctx.strokeStyle=g;ctx.lineWidth=0.9;
+        ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+      }
+    }
+  } else {
+    for(var k=0;k<N-1;k++){
+      var a2=pts[k],b2=pts[k+1];
+      var g2=ctx.createLinearGradient(a2.x,a2.y,b2.x,b2.y);
+      g2.addColorStop(0,orbs[k].c);g2.addColorStop(1,orbs[k+1].c);
+      ctx.strokeStyle=g2;ctx.lineWidth=0.7;
+      ctx.beginPath();ctx.moveTo(a2.x,a2.y);ctx.lineTo(b2.x,b2.y);ctx.stroke();
+    }
+  }
+  ctx.globalAlpha=1;
+  // orbs
+  for(var oi=0;oi<N;oi++){
+    var o=orbs[oi],p=pts[oi];
+    var phaseP=Math.sin(t*0.002+oi*0.7)*0.5+0.5;
+    var inten=act&&o.a?(envSmooth*0.8+phaseP*0.3):(0.12+phaseP*0.08);
+    drawOrb(p.x,p.y,o.c,o.g,size,inten,act&&o.a,o.a);
+    if(act&&o.a&&envSmooth>0.15&&N<=33)spawnParticles(p.x,p.y,o.g,inten);
+    if(N<=13&&o.a){
+      ctx.font='bold 9px monospace';
+      ctx.fillStyle='#c9d2dd';ctx.globalAlpha=0.85;ctx.textAlign='center';
+      var hz=o.f;
+      var label=hz>=1000?(hz/1000).toFixed(hz>=10000?1:2)+'k':hz.toFixed(hz<100?1:0);
+      ctx.fillText(label,p.x,p.y+size*2.6+8);
+      ctx.globalAlpha=1;ctx.textAlign='left';
+    }
+  }
+  drawParticles();
+  // center readout
+  ctx.textAlign='center';
+  ctx.font='bold 30px monospace';
+  ctx.fillStyle=act?'#ff2a2a':'#8a94a2';
+  ctx.globalAlpha=0.92;
+  ctx.fillText(String(N),CX,CY-6);
+  ctx.font='bold 7px monospace';
+  ctx.fillStyle='#8a94a2';
+  ctx.globalAlpha=0.8;
+  ctx.fillText(cfg.pattern||'',CX,CY+8);
+  ctx.fillText((cfg.baseFreq||432).toFixed(1)+' HZ BASE',CX,CY+18);
+  ctx.globalAlpha=1;ctx.textAlign='left';
+}
+
+// ═════════ SPIN FLIP + MAIN LOOP ═════════
+var flip=0; // 0 = SCOPE, 1 = NODE
+var envSmooth=0;
+function draw(t){
+  var target=cfg.view==='NODE'?1:0;
+  flip+=(target-flip)*0.14;
+  if(Math.abs(target-flip)<0.002)flip=target;
+  var live=Math.min(1,(LIVE.peak||0)/110);
+  var fresh=(performance.now()-LIVE.ts)<400;
+  var env=fresh?live:(cfg.playing?0.35:0);
+  envSmooth=envSmooth*0.75+env*0.25;
+  var sx=Math.cos(Math.PI*flip);
+  var showNode=flip>0.5;
+  var mag=Math.max(0.03,Math.abs(sx));
+  ctx.setTransform(1,0,0,1,0,0);
+  if(mag<0.999){
+    // mid-flip: hard clear + squash
+    ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+    ctx.setTransform(mag,0,0,1,CX*(1-mag),0);
+  }
+  if(showNode)drawNodeFace(t,envSmooth);
+  else drawScopeFace(t,envSmooth);
+  ctx.setTransform(1,0,0,1,0,0);
+  // flip edge glint
+  if(mag<0.97){
+    ctx.fillStyle='rgba(255,10,10,'+(0.25*(1-mag))+')';
+    ctx.fillRect(CX-1,0,2,H);
+  }
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+</script></body></html>`;
+
+interface Props {
+  frequencies: number[];
+  playing: boolean;
+}
+
+export default function ScopeNodePanel({ frequencies, playing }: Props) {
+  const [view, setView] = useState<'SCOPE' | 'NODE'>('SCOPE');
+  const [medium, setMedium] = useState<Medium>('CYMATICS');
+  const [geometries, setGeometries] = useState<Set<Geometry>>(new Set());
+  const [orbCount, setOrbCount] = useState<number>(7);
+  const [resonating, setResonating] = useState(false);
+  const [livePeak, setLivePeak] = useState(0);
+  const [measuredHz, setMeasuredHz] = useState(0);
+  const [geoPickerOpen, setGeoPickerOpen] = useState(false);
+  const webRef = useRef<WebView>(null);
+  const iframeRef = useRef<any>(null);
+
+  const baseFreq = frequencies[0] || 432;
+
+  // Harmonic orb data — n-th orb = n-th harmonic of the base frequency
+  const orbs = useMemo(() => {
+    const out: { f: number; c: string; g: string; a: boolean }[] = [];
+    for (let n = 1; n <= orbCount; n++) {
+      const f = Math.round(baseFreq * n * 10) / 10;
+      const ch = chakraForFreq(f);
+      out.push({ f, c: ch.color, g: ch.glow, a: f <= MAX_AUDIBLE_HZ });
+    }
+    return out;
+  }, [orbCount, baseFreq]);
+
+  const audibleCount = useMemo(() => orbs.filter(o => o.a).length, [orbs]);
+
+  // ─── Harmonic resonance audio stack ───
+  const startedIdsRef = useRef<number[]>([]);
+  const harmonicGain = useCallback((n: number, total: number) =>
+    Math.min(0.22, 0.6 / Math.sqrt(Math.max(1, total)) / Math.pow(n, 0.55)), []);
+
+  const stopHarmonics = useCallback(() => {
+    startedIdsRef.current.forEach(id => AudioEngine.stopTone(id));
+    startedIdsRef.current = [];
+  }, []);
+
+  const startHarmonics = useCallback((count: number, base: number) => {
+    stopHarmonics();
+    const ids: number[] = [];
+    let audible = 0;
+    for (let n = 1; n <= count; n++) if (base * n <= MAX_AUDIBLE_HZ) audible++;
+    for (let n = 1; n <= count; n++) {
+      const f = base * n;
+      if (f > MAX_AUDIBLE_HZ) continue;
+      const id = HARMONIC_ID_BASE + n;
+      AudioEngine.startTone(id, Math.round(f * 10) / 10, harmonicGain(n, audible));
+      ids.push(id);
+    }
+    startedIdsRef.current = ids;
+  }, [stopHarmonics, harmonicGain]);
+
+  const toggleResonate = () => {
+    if (resonating) {
+      stopHarmonics();
+      setResonating(false);
+    } else {
+      startHarmonics(orbCount, baseFreq);
+      setResonating(true);
+    }
+  };
+
+  const selectOrbCount = (n: number) => {
+    setOrbCount(n);
+    if (resonating) startHarmonics(n, baseFreq);
+  };
+
+  // Retune live when base frequency sweeps while resonating
+  const resonatingRef = useRef(resonating);
+  resonatingRef.current = resonating;
+  useEffect(() => {
+    if (!resonatingRef.current) return;
+    startedIdsRef.current.forEach(id => {
+      const n = id - HARMONIC_ID_BASE;
+      const f = baseFreq * n;
+      if (f <= MAX_AUDIBLE_HZ) AudioEngine.updateFreq(id, Math.round(f * 10) / 10);
+    });
+  }, [baseFreq]);
+
+  // Main STOP (stopAll) kills every oscillator — sync resonate state off
+  const prevPlayingRef = useRef(playing);
+  useEffect(() => {
+    if (prevPlayingRef.current && !playing && resonatingRef.current) {
+      startedIdsRef.current = [];
+      setResonating(false);
+    }
+    prevPlayingRef.current = playing;
+  }, [playing]);
+
+  // Cleanup on unmount
+  useEffect(() => () => { stopHarmonics(); }, [stopHarmonics]);
+
+  // ─── Canvas bridge ───
+  const pushConfig = useCallback((cfg: object) => {
+    const json = JSON.stringify(cfg);
+    if (Platform.OS === 'web') {
+      try { iframeRef.current?.contentWindow?.updateScope?.(json); } catch {}
+    } else {
+      webRef.current?.injectJavaScript(`window.updateScope(${JSON.stringify(json)}); true;`);
+    }
+  }, []);
+
+  const pushWave = useCallback((frame: ScopeFrame) => {
+    const payload = JSON.stringify({ __wave: true, wave: frame.wave, peak: frame.peak });
+    if (Platform.OS === 'web') {
+      try { iframeRef.current?.contentWindow?.pushWave?.(payload); } catch {}
+    } else {
+      const safe = payload.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      webRef.current?.injectJavaScript(`window.pushWave&&window.pushWave('${safe}');true;`);
+    }
+  }, []);
+
+  const fullConfig = useCallback(() => ({
+    freqs: frequencies,
+    playing,
+    medium,
+    geometries: Array.from(geometries),
+    view,
+    orbs,
+    resonating,
+    baseFreq,
+    pattern: PATTERN_NAME[orbCount] || '',
+  }), [frequencies, playing, medium, geometries, view, orbs, resonating, baseFreq, orbCount]);
+
+  useEffect(() => {
+    pushConfig(fullConfig());
+  }, [fullConfig, pushConfig]);
+
+  useEffect(() => {
+    const unsub = AudioEngine.subscribeScope((frame) => {
+      pushWave(frame);
+      setLivePeak(frame.peak);
+      if (typeof frame.measuredHz === 'number') setMeasuredHz(frame.measuredHz);
+    });
+    return unsub;
+  }, [pushWave]);
+
+  const color = view === 'NODE' ? '#ff0a0a' : MEDIUM_COLORS[medium];
+  const audioActive = livePeak > 3;
+  const measuredValid = audioActive && measuredHz > 5;
+
+  const cycleMedium = () => {
+    const idx = MEDIUMS.indexOf(medium);
+    setMedium(MEDIUMS[(idx + 1) % MEDIUMS.length]);
+  };
+  const toggleGeometry = (g: Geometry) => {
+    setGeometries(prev => {
+      const next = new Set(prev);
+      if (next.has(g)) next.delete(g); else next.add(g);
+      return next;
+    });
+  };
+  const geoSummary = geometries.size === 0
+    ? '—'
+    : geometries.size === 1
+      ? GEOMETRY_LABEL[Array.from(geometries)[0]]
+      : `${geometries.size}× LAYERED`;
+
+  return (
+    <View style={st.wrap}>
+      {/* ── T-800 header: SPIN toggle + readout ── */}
+      <View style={[st.headerBar, { borderColor: view === 'NODE' ? '#ff0a0a' : `${color}70` }]}>
+        {/* SPIN toggle switch */}
+        <View style={st.spinSwitch}>
+          <TouchableOpacity
+            style={[st.spinSeg, view === 'SCOPE' && st.spinSegActive]}
+            onPress={() => setView('SCOPE')}
+            activeOpacity={0.7}
+          >
+            <Text style={[st.spinSegTxt, view === 'SCOPE' && st.spinSegTxtActive]}>SCOPE</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={st.spinBtn}
+            onPress={() => setView(v => (v === 'SCOPE' ? 'NODE' : 'SCOPE'))}
+            activeOpacity={0.7}
+          >
+            <Text style={st.spinBtnTxt}>↻</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[st.spinSeg, view === 'NODE' && st.spinSegActiveRed]}
+            onPress={() => setView('NODE')}
+            activeOpacity={0.7}
+          >
+            <Text style={[st.spinSegTxt, view === 'NODE' && st.spinSegTxtActive]}>NODE</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={st.headerHz}>
+          <Text style={[st.hzTxt, { color }]}>{baseFreq.toFixed(1)}</Text>
+          <Text style={[st.hzUnit, { color }]}>Hz</Text>
+          {measuredValid && (
+            <>
+              <Text style={st.measuredArrow}>→</Text>
+              <Text style={[st.measuredVal, { color }]}>{measuredHz.toFixed(1)}</Text>
+            </>
+          )}
+        </View>
+
+        <View style={st.statePill}>
+          <View style={[st.stateDot, { backgroundColor: audioActive ? color : '#2a1010' }]} />
+          <Text style={[st.stateTxt, { color: audioActive ? color : '#5a646f' }]}>
+            {audioActive ? `${Math.round((livePeak / 128) * 100)}%` : (playing || resonating ? 'ACT' : 'STBY')}
+          </Text>
+        </View>
+      </View>
+
+      {/* ── Face-specific control strip ── */}
+      {view === 'SCOPE' ? (
+        <View style={st.faceRow}>
+          <TouchableOpacity onPress={cycleMedium} style={[st.cycler, { borderColor: `${color}60` }]} activeOpacity={0.7}>
+            <Text style={st.cyclerLabel}>MED</Text>
+            <Text style={[st.cyclerVal, { color }]}>{medium}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setGeoPickerOpen(o => !o)}
+            style={[st.cycler, { borderColor: geometries.size ? '#ff0a0a' : '#2a3340' }]}
+            activeOpacity={0.7}
+          >
+            <Text style={st.cyclerLabel}>GEO</Text>
+            <Text style={[st.cyclerVal, { color: geometries.size ? '#ff0a0a' : '#7d8794' }]}>{geoSummary}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={st.faceRow}>
+          <View style={st.orbChips}>
+            {ORB_COUNTS.map(n => (
+              <TouchableOpacity
+                key={n}
+                style={[st.orbChip, orbCount === n && st.orbChipActive]}
+                onPress={() => selectOrbCount(n)}
+                activeOpacity={0.7}
+              >
+                <Text style={[st.orbChipTxt, orbCount === n && st.orbChipTxtActive]}>{n}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity
+            style={[st.resonateBtn, resonating && st.resonateBtnActive]}
+            onPress={toggleResonate}
+            activeOpacity={0.7}
+          >
+            <Text style={[st.resonateTxt, resonating && st.resonateTxtActive]}>
+              {resonating ? '◈ RSN' : '◇ RSN'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {view === 'NODE' && (
+        <Text style={st.patternMeta}>
+          {PATTERN_NAME[orbCount]} · {audibleCount}/{orbCount} AUDIBLE HARMONICS OF {baseFreq.toFixed(1)} Hz
+        </Text>
+      )}
+
+      {view === 'SCOPE' && geoPickerOpen && (
+        <View style={st.geoPicker}>
+          {GEOMETRIES.map(g => {
+            const isOn = geometries.has(g);
+            return (
+              <TouchableOpacity key={g} onPress={() => toggleGeometry(g)} style={[st.geoPill, isOn && st.geoPillActive]} activeOpacity={0.7}>
+                <Text style={[st.geoPillText, isOn && st.geoPillTextActive]}>{GEOMETRY_LABEL[g]}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
+      {/* ── Shared flip canvas ── */}
+      <View style={[st.scope, { borderColor: view === 'NODE' ? '#3a4450' : `${color}40` }]}>
+        {Platform.OS === 'web' ? (
+          React.createElement('iframe', {
+            ref: iframeRef,
+            srcDoc: PANEL_HTML,
+            style: { width: '100%', height: '100%', border: 'none', backgroundColor: '#000' },
+            onLoad: () => pushConfig(fullConfig()),
+          })
+        ) : (
+          <WebView
+            ref={webRef}
+            source={{ html: PANEL_HTML }}
+            style={st.webview}
+            javaScriptEnabled
+            scrollEnabled={false}
+            androidLayerType="hardware"
+            onLoadEnd={() => pushConfig(fullConfig())}
+          />
+        )}
+      </View>
+    </View>
+  );
+}
+
+const st = StyleSheet.create({
+  wrap: { marginBottom: 16 },
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginBottom: 6,
+    backgroundColor: '#0b0e12',
+  },
+  spinSwitch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2a3340',
+    borderRadius: 4,
+    overflow: 'hidden',
+    backgroundColor: '#070a0e',
+  },
+  spinSeg: { paddingVertical: 5, paddingHorizontal: 8 },
+  spinSegActive: { backgroundColor: '#c9d2dd' },
+  spinSegActiveRed: { backgroundColor: '#ff0a0a' },
+  spinSegTxt: { color: '#7d8794', fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
+  spinSegTxtActive: { color: '#000' },
+  spinBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 7,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: '#2a3340',
+  },
+  spinBtnTxt: { color: '#ff0a0a', fontSize: 11, fontWeight: '900' },
+  headerHz: { flexDirection: 'row', alignItems: 'baseline', gap: 3, flex: 1, justifyContent: 'center' },
+  hzTxt: { fontSize: 13, fontWeight: '900', letterSpacing: 1 },
+  hzUnit: { fontSize: 8, fontWeight: '800', letterSpacing: 1, opacity: 0.7 },
+  measuredArrow: { color: '#5a646f', fontSize: 9, marginLeft: 3, marginRight: 1, fontWeight: '900' },
+  measuredVal: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, opacity: 0.9 },
+  statePill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 4 },
+  stateDot: { width: 6, height: 6, borderRadius: 3 },
+  stateTxt: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  faceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  cycler: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: '#070a0e',
+  },
+  cyclerLabel: { fontSize: 7, fontWeight: '900', letterSpacing: 1.5, color: '#5a646f' },
+  cyclerVal: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  orbChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    flex: 1,
+  },
+  orbChip: {
+    borderWidth: 1,
+    borderColor: '#2a3340',
+    borderRadius: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    backgroundColor: '#070a0e',
+    minWidth: 30,
+    alignItems: 'center',
+  },
+  orbChipActive: { borderColor: '#ff0a0a', backgroundColor: '#ff0a0a' },
+  orbChipTxt: { color: '#7d8794', fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
+  orbChipTxtActive: { color: '#000' },
+  resonateBtn: {
+    borderWidth: 1,
+    borderColor: '#8a4040',
+    borderRadius: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#0b0e12',
+  },
+  resonateBtnActive: { borderColor: '#ff0a0a', backgroundColor: '#ff0a0a' },
+  resonateTxt: { color: '#c9a0a0', fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
+  resonateTxtActive: { color: '#000' },
+  patternMeta: {
+    color: '#5a646f',
+    fontSize: 7,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  scope: {
+    height: 300,
+    borderWidth: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  webview: { flex: 1, backgroundColor: '#000' },
+  geoPicker: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginBottom: 6,
+    padding: 6,
+    borderRadius: 4,
+    backgroundColor: '#070a0e',
+    borderWidth: 1,
+    borderColor: '#1c232d',
+  },
+  geoPill: {
+    borderWidth: 1,
+    borderColor: '#2a3340',
+    borderRadius: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    backgroundColor: '#0b0e12',
+  },
+  geoPillActive: { borderColor: '#ff0a0a', backgroundColor: '#ff0a0a' },
+  geoPillText: { fontSize: 9, fontWeight: '900', letterSpacing: 1, color: '#7d8794' },
+  geoPillTextActive: { color: '#000' },
+});

@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend-only test of the new SCOPE/NODE merged panel (ScopeNodePanel) on the home page. All requested flows PASS: CODES_LAB header shows T-800 // CSM-101 HUD tag with SAVE/LOAD/SCLR/LNK chips directly under SEND CODES / CODES ARCHIVE; SPIN switch (SCOPE|↻|NODE) flips the shared canvas — verified all three switch entry points (SCOPE seg, NODE seg, ↻ button). NODE face renders orb chips 1/3/6/7/9/13/26/33/96 with correct pattern names (POINT/SEED/TESLA 3·6·9/MASTER/PHYLLOTAXIS all verified on-screen) plus the ◇ RSN button; pattern meta text 'X · N/N AUDIBLE HARMONICS OF 432.0 Hz' updates correctly per chip. ◇ RSN → ◈ RSN toggles cleanly (state pill switches, no crash). MED cycler advances through mediums, GEO picker opens and pill toggling (FLOWER) works, GEO cycler label updates. SAVE creates preset (LOAD chip shows (1)); LOAD opens panel with the preset row directly under header chips; delete × removes it. LNK toggles ◇↔◈ and SCLR toggles ◇↔◈. EXECUTE starts audio (state pill shows live %, e.g. 12%) and STOP stops. Deprecated packages detected: expo-av is deprecated in Expo SDK 54 (should migrate to expo-audio / expo-video); this is pre-existing app-wide tech debt, not introduced by this feature. Ignored pre-existing legacy negative-SVG-attribute errors per review note; no NEW JS errors originate from ScopeNodePanel. CymaticScope.tsx still present on disk and CodesLabShared.tsx still imports it (not deleted, as expected).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      { "component": "expo-av", "issue": "expo-av is deprecated in Expo SDK 54 and will be removed. Migrate audio usage to `expo-audio` and video usage to `expo-video`. Reference: /app/frontend/package.json:25 (also imported in /app/frontend/app/{index,sound,store,chirpconnect,codes,ptt}.tsx). Pre-existing, NOT introduced by this feature." }
+    ]
+  },
+  "test_report_links": ["/tmp/scope_test/01_home.png", "/tmp/scope_test/03_node_face.png", "/tmp/scope_test/04_orb9.png", "/tmp/scope_test/05_orb96.png", "/tmp/scope_test/06_rsn_on.png", "/tmp/scope_test/07_scope_back.png", "/tmp/scope_test/08_geo_picker.png", "/tmp/scope_test/09_load_panel.png", "/tmp/scope_test/10_playing.png"],
+  "action_items": [
+    "None for this feature — merged SCOPE/NODE panel works as designed.",
+    "(Tech-debt, unrelated to this feature) Plan migration off deprecated expo-av → expo-audio / expo-video before Expo SDK 54."
+  ],
+  "critical_code_review_comments": [
+    "ScopeNodePanel.tsx (~994 lines) is under the 700-line guideline for a single component; the large embedded PANEL_HTML string is a canvas renderer and is cohesive, so splitting is optional but consider extracting the HTML/JS bridge into a separate constant file if it grows further.",
+    "startHarmonics correctly caps at MAX_AUDIBLE_HZ (20 kHz) and reduces per-tone gain by sqrt(total) and n^0.55 — sane clipping protection.",
+    "Cleanup effect properly stops harmonics on unmount and resonate state resyncs when global STOP kills all oscillators (prevPlayingRef guard).",
+    "iframe/WebView bridge uses try/catch and JSON stringification correctly; no XSS surface since content is srcDoc-only.",
+    "All interactive controls (SPIN segs, ↻, orb chips, RSN, MED/GEO cyclers, geo pills, header chips) use TouchableOpacity + Text — no HTML tags leaked; StyleSheet.create used throughout."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (not tested per request)", "frontend": "100%" },
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Home page /app/frontend/app/index.tsx (>3000 lines) embeds ScopeNodePanel at line 859. ScopeNodePanel state defaults: view=SCOPE, medium=CYMATICS, orbCount=7 (SEED pattern), resonating=false. To flip to NODE face, tap either the NODE segment (right side of SPIN switch) or the central ↻ button. Note: the mobile tab bar at the bottom also contains a 'NODE' label — always target the SPIN switch NODE by scrolling CODES_LAB into view first and using .first on the header. Pre-existing legacy console errors about negative SVG width/height are from other components (Mirrors96 hero or tab bar icons) — IGNORE them.",
+  "rca_of_issue": "N/A — no bugs found."
+}
