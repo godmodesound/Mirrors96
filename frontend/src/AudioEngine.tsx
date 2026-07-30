@@ -28,7 +28,7 @@ function ensureCtx() {
     masterGain = ctx.createGain();
     // Global analyser tap: masterGain -> analyser -> destination
     analyser = ctx.createAnalyser();
-    analyser.fftSize = 1024;
+    analyser.fftSize = 8192; // 5.4Hz bins -> ~1Hz accuracy after parabolic interpolation
     analyser.smoothingTimeConstant = 0.65;
     masterGain.connect(analyser);
     analyser.connect(ctx.destination);
@@ -52,7 +52,8 @@ function startScopeStream() {
         analyser.getByteTimeDomainData(scopeBuffer);
         // Downsample to 128 pts to keep payload light
         var out = new Array(128);
-        var step = scopeBuffer.length / 128;
+        var waveWin = Math.min(1024, scopeBuffer.length);
+        var step = waveWin / 128;
         var peak = 0;
         for (var i = 0; i < 128; i++) {
           var v = scopeBuffer[Math.floor(i * step)];
@@ -550,7 +551,7 @@ const ensureWebCtx = () => {
     }
     webMasterGain = audioCtx.createGain();
     webAnalyser = audioCtx.createAnalyser();
-    webAnalyser.fftSize = 1024;
+    webAnalyser.fftSize = 8192; // 5.4Hz bins -> ~1Hz accuracy after parabolic interpolation
     webAnalyser.smoothingTimeConstant = 0.65;
     webMasterGain.connect(webAnalyser);
     webAnalyser.connect(audioCtx.destination);
@@ -750,7 +751,7 @@ const webStopCamelot = () => {
 };
 
 // ===== Global scope subscribers (real-time master-bus waveform) =====
-export type ScopeFrame = { wave: number[]; peak: number; measuredHz?: number };
+export type ScopeFrame = { wave: number[]; peak: number; measuredHz?: number; peaks?: { hz: number; mag: number }[] };
 type ScopeSub = (frame: ScopeFrame) => void;
 let scopeSubs: ScopeSub[] = [];
 let latestFrame: ScopeFrame = { wave: new Array(128).fill(128), peak: 0, measuredHz: 0 };
@@ -783,10 +784,12 @@ const startWebScopeLoop = () => {
         }
         // MEASURED Hz — FFT peak bin + parabolic interpolation
         let measuredHz = 0;
+        const specPeaks: { hz: number; mag: number }[] = [];
         try {
           const fftLen = webAnalyser.frequencyBinCount;
           if (!freqBuf || freqBuf.length !== fftLen) freqBuf = new Uint8Array(fftLen);
           webAnalyser.getByteFrequencyData(freqBuf);
+          const binHz = audioCtx ? audioCtx.sampleRate / webAnalyser.fftSize : 0;
           let maxV = 0, maxI = 0;
           for (let k = 1; k < fftLen - 1; k++) {
             if (freqBuf[k] > maxV) { maxV = freqBuf[k]; maxI = k; }
@@ -795,11 +798,25 @@ const startWebScopeLoop = () => {
             const yL = freqBuf[maxI - 1], yC = freqBuf[maxI], yR = freqBuf[maxI + 1];
             const denom = (yL - 2 * yC + yR);
             const offset = denom !== 0 ? 0.5 * (yL - yR) / denom : 0;
-            const binHz = audioCtx.sampleRate / webAnalyser.fftSize;
             measuredHz = (maxI + offset) * binHz;
           }
+          // MULTI-PEAK spectrum — top local maxima for CymaScope accurate drive
+          if (binHz > 0) {
+            for (let q = 2; q < fftLen - 2; q++) {
+              const v2 = freqBuf[q];
+              if (v2 > 28 && v2 >= freqBuf[q-1] && v2 >= freqBuf[q+1] && v2 > freqBuf[q-2] && v2 > freqBuf[q+2]) {
+                const pL = freqBuf[q-1], pR = freqBuf[q+1];
+                const pden = (pL - 2 * v2 + pR);
+                const poff = pden !== 0 ? 0.5 * (pL - pR) / pden : 0;
+                specPeaks.push({ hz: Math.round((q + poff) * binHz * 10) / 10, mag: v2 });
+                q += 2;
+              }
+            }
+            specPeaks.sort((a, b) => b.mag - a.mag);
+            specPeaks.length = Math.min(specPeaks.length, 6);
+          }
         } catch {}
-        dispatchScope({ wave: out, peak, measuredHz });
+        dispatchScope({ wave: out, peak, measuredHz, peaks: specPeaks });
       } catch {}
     }
     requestAnimationFrame(tick);
@@ -841,7 +858,7 @@ export const AudioBridgeProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       // Live master-bus scope frame
       if (data.type === 'scope' && Array.isArray(data.wave)) {
-        dispatchScope({ wave: data.wave, peak: data.peak || 0, measuredHz: data.measuredHz || 0 });
+        dispatchScope({ wave: data.wave, peak: data.peak || 0, measuredHz: data.measuredHz || 0, peaks: Array.isArray(data.peaks) ? data.peaks : [] });
       }
     } catch (e) {}
   }, []);

@@ -68,6 +68,11 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - ScopeNodePanel SCOPE face: ORB chip (auto ON by default, shows ♆ NEPTUNE etc., tap → MANUAL; manual GEO edits release auto lock, GEO shows AUTO·<geom>), meta line "♁ EARTH YEAR ORBIT 136.10 Hz (0¢) · TONE C# · SPIRAL · BEAT x Hz SYNC".
 - Canvas: dashed orbit ring + glowing planet marker revolving at orbitHz/1024 rev/s; geometry alpha/scale pulse locked to binaural beat (display beat octave-capped ≤16Hz); orbit readout drawn at canvas bottom. Auto-updates on every preset/code/dial change (frequencies prop). index.tsx passes scalarBeatHz={scalarOn ? 7.83 : 0}.
 
+### CYMASCOPE realtime accurate feedback (done, screenshot-verified)
+- AudioEngine (native HTML + web loop): analyser fftSize 1024→8192 (5.4Hz bins → ~1Hz measured accuracy w/ parabolic interp; verified 433.4 for 432 tone); wave display window kept at 1024 samples; NEW multi-peak spectrum extraction (top 6 local maxima, parabolic interp) added to ScopeFrame as `peaks:[{hz,mag}]` (native postMessage + web dispatch + RN onMessage).
+- ScopeNodePanel: new default medium CYMASCOPE — physically-modeled circular water membrane rendered per-pixel on a 112px offscreen canvas (blit-scaled, circular clip, field computed every 2nd frame): standing capillary Faraday waves with k∝f^(2/3) dispersion scaling, angular mode n=max(3,round(√(f/432)·6)), Bessel-like radial decay, meniscus rim damping, deep-blue→cyan→white caustic palette. Driven by LIVE FFT peaks (up to 4 partials superimposed = true multi-tone interference); falls back to configured freqs when silent. Meta line: "≋ CYMASCOPE · FARADAY k∝f^⅔ · LIVE FFT DRIVE <peaks> Hz" / "AWAITING SIGNAL — WATER AT REST" (peaks state throttled 450ms).
+- NOTE: AudioEngine.tsx suffered tail-corruption during edit (duplicated tail after styles) — fixed by truncating at line 914. Watch this file.
+
 ## Pending user verification (physical iPhone via Expo Go)
 - Video capture (96s) + camera permissions
 - Notch/safe-area spacing

@@ -14,10 +14,11 @@ import { chakraForFreq, mapOrbitGeometry, detectBeat } from './OrbitGeometry';
 //                real harmonic stack of the base frequency.
 // ═══════════════════════════════════════════════════════════
 
-export const MEDIUMS = ['CHLADNI', 'WATER', 'SAND', 'CYMATICS', 'MERCURY', 'GOLD', 'FIRE'] as const;
+export const MEDIUMS = ['CYMASCOPE', 'CHLADNI', 'WATER', 'SAND', 'CYMATICS', 'MERCURY', 'GOLD', 'FIRE'] as const;
 export type Medium = typeof MEDIUMS[number];
 
 const MEDIUM_COLORS: Record<Medium, string> = {
+  CYMASCOPE: '#7fd4ff',
   CHLADNI: '#7de87d',
   WATER: '#5fc9ff',
   SAND: '#e8c87d',
@@ -58,8 +59,9 @@ var W=0,H=0,CX=0,CY=0,R0=0;
 function resize(){W=window.innerWidth;H=window.innerHeight;canvas.width=W;canvas.height=H;CX=W/2;CY=H/2;R0=Math.min(W,H)*0.40;}
 resize();window.addEventListener('resize',resize);
 var cfg={freqs:[432],playing:false,medium:'CYMATICS',geometries:[],view:'SCOPE',orbs:[],resonating:false,baseFreq:432,pattern:'SEED',orbit:null,beat:0};
-var LIVE={wave:new Array(128).fill(128),peak:0,ts:0};
+var LIVE={wave:new Array(128).fill(128),peak:0,ts:0,peaks:[]};
 var PAL={
+  CYMASCOPE:{main:'#a8e2ff',glow:'#3ec6ff',dim:'rgba(127,212,255,0.08)'},
   CHLADNI:{main:'#9be89b',glow:'#3aff6e',dim:'rgba(125,232,125,0.10)'},
   WATER:{main:'#8fd8ff',glow:'#19b6ff',dim:'rgba(95,201,255,0.10)'},
   SAND:{main:'#eed9a6',glow:'#d9a441',dim:'rgba(232,200,125,0.10)'},
@@ -69,7 +71,7 @@ var PAL={
   FIRE:{main:'#ff9a5a',glow:'#ff2a0a',dim:'rgba(255,90,42,0.10)'}
 };
 window.updateScope=function(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.freqs)cfg.freqs=c.freqs;if(typeof c.playing==='boolean')cfg.playing=c.playing;if(c.medium)cfg.medium=c.medium;if(Array.isArray(c.geometries))cfg.geometries=c.geometries;if(c.view)cfg.view=c.view;if(Array.isArray(c.orbs))cfg.orbs=c.orbs;if(typeof c.resonating==='boolean')cfg.resonating=c.resonating;if(c.baseFreq)cfg.baseFreq=c.baseFreq;if(c.pattern)cfg.pattern=c.pattern;if(c.orbit!==undefined)cfg.orbit=c.orbit;if(typeof c.beat==='number')cfg.beat=c.beat;}catch(e){}};
-window.pushWave=function(w){try{if(typeof w==='string')w=JSON.parse(w);if(w&&w.wave){LIVE.wave=w.wave;LIVE.peak=w.peak||0;LIVE.ts=performance.now();}}catch(e){}};
+window.pushWave=function(w){try{if(typeof w==='string')w=JSON.parse(w);if(w&&w.wave){LIVE.wave=w.wave;LIVE.peak=w.peak||0;LIVE.peaks=Array.isArray(w.peaks)?w.peaks:LIVE.peaks;LIVE.ts=performance.now();}}catch(e){}};
 window.addEventListener('message',function(e){
   var d=e.data;try{var p=typeof d==='string'?JSON.parse(d):d;if(p&&p.__wave){window.pushWave(p);return;}}catch(_){}
   window.updateScope(d);
@@ -271,10 +273,72 @@ function drawJulia(R,rot,pal,env,freq){
   ctx.restore();
 }
 
+// ═══ CYMASCOPE — physically-modeled circular water membrane ═══
+// Standing capillary (Faraday) waves: radial wavenumber k ∝ f^(2/3)
+// (deep-water capillary dispersion), angular mode n ∝ √(f/432),
+// Bessel-like radial decay + meniscus rim damping. Driven by the
+// LIVE multi-peak FFT of the master bus — every sounding partial
+// contributes its own interference mode in real time.
+var cymaCv=null,cymaCtx=null,CYS=112,cymaFrame=0;
+function drawCymascope(t,env,R){
+  if(!cymaCv){cymaCv=document.createElement('canvas');cymaCv.width=CYS;cymaCv.height=CYS;cymaCtx=cymaCv.getContext('2d');}
+  cymaFrame++;
+  if(cymaFrame%2===0){ // render field at ~15fps, blit every frame
+    var img=cymaCtx.createImageData(CYS,CYS);
+    var d=img.data;
+    // Drivers: measured FFT peaks (accurate) — fallback to configured freqs
+    var drv=[];
+    var freshP=(performance.now()-LIVE.ts)<500;
+    if(freshP&&LIVE.peaks&&LIVE.peaks.length){
+      for(var i=0;i<LIVE.peaks.length&&i<4;i++){drv.push({f:LIVE.peaks[i].hz,a:Math.min(1,LIVE.peaks[i].mag/220)});}
+    } else {
+      for(var j=0;j<cfg.freqs.length&&j<4;j++){drv.push({f:cfg.freqs[j],a:cfg.playing?0.5:0.16});}
+    }
+    for(var q=0;q<drv.length;q++){
+      var f=Math.max(drv[q].f,1);
+      drv[q].k=6.2832*4.6*Math.pow(f/432,0.6667);           // capillary Faraday scaling
+      drv[q].n=Math.max(3,Math.round(Math.sqrt(f/432)*6));   // angular symmetry
+      drv[q].ph=t*0.001*(0.7+(f%7)*0.4);                     // ripple phase
+    }
+    var amp=0.30+env*0.85;
+    var half=CYS/2;
+    for(var y=0;y<CYS;y++){
+      for(var x=0;x<CYS;x++){
+        var dx=(x-half)/half,dy=(y-half)/half;
+        var r=Math.sqrt(dx*dx+dy*dy);
+        var idx=(y*CYS+x)*4;
+        if(r>1){d[idx+3]=0;continue;}
+        var th=Math.atan2(dy,dx);
+        var z=0;
+        for(var q2=0;q2<drv.length;q2++){
+          var D=drv[q2];
+          var radial=Math.cos(D.k*r-D.ph)/Math.sqrt(1+D.k*r*0.30);
+          var angular=Math.cos(D.n*th+D.ph*0.25);
+          z+=D.a*radial*angular;
+        }
+        z*=amp*(1-Math.pow(r,6)); // meniscus rim damping
+        var I=Math.min(1,Math.abs(z)*2.1);
+        var rr,gg,bb;
+        if(I<0.5){var u=I*2;rr=3+u*11;gg=18+u*126;bb=44+u*168;}
+        else{var u2=(I-0.5)*2;rr=14+u2*226;gg=144+u2*111;bb=212+u2*43;}
+        d[idx]=rr;d[idx+1]=gg;d[idx+2]=bb;d[idx+3]=Math.floor(255*(0.30+I*0.70));
+      }
+    }
+    cymaCtx.putImageData(img,0,0);
+  }
+  ctx.save();
+  ctx.beginPath();ctx.arc(CX,CY,R,0,6.2832);ctx.clip();
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(cymaCv,CX-R,CY-R,R*2,R*2);
+  ctx.restore();
+}
+
 function drawScopeFace(t,envSmooth){
-  ctx.fillStyle='rgba(0,0,0,0.22)';ctx.fillRect(0,0,W,H);
+  var isCyma=cfg.medium==='CYMASCOPE';
+  if(isCyma){ctx.fillStyle='#010409';ctx.fillRect(0,0,W,H);}
+  else{ctx.fillStyle='rgba(0,0,0,0.22)';ctx.fillRect(0,0,W,H);}
   var p=PAL[cfg.medium]||PAL.CYMATICS;
-  polarGrid(p);
+  if(!isCyma)polarGrid(p);
   var audioActive=envSmooth>0.02;
   var f=(cfg.freqs&&cfg.freqs[0])||432;
   var n=2+Math.round(f%12);
@@ -284,6 +348,9 @@ function drawScopeFace(t,envSmooth){
   var R=R0*breathe;
   var med=cfg.medium;
   var fresh=(performance.now()-LIVE.ts)<400;
+  if(isCyma){
+    drawCymascope(t,envSmooth,R);
+  } else {
   var pts=Math.floor((audioActive?(med==='SAND'?1400:900):320)*(0.4+envSmooth*1.4));
   for(var i=0;i<pts;i++){
     var th=Math.random()*6.2832,r=Math.sqrt(Math.random());
@@ -304,6 +371,7 @@ function drawScopeFace(t,envSmooth){
     ctx.globalAlpha=alpha;ctx.fillStyle=p.main;
     ctx.fillRect(x,y,size,size);
     if((med==='MERCURY'||med==='GOLD')&&I>0.85){ctx.globalAlpha=0.9;ctx.fillStyle='#ffffff';ctx.fillRect(x,y,1,1);}
+  }
   }
   ctx.globalAlpha=1;
   if(fresh){
@@ -586,13 +654,15 @@ interface Props {
 
 export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 }: Props) {
   const [view, setView] = useState<'SCOPE' | 'NODE'>('SCOPE');
-  const [medium, setMedium] = useState<Medium>('CYMATICS');
+  const [medium, setMedium] = useState<Medium>('CYMASCOPE');
   const [geometries, setGeometries] = useState<Set<Geometry>>(new Set());
   const [autoOrbit, setAutoOrbit] = useState(true);
   const [orbCount, setOrbCount] = useState<number>(7);
   const [resonating, setResonating] = useState(false);
   const [livePeak, setLivePeak] = useState(0);
   const [measuredHz, setMeasuredHz] = useState(0);
+  const [livePeaks, setLivePeaks] = useState<number[]>([]);
+  const lastPeaksTs = useRef(0);
   const [geoPickerOpen, setGeoPickerOpen] = useState(false);
   const webRef = useRef<WebView>(null);
   const iframeRef = useRef<any>(null);
@@ -697,7 +767,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
   }, []);
 
   const pushWave = useCallback((frame: ScopeFrame) => {
-    const payload = JSON.stringify({ __wave: true, wave: frame.wave, peak: frame.peak });
+    const payload = JSON.stringify({ __wave: true, wave: frame.wave, peak: frame.peak, peaks: frame.peaks || [] });
     if (Platform.OS === 'web') {
       try { iframeRef.current?.contentWindow?.pushWave?.(payload); } catch {}
     } else {
@@ -729,6 +799,12 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
       pushWave(frame);
       setLivePeak(frame.peak);
       if (typeof frame.measuredHz === 'number') setMeasuredHz(frame.measuredHz);
+      const now = Date.now();
+      if (now - lastPeaksTs.current > 450) {
+        lastPeaksTs.current = now;
+        const next = (frame.peaks || []).slice(0, 4).map(p => Math.round(p.hz * 10) / 10);
+        setLivePeaks(prev => (prev.join(',') === next.join(',') ? prev : next));
+      }
     });
     return unsub;
   }, [pushWave]);
@@ -860,6 +936,12 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
       {view === 'NODE' && (
         <Text style={st.patternMeta}>
           {PATTERN_NAME[orbCount]} · {audibleCount}/{orbCount} AUDIBLE HARMONICS OF {baseFreq.toFixed(1)} Hz
+        </Text>
+      )}
+
+      {view === 'SCOPE' && medium === 'CYMASCOPE' && (
+        <Text style={st.patternMeta}>
+          ≋ CYMASCOPE · FARADAY k∝f^⅔ · {livePeaks.length > 0 ? `LIVE FFT DRIVE ${livePeaks.join(' · ')} Hz` : 'AWAITING SIGNAL — WATER AT REST'}
         </Text>
       )}
 
