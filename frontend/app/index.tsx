@@ -31,6 +31,7 @@ import DisclaimerFooter from '../src/DisclaimerFooter';
 import { FrequencyMap } from '../src/FrequencyMap';
 import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
 import ScopeNodePanel from '../src/ScopeNodePanel';
+import ScalarFreqMeter from '../src/ScalarFreqMeter';
 import SendCodesModal from '../src/SendCodesModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -557,6 +558,28 @@ export default function TerminalScreen() {
     if (isPlaying) AudioEngine.updateGain(id, gain);
   };
 
+  // ═══ SCALAR FREQ METER — shift the ENTIRE spectrum (all nodes) in 0.01 Hz steps ═══
+  const layersLiveRef = useRef(layers);
+  useEffect(() => { layersLiveRef.current = layers; }, [layers]);
+  const isPlayingRef = useRef(isPlaying);
+  isPlayingRef.current = isPlaying;
+
+  const shiftSpectrum = useCallback((delta: number) => {
+    const next = layersLiveRef.current.map(l => ({
+      ...l,
+      frequency: Math.min(26000, Math.max(0.01, Math.round((l.frequency + delta) * 100) / 100)),
+    }));
+    layersLiveRef.current = next; // sync so hold-to-repeat accumulates between renders
+    setLayers(next);
+    if (isPlayingRef.current) next.forEach(l => AudioEngine.updateFreq(l.id, l.frequency));
+  }, []);
+
+  const setSpectrumTo = useCallback((value: number) => {
+    const base = layersLiveRef.current[0]?.frequency || 432;
+    const v = Math.min(26000, Math.max(0.01, value));
+    shiftSpectrum(Math.round((v - base) * 100) / 100);
+  }, [shiftSpectrum]);
+
   const handleCamelotPress = (key: CamelotKey) => {
     console.log('[MirrorsWheel] Pressed:', key.id, key.note, key.freq, 'Hz');
     if (activeCamelotKey === key.id) {
@@ -860,6 +883,14 @@ export default function TerminalScreen() {
               frequencies={layers.map(l => l.frequency)}
               playing={isPlaying}
               scalarBeatHz={scalarOn ? SCALAR_PULSE : 0}
+            />
+
+            {/* SCALAR FREQ METER — precision master: enter/adjust the ENTIRE spectrum in 0.01 Hz steps */}
+            <ScalarFreqMeter
+              value={layers[0]?.frequency || 432}
+              layerCount={layers.length}
+              onShift={shiftSpectrum}
+              onSet={setSpectrumTo}
             />
 
             {layers.map((layer, index) => {

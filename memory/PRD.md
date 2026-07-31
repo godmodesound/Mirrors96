@@ -73,6 +73,12 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - ScopeNodePanel: new default medium CYMASCOPE — physically-modeled circular water membrane rendered per-pixel on a 112px offscreen canvas (blit-scaled, circular clip, field computed every 2nd frame): standing capillary Faraday waves with k∝f^(2/3) dispersion scaling, angular mode n=max(3,round(√(f/432)·6)), Bessel-like radial decay, meniscus rim damping, deep-blue→cyan→white caustic palette. Driven by LIVE FFT peaks (up to 4 partials superimposed = true multi-tone interference); falls back to configured freqs when silent. Meta line: "≋ CYMASCOPE · FARADAY k∝f^⅔ · LIVE FFT DRIVE <peaks> Hz" / "AWAITING SIGNAL — WATER AT REST" (peaks state throttled 450ms).
 - NOTE: AudioEngine.tsx suffered tail-corruption during edit (duplicated tail after styles) — fixed by truncating at line 914. Watch this file.
 
+### SCALAR FREQ METER (done, screenshot-verified)
+- `src/ScalarFreqMeter.tsx` mounted in CODES_LAB directly under ScopeNodePanel: T-800 precision master control — 2-decimal readout (tap to type exact value, decimal-pad), step chips −1/−0.1/−0.01/+0.01/+0.1/+1 with hold-to-repeat (380ms delay, 80ms interval).
+- index.tsx: shiftSpectrum(delta)/setSpectrumTo(value) — shifts EVERY layer by the same Δ (linear offset, 0.01 precision, clamp 0.01–26000) via layersLiveRef (sync ref so hold-repeat accumulates between renders) + isPlayingRef; live AudioEngine.updateFreq when playing. Orbit/geometry/CymaScope all follow automatically.
+- Also fixed 2 TS errors in AudioEngine.tsx (Uint8Array<ArrayBuffer> generics for analyser buffers).
+- USER-REPORTED "error when playing frequencies EXECUTE": could NOT reproduce on web across EXECUTE/STOP cycles, NODE+RSN, multi-layer, archive. Old Metro logs showed a transient corrupted state (duplicate AsyncStorage import in index.tsx + how.tsx missing semicolon) that has since been fixed — likely the user hit that window. tsc + lint now clean, all flows verified. AWAITING USER CONFIRMATION or exact error text/screenshot if it persists (possibly native/Expo Go only).
+
 ## Pending user verification (physical iPhone via Expo Go)
 - Video capture (96s) + camera permissions
 - Notch/safe-area spacing

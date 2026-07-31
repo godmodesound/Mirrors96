@@ -539,7 +539,7 @@ let audioCtx: AudioContext | null = null;
 const webOscs: { [key: number]: { osc: OscillatorNode; gain: GainNode } } = {};
 let webMasterGain: GainNode | null = null;
 let webAnalyser: AnalyserNode | null = null;
-let webScopeBuf: Uint8Array | null = null;
+let webScopeBuf: Uint8Array<ArrayBuffer> | null = null;
 
 const ensureWebCtx = () => {
   if (Platform.OS !== 'web') return false;
@@ -766,7 +766,7 @@ const dispatchScope = (frame: ScopeFrame) => {
 const startWebScopeLoop = () => {
   if (Platform.OS !== 'web') return;
   let last = 0;
-  let freqBuf: Uint8Array | null = null;
+  let freqBuf: Uint8Array<ArrayBuffer> | null = null;
   const tick = (ts: number) => {
     if (!webAnalyser || !webScopeBuf) return;
     if (ts - last >= 33) {
