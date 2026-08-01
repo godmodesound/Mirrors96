@@ -79,6 +79,12 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - Also fixed 2 TS errors in AudioEngine.tsx (Uint8Array<ArrayBuffer> generics for analyser buffers).
 - USER-REPORTED "error when playing frequencies EXECUTE": could NOT reproduce on web across EXECUTE/STOP cycles, NODE+RSN, multi-layer, archive. Old Metro logs showed a transient corrupted state (duplicate AsyncStorage import in index.tsx + how.tsx missing semicolon) that has since been fixed — likely the user hit that window. tsc + lint now clean, all flows verified. AWAITING USER CONFIRMATION or exact error text/screenshot if it persists (possibly native/Expo Go only).
 
+### Meter fusion + spectrum position + 7 wavetables (done, screenshot-verified)
+- ScalarFreqMeter fused into the lab instrument stack (marginTop:-16, square top, no red edge — attaches directly beneath ScopeNodePanel).
+- SPECTRUM POSITION indicator in meter: log-scale 1Hz–26kHz track, red marker, SUB/LOW/MID/HIGH/ULTRA band highlight, % readout.
+- Analog layer manual edit upgraded to 0.01 precision (commitFreqEdit rounds 2dp, min 0.01, digital readout shows toFixed(2), maxLength 8).
+- 7 WAVETABLES: SINE/TRI/SAW/SQR native + PLS(25% pulse)/ORG(organ additive)/BEL(bell-ish) via createPeriodicWave (cached) — implemented in BOTH native bridge HTML (makeWave/applyWave, startTone(wave), updateWave msg) and web path (webMakeWave/webApplyWave/webUpdateWave). AudioEngine.startTone(id,freq,gain,wave?) + AudioEngine.updateWave(id,wave). Per-layer WAVE chip row in NODE cards, live-switchable while playing; ToneLayer.wave? (default SINE); presets persist wave.
+
 ## Pending user verification (physical iPhone via Expo Go)
 - Video capture (96s) + camera permissions
 - Notch/safe-area spacing

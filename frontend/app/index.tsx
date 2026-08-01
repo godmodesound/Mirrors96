@@ -58,11 +58,17 @@ const PIANO_KEYS = [
   { key: 1,  note: 'C',  freq: 256,   chakra13: 'Survival', chakra8: 'Survival', major: 1, color: '#E53935', half: true },
 ];
 
+// 7 wavetable types → AudioEngine oscillator/PeriodicWave ids
+export type WaveKey = 'SINE' | 'TRI' | 'SAW' | 'SQR' | 'PLS' | 'ORG' | 'BEL';
+const WAVE_KEYS: WaveKey[] = ['SINE', 'TRI', 'SAW', 'SQR', 'PLS', 'ORG', 'BEL'];
+const WAVE_ENGINE: Record<WaveKey, string> = { SINE: 'sine', TRI: 'triangle', SAW: 'sawtooth', SQR: 'square', PLS: 'pulse', ORG: 'organ', BEL: 'bell' };
+
 interface ToneLayer {
   id: number;
   frequency: number;
   gain: number;
   isPlaying: boolean;
+  wave?: WaveKey;
 }
 
 // Analog Dial Component — touch-drag to sweep frequency live (log scale, 1 Hz — 26 kHz)
@@ -387,7 +393,7 @@ export default function TerminalScreen() {
       setIsPlaying(false);
       setLayers(layers.map(l => ({ ...l, isPlaying: false })));
     } else {
-      layers.forEach(layer => AudioEngine.startTone(layer.id, layer.frequency, layer.gain));
+      layers.forEach(layer => AudioEngine.startTone(layer.id, layer.frequency, layer.gain, WAVE_ENGINE[layer.wave || 'SINE']));
       setIsPlaying(true);
       setLayers(layers.map(l => ({ ...l, isPlaying: true })));
     }
@@ -418,7 +424,7 @@ export default function TerminalScreen() {
   scalarOnRef.current = scalarOn;
 
   // ═══ PRESETS — save/load current layer session to AsyncStorage ═══
-  type LayerPreset = { id: number; frequency: number; gain: number };
+  type LayerPreset = { id: number; frequency: number; gain: number; wave?: WaveKey };
   type Preset = { name: string; ts: number; layers: LayerPreset[]; scalar: boolean; linked: boolean };
   const [presets, setPresets] = useState<Preset[]>([]);
   const [presetListOpen, setPresetListOpen] = useState(false);
@@ -437,7 +443,7 @@ export default function TerminalScreen() {
     const p: Preset = {
       name,
       ts: Date.now(),
-      layers: layers.map(l => ({ id: l.id, frequency: l.frequency, gain: l.gain })),
+      layers: layers.map(l => ({ id: l.id, frequency: l.frequency, gain: l.gain, wave: l.wave || 'SINE' })),
       scalar: scalarOnRef.current,
       linked: layersLinked,
     };
@@ -457,7 +463,7 @@ export default function TerminalScreen() {
     setLayersLinked(!!p.linked);
     // restart audio if currently playing
     if (isPlaying) {
-      nextLayers.forEach(l => AudioEngine.startTone(l.id, l.frequency, l.gain));
+      nextLayers.forEach(l => AudioEngine.startTone(l.id, l.frequency, l.gain, WAVE_ENGINE[l.wave || 'SINE']));
     }
     // scalar
     if (p.scalar && !scalarOnRef.current) toggleScalar();
@@ -521,7 +527,7 @@ export default function TerminalScreen() {
   const commitFreqEdit = (id: number) => {
     const parsed = parseFloat(freqInput.replace(',', '.'));
     if (!isNaN(parsed)) {
-      const clamped = Math.min(26000, Math.max(1, Math.round(parsed * 10) / 10));
+      const clamped = Math.min(26000, Math.max(0.01, Math.round(parsed * 100) / 100));
       updateLayerFrequency(id, clamped);
     }
     setEditingFreqId(null);
@@ -579,6 +585,11 @@ export default function TerminalScreen() {
     const v = Math.min(26000, Math.max(0.01, value));
     shiftSpectrum(Math.round((v - base) * 100) / 100);
   }, [shiftSpectrum]);
+
+  const updateLayerWave = (id: number, w: WaveKey) => {
+    setLayers(prev => prev.map(l => l.id === id ? { ...l, wave: w } : l));
+    if (isPlaying) AudioEngine.updateWave(id, WAVE_ENGINE[w]);
+  };
 
   const handleCamelotPress = (key: CamelotKey) => {
     console.log('[MirrorsWheel] Pressed:', key.id, key.note, key.freq, 'Hz');
@@ -993,21 +1004,37 @@ export default function TerminalScreen() {
                       keyboardType="decimal-pad"
                       autoFocus
                       selectTextOnFocus
-                      maxLength={6}
+                      maxLength={8}
                       onBlur={() => commitFreqEdit(layer.id)}
                       onSubmitEditing={() => commitFreqEdit(layer.id)}
                       returnKeyType="done"
                     />
                   ) : (
                     <TouchableOpacity
-                      onPress={() => { setEditingFreqId(layer.id); setFreqInput(String(layer.frequency)); }}
+                      onPress={() => { setEditingFreqId(layer.id); setFreqInput(layer.frequency.toFixed(2)); }}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.digitalHz}>{layer.frequency.toFixed(1)} Hz</Text>
-                      <Text style={styles.digitalTapHint}>TAP TO EDIT</Text>
+                      <Text style={styles.digitalHz}>{layer.frequency.toFixed(2)} Hz</Text>
+                      <Text style={styles.digitalTapHint}>TAP TO EDIT · ±0.01</Text>
                     </TouchableOpacity>
                   )}
                   <Text style={styles.digitalLabel}>Digital</Text>
+                </View>
+                {/* WAVE TABLE — 7 oscillator types, live-switchable */}
+                <View style={styles.waveRow}>
+                  {WAVE_KEYS.map(w => {
+                    const active = (layer.wave || 'SINE') === w;
+                    return (
+                      <TouchableOpacity
+                        key={w}
+                        style={[styles.waveChip, active && styles.waveChipActive]}
+                        onPress={() => updateLayerWave(layer.id, w)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.waveChipTxt, active && styles.waveChipTxtActive]}>{w}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
                 {layer.isPlaying && (
                   <Text style={styles.transmitting}>■ TRANSMITTING</Text>
@@ -1851,6 +1878,24 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     letterSpacing: 2,
   },
+  // WAVE TABLE chips — 7 oscillator types
+  waveRow: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 8,
+  },
+  waveChip: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: '#2a3340',
+    borderRadius: 3,
+    backgroundColor: '#0b0e12',
+  },
+  waveChipActive: { borderColor: '#ff0a0a', backgroundColor: '#ff0a0a' },
+  waveChipTxt: { color: '#7d8794', fontSize: 7, fontWeight: '900', letterSpacing: 0.5 },
+  waveChipTxtActive: { color: '#000' },
   transmitting: {
     color: '#ff0a0a',
     fontSize: 9,

@@ -23,6 +23,10 @@ export default function ScalarFreqMeter({ value, layerCount, onShift, onSet }: P
   const repeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const delayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Exact place in the spectrum — log position across 1 Hz → 26 kHz
+  const pct = Math.min(1, Math.max(0, Math.log(Math.max(value, 1)) / Math.log(26000)));
+  const band = value < 60 ? 'SUB' : value < 250 ? 'LOW' : value < 2000 ? 'MID' : value < 6000 ? 'HIGH' : 'ULTRA';
+
   const commit = () => {
     const parsed = parseFloat(input.replace(',', '.'));
     if (!isNaN(parsed)) onSet(Math.round(parsed * 100) / 100);
@@ -83,6 +87,19 @@ export default function ScalarFreqMeter({ value, layerCount, onShift, onSet }: P
           </TouchableOpacity>
         ))}
       </View>
+      {/* SPECTRUM POSITION — exact place across the entire 1 Hz → 26 kHz range */}
+      <View style={st.specWrap}>
+        <View style={st.specTrack}>
+          <View style={[st.specFill, { width: `${pct * 100}%` }]} />
+          <View style={[st.specMarker, { left: `${pct * 100}%` }]} />
+        </View>
+        <View style={st.specBands}>
+          {['SUB', 'LOW', 'MID', 'HIGH', 'ULTRA'].map(b => (
+            <Text key={b} style={[st.specBand, band === b && st.specBandActive]}>{b}</Text>
+          ))}
+        </View>
+        <Text style={st.specPos}>SPECTRUM POSITION {(pct * 100).toFixed(2)}% · {band} BAND · 1Hz—26kHz LOG</Text>
+      </View>
     </View>
   );
 }
@@ -142,4 +159,43 @@ const st = StyleSheet.create({
   stepTxt: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
   stepTxtDown: { color: '#8a94a2' },
   stepTxtUp: { color: '#ff6060' },
+  // Spectrum position indicator
+  specWrap: { marginTop: 10 },
+  specTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10151c',
+    borderWidth: 1,
+    borderColor: '#1c232d',
+    overflow: 'visible',
+  },
+  specFill: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: '#33121a',
+    borderRadius: 3,
+  },
+  specMarker: {
+    position: 'absolute',
+    top: -3,
+    width: 2,
+    height: 10,
+    marginLeft: -1,
+    backgroundColor: '#ff0a0a',
+    shadowColor: '#ff0a0a',
+    shadowOpacity: 0.9,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  specBands: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+    paddingHorizontal: 2,
+  },
+  specBand: { color: '#4a525e', fontSize: 6, fontWeight: '900', letterSpacing: 1 },
+  specBandActive: { color: '#ff2a2a' },
+  specPos: { color: '#5a646f', fontSize: 6, letterSpacing: 1.2, textAlign: 'center', marginTop: 4, fontWeight: '800' },
 });

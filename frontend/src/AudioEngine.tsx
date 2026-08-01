@@ -136,22 +136,48 @@ function detectSilentSwitch() {
   } catch(e) {}
 }
 
-function startTone(id, freq, gain) {
+// Wavetable types — 4 native + 3 custom PeriodicWaves (pulse/organ/bell)
+function makeWave(type) {
+  if (type === 'pulse' || type === 'organ' || type === 'bell') {
+    if (!window.__pw) window.__pw = {};
+    if (window.__pw[type]) return window.__pw[type];
+    var real = new Float32Array(33), imag = new Float32Array(33);
+    if (type === 'pulse') { var d = 0.25; for (var n = 1; n <= 32; n++) { imag[n] = (2 / (n * Math.PI)) * Math.sin(n * Math.PI * d); } }
+    if (type === 'organ') { var amps = [0, 1, 0.6, 0.4, 0.3, 0, 0.2, 0, 0.15]; for (var n2 = 1; n2 < amps.length; n2++) { imag[n2] = amps[n2]; } }
+    if (type === 'bell') { var ab = [0, 1, 0.4, 0.5, 0, 0.3, 0, 0.2, 0, 0, 0.15]; for (var n3 = 1; n3 < ab.length; n3++) { imag[n3] = ab[n3]; } }
+    window.__pw[type] = ctx.createPeriodicWave(real, imag);
+    return window.__pw[type];
+  }
+  return null;
+}
+function applyWave(osc, type) {
+  try {
+    var pw = makeWave(type);
+    if (pw) { osc.setPeriodicWave(pw); } else { osc.type = type || 'sine'; }
+  } catch(e) { osc.type = 'sine'; }
+}
+
+function startTone(id, freq, gain, wave) {
   ensureCtx();
   if (oscs[id]) {
     oscs[id].osc.frequency.setValueAtTime(freq, ctx.currentTime);
     oscs[id].gain.gain.setValueAtTime(gain, ctx.currentTime);
+    if (wave) applyWave(oscs[id].osc, wave);
     return;
   }
   const osc = ctx.createOscillator();
   const gn = ctx.createGain();
-  osc.type = 'sine';
+  applyWave(osc, wave || 'sine');
   osc.frequency.setValueAtTime(freq, ctx.currentTime);
   gn.gain.setValueAtTime(gain, ctx.currentTime);
   osc.connect(gn);
   gn.connect(masterGain);
   osc.start();
   oscs[id] = { osc, gain: gn };
+}
+
+function updateWave(id, wave) {
+  if (oscs[id]) applyWave(oscs[id].osc, wave);
 }
 
 function stopTone(id) {
@@ -319,11 +345,12 @@ function handleMsg(raw) {
   try {
     const msg = JSON.parse(raw);
     switch(msg.type) {
-      case 'startTone': startTone(msg.id, msg.freq, msg.gain); break;
+      case 'startTone': startTone(msg.id, msg.freq, msg.gain, msg.wave); break;
       case 'stopTone': stopTone(msg.id); break;
       case 'stopAll': stopAll(); break;
       case 'updateFreq': updateFreq(msg.id, msg.freq); break;
       case 'updateGain': updateGain(msg.id, msg.gain); break;
+      case 'updateWave': updateWave(msg.id, msg.wave); break;
       case 'playMulti': playMulti(msg.freqs, msg.gain || 0.3); break;
       case 'stopMulti': stopMulti(); break;
       case 'startBinaural': startBinaural(msg.carrier, msg.beat); break;
@@ -392,11 +419,18 @@ const sendToWebView = (msg: object) => {
 // Audio Engine API (works on all platforms)
 export const AudioEngine = {
   // Tone layer controls
-  startTone: (id: number, freq: number, gain: number) => {
+  startTone: (id: number, freq: number, gain: number, wave?: string) => {
     if (Platform.OS === 'web') {
-      webStartTone(id, freq, gain);
+      webStartTone(id, freq, gain, wave);
     } else {
-      sendToWebView({ type: 'startTone', id, freq, gain });
+      sendToWebView({ type: 'startTone', id, freq, gain, wave });
+    }
+  },
+  updateWave: (id: number, wave: string) => {
+    if (Platform.OS === 'web') {
+      webUpdateWave(id, wave);
+    } else {
+      sendToWebView({ type: 'updateWave', id, wave });
     }
   },
   stopTone: (id: number) => {
@@ -575,22 +609,48 @@ const ensureWebCtx = () => {
   return true;
 };
 
-const webStartTone = (id: number, freq: number, gain: number) => {
+// Wavetable types — 4 native + 3 custom PeriodicWaves (pulse/organ/bell)
+const webPWCache: Record<string, PeriodicWave> = {};
+const webMakeWave = (type: string): PeriodicWave | null => {
+  if (!audioCtx) return null;
+  if (type !== 'pulse' && type !== 'organ' && type !== 'bell') return null;
+  if (webPWCache[type]) return webPWCache[type];
+  const real = new Float32Array(33), imag = new Float32Array(33);
+  if (type === 'pulse') { const d = 0.25; for (let n = 1; n <= 32; n++) imag[n] = (2 / (n * Math.PI)) * Math.sin(n * Math.PI * d); }
+  if (type === 'organ') { const amps = [0, 1, 0.6, 0.4, 0.3, 0, 0.2, 0, 0.15]; for (let n = 1; n < amps.length; n++) imag[n] = amps[n]; }
+  if (type === 'bell') { const ab = [0, 1, 0.4, 0.5, 0, 0.3, 0, 0.2, 0, 0, 0.15]; for (let n = 1; n < ab.length; n++) imag[n] = ab[n]; }
+  webPWCache[type] = audioCtx.createPeriodicWave(real, imag);
+  return webPWCache[type];
+};
+const webApplyWave = (osc: OscillatorNode, type?: string) => {
+  try {
+    const pw = type ? webMakeWave(type) : null;
+    if (pw) osc.setPeriodicWave(pw);
+    else osc.type = (type as OscillatorType) || 'sine';
+  } catch { osc.type = 'sine'; }
+};
+
+const webStartTone = (id: number, freq: number, gain: number, wave?: string) => {
   if (!ensureWebCtx() || !audioCtx || !webMasterGain) return;
   if (webOscs[id]) {
     webOscs[id].osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
     webOscs[id].gain.gain.setValueAtTime(gain, audioCtx.currentTime);
+    if (wave) webApplyWave(webOscs[id].osc, wave);
     return;
   }
   const osc = audioCtx.createOscillator();
   const gn = audioCtx.createGain();
-  osc.type = 'sine';
+  webApplyWave(osc, wave || 'sine');
   osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
   gn.gain.setValueAtTime(gain, audioCtx.currentTime);
   osc.connect(gn);
   gn.connect(webMasterGain);
   osc.start();
   webOscs[id] = { osc, gain: gn };
+};
+
+const webUpdateWave = (id: number, wave: string) => {
+  if (webOscs[id]) webApplyWave(webOscs[id].osc, wave);
 };
 
 const webStopTone = (id: number) => {
