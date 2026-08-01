@@ -85,6 +85,10 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - Analog layer manual edit upgraded to 0.01 precision (commitFreqEdit rounds 2dp, min 0.01, digital readout shows toFixed(2), maxLength 8).
 - 7 WAVETABLES: SINE/TRI/SAW/SQR native + PLS(25% pulse)/ORG(organ additive)/BEL(bell-ish) via createPeriodicWave (cached) — implemented in BOTH native bridge HTML (makeWave/applyWave, startTone(wave), updateWave msg) and web path (webMakeWave/webApplyWave/webUpdateWave). AudioEngine.startTone(id,freq,gain,wave?) + AudioEngine.updateWave(id,wave). Per-layer WAVE chip row in NODE cards, live-switchable while playing; ToneLayer.wave? (default SINE); presets persist wave.
 
+### Nixie redesign of Scalar Meter (done, screenshot-verified)
+- ScalarFreqMeter.tsx fully rewritten: Nixie-era lab instrument — bakelite panel (#14100a) w/ brass corner screws, glowing orange Nixie tube digits (tap to type exact), brass step keys, amber spectrum bar.
+- LIVE TUNING GALVANOMETER: SVG arc gauge ±50¢, needle = cents deviation of MEASURED FFT Hz (AudioEngine.subscribeScope) vs meter target; green in-tune zone + lock lamp (±3¢); status text LOCKED / ±x.x¢ OFF TARGET / NO SIGNAL. Same props/integration (value/layerCount/onShift/onSet unchanged).
+
 ## Pending user verification (physical iPhone via Expo Go)
 - Video capture (96s) + camera permissions
 - Notch/safe-area spacing
