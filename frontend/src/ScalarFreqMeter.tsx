@@ -17,6 +17,8 @@ interface Props {
   layerCount: number;
   onShift: (delta: number) => void;
   onSet: (value: number) => void;
+  isPlaying: boolean;
+  onPlay: () => void;
 }
 
 const STEPS = [-1, -0.1, -0.01, 0.01, 0.1, 1];
@@ -29,7 +31,7 @@ const pt = (deg: number, r: number) => {
   return { x: PX + Math.cos(a) * r, y: PY + Math.sin(a) * r };
 };
 
-export default function ScalarFreqMeter({ value, layerCount, onShift, onSet }: Props) {
+export default function ScalarFreqMeter({ value, layerCount, onShift, onSet, isPlaying, onPlay }: Props) {
   const [editing, setEditing] = useState(false);
   const [input, setInput] = useState('');
   const [needle, setNeedle] = useState({ cents: -50, active: false });
@@ -149,6 +151,19 @@ export default function ScalarFreqMeter({ value, layerCount, onShift, onSet }: P
             : 'NO SIGNAL — EXECUTE TO FEED THE NEEDLE'}
         </Text>
       </View>
+
+      {/* EXECUTE / HALT — bakelite rocker wired to the master bus */}
+      <TouchableOpacity
+        style={[st.execBtn, isPlaying && st.execBtnOn]}
+        onPress={onPlay}
+        activeOpacity={0.75}
+      >
+        <View style={[st.execLamp, isPlaying && st.execLampOn]} />
+        <Text style={[st.execTxt, isPlaying && st.execTxtOn]}>
+          {isPlaying ? '■ HALT SPECTRUM' : '▶ EXECUTE SPECTRUM'}
+        </Text>
+        <View style={[st.execLamp, isPlaying && st.execLampOn]} />
+      </TouchableOpacity>
 
       {/* STEP KEYS */}
       <View style={st.stepRow}>
@@ -272,6 +287,49 @@ const st = StyleSheet.create({
     shadowColor: '#7dd87d', shadowOpacity: 0.9, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
   },
   gaugeStatus: { color: '#8a744c', fontSize: 6.5, fontWeight: '800', letterSpacing: 1, textAlign: 'center', marginTop: 2 },
+  // Execute rocker
+  execBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 10,
+    minHeight: 46,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#5a3a1c',
+    backgroundColor: '#1a0f06',
+    paddingHorizontal: 12,
+  },
+  execBtnOn: {
+    borderColor: '#ff9d45',
+    backgroundColor: '#2a1608',
+    shadowColor: '#ff6a00', shadowOpacity: 0.9, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
+  },
+  execLamp: {
+    width: 9, height: 9, borderRadius: 4.5,
+    backgroundColor: '#2a1a0c',
+    borderWidth: 1, borderColor: '#5a3a1c',
+  },
+  execLampOn: {
+    backgroundColor: '#ff9d45',
+    borderColor: '#ffd08a',
+    shadowColor: '#ff6a00', shadowOpacity: 1, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
+  },
+  execTxt: {
+    color: '#8a744c',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 2.2,
+    textShadowColor: 'transparent',
+    textShadowRadius: 0,
+    textShadowOffset: { width: 0, height: 0 },
+  },
+  execTxtOn: {
+    color: '#ff9d45',
+    textShadowColor: '#ff6a00',
+    textShadowRadius: 8,
+  },
   // Steps
   stepRow: { flexDirection: 'row', gap: 5, marginTop: 10 },
   stepBtn: {

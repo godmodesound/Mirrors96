@@ -902,6 +902,8 @@ export default function TerminalScreen() {
               layerCount={layers.length}
               onShift={shiftSpectrum}
               onSet={setSpectrumTo}
+              isPlaying={isPlaying}
+              onPlay={handlePlay}
             />
 
             {layers.map((layer, index) => {
