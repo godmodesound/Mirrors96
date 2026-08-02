@@ -341,6 +341,49 @@ function stopCamelot() {
 document.addEventListener('message', function(e) { handleMsg(e.data); });
 window.addEventListener('message', function(e) { handleMsg(e.data); });
 
+// ═══ MEDIA PLAYBACK — routes external mp3/m4a through masterGain
+// so the analyser/CymaScope FFT sees the song in real time. ═══
+var mediaEl = null, mediaSrc = null, mediaGain = null;
+function playMedia(url) {
+  ensureCtx();
+  stopMedia();
+  try {
+    var el = new Audio();
+    el.crossOrigin = 'anonymous';
+    el.src = url;
+    el.preload = 'auto';
+    mediaEl = el;
+    mediaGain = ctx.createGain();
+    mediaGain.gain.value = 1.0;
+    try {
+      mediaSrc = ctx.createMediaElementSource(el);
+      mediaSrc.connect(mediaGain);
+      mediaGain.connect(masterGain);
+    } catch(e) {}
+    startScopeStream();
+    var playP = el.play();
+    if (playP && playP.catch) playP.catch(function(err){
+      window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ mediaError: String(err) }));
+    });
+    el.addEventListener('ended', function() {
+      window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ mediaEnded: true }));
+      stopMedia();
+    });
+    el.addEventListener('error', function() {
+      window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ mediaError: 'load failed' }));
+    });
+  } catch(err) {
+    window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ mediaError: String(err) }));
+  }
+}
+function stopMedia() {
+  try { if (mediaEl) { mediaEl.pause(); mediaEl.src = ''; mediaEl.load && mediaEl.load(); } } catch(e){}
+  try { if (mediaSrc) mediaSrc.disconnect(); } catch(e){}
+  try { if (mediaGain) mediaGain.disconnect(); } catch(e){}
+  mediaEl = null; mediaSrc = null; mediaGain = null;
+}
+function setMediaVolume(v) { if (mediaGain) mediaGain.gain.value = Math.max(0, Math.min(1, v)); }
+
 function handleMsg(raw) {
   try {
     const msg = JSON.parse(raw);
@@ -362,6 +405,9 @@ function handleMsg(raw) {
       case 'playCamelot': playCamelot(msg.freq); break;
       case 'stopCamelot': stopCamelot(); break;
       case 'unlockAudio': ensureCtx(); audioUnlocked = true; break;
+      case 'playMedia': playMedia(msg.url); break;
+      case 'stopMedia': stopMedia(); break;
+      case 'setMediaVolume': setMediaVolume(msg.volume); break;
       case 'detectSilentSwitch': detectSilentSwitch(); break;
       case 'startScopeStream': ensureCtx(); startScopeStream(); break;
       case 'stopScopeStream': stopScopeStream(); break;
@@ -566,7 +612,26 @@ export const AudioEngine = {
     };
   },
   getLatestScope: (): ScopeFrame => latestFrame,
+  // ═══ MEDIA — play external audio (mp3/m4a) through the same master bus so
+  //     the CymaScope / analyser respond to the song in real time. ═══
+  playMedia: (url: string, onEnd?: () => void) => {
+    mediaEndCb = onEnd || null;
+    if (Platform.OS === 'web') webPlayMedia(url, onEnd);
+    else sendToWebView({ type: 'playMedia', url });
+  },
+  stopMedia: () => {
+    mediaEndCb = null;
+    if (Platform.OS === 'web') webStopMedia();
+    else sendToWebView({ type: 'stopMedia' });
+  },
+  setMediaVolume: (v: number) => {
+    if (Platform.OS === 'web') webSetMediaVolume(v);
+    else sendToWebView({ type: 'setMediaVolume', volume: v });
+  },
 };
+
+// Media-end callback for native (WebView reports via postMessage)
+let mediaEndCb: (() => void) | null = null;
 
 // ===== Web-only direct implementations =====
 let audioCtx: AudioContext | null = null;
@@ -574,6 +639,43 @@ const webOscs: { [key: number]: { osc: OscillatorNode; gain: GainNode } } = {};
 let webMasterGain: GainNode | null = null;
 let webAnalyser: AnalyserNode | null = null;
 let webScopeBuf: Uint8Array<ArrayBuffer> | null = null;
+
+// Web media playback (routes external audio through master bus for CymaScope FFT feedback)
+let webMediaEl: HTMLAudioElement | null = null;
+let webMediaSrc: MediaElementAudioSourceNode | null = null;
+let webMediaGain: GainNode | null = null;
+
+const webPlayMedia = (url: string, onEnd?: () => void) => {
+  if (!ensureWebCtx() || !audioCtx || !webMasterGain) return;
+  webStopMedia();
+  try {
+    const el = new Audio();
+    el.crossOrigin = 'anonymous';
+    el.src = url;
+    el.preload = 'auto';
+    webMediaEl = el;
+    webMediaGain = audioCtx.createGain();
+    webMediaGain.gain.value = 1.0;
+    try {
+      webMediaSrc = audioCtx.createMediaElementSource(el);
+      webMediaSrc.connect(webMediaGain);
+      webMediaGain.connect(webMasterGain);
+    } catch (e) { /* already connected? */ }
+    el.addEventListener('ended', () => { try { onEnd && onEnd(); } catch {} webStopMedia(); });
+    el.play().catch(err => console.log('[AudioEngine] media play error', err));
+  } catch (e) { console.log('[AudioEngine] webPlayMedia err', e); }
+};
+
+const webStopMedia = () => {
+  try { if (webMediaEl) { webMediaEl.pause(); webMediaEl.src = ''; } } catch {}
+  try { if (webMediaSrc) webMediaSrc.disconnect(); } catch {}
+  try { if (webMediaGain) webMediaGain.disconnect(); } catch {}
+  webMediaEl = null; webMediaSrc = null; webMediaGain = null;
+};
+
+const webSetMediaVolume = (v: number) => {
+  if (webMediaGain) webMediaGain.gain.value = Math.max(0, Math.min(1, v));
+};
 
 const ensureWebCtx = () => {
   if (Platform.OS !== 'web') return false;
@@ -919,6 +1021,11 @@ export const AudioBridgeProvider: React.FC<{ children: React.ReactNode }> = ({ c
       // Live master-bus scope frame
       if (data.type === 'scope' && Array.isArray(data.wave)) {
         dispatchScope({ wave: data.wave, peak: data.peak || 0, measuredHz: data.measuredHz || 0, peaks: Array.isArray(data.peaks) ? data.peaks : [] });
+      }
+      // Native media playback ended
+      if (data.mediaEnded && mediaEndCb) {
+        try { mediaEndCb(); } catch {}
+        mediaEndCb = null;
       }
     } catch (e) {}
   }, []);

@@ -222,23 +222,20 @@ export default function TerminalScreen() {
 
   const plPlayTrack = async (track: Track) => {
     try {
+      // Stop any lingering expo-av instance
       if (plSoundRef.current) {
-        await plSoundRef.current.unloadAsync();
+        try { await plSoundRef.current.unloadAsync(); } catch {}
         plSoundRef.current = null;
       }
       setPlSelectedTrack(track);
       setPlIsPlaying(true);
       setPlTrackDropdownOpen(false);
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: track.previewUrl },
-        { shouldPlay: true }
-      );
-      plSoundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate((status: any) => {
-        if (status.didJustFinish) {
-          setPlIsPlaying(false);
-          setPlSelectedTrack(null);
-        }
+      // Route through AudioEngine so the master-bus analyser (CymaScope) sees the song
+      AudioEngine.stopMedia();
+      AudioEngine.unlockAudio();
+      AudioEngine.playMedia(track.previewUrl, () => {
+        setPlIsPlaying(false);
+        setPlSelectedTrack(null);
       });
     } catch (e) {
       console.log('Particle Lab playback error:', e);
@@ -247,9 +244,10 @@ export default function TerminalScreen() {
   };
 
   const plStopTrack = async () => {
+    AudioEngine.stopMedia();
     if (plSoundRef.current) {
-      await plSoundRef.current.stopAsync();
-      await plSoundRef.current.unloadAsync();
+      try { await plSoundRef.current.stopAsync(); } catch {}
+      try { await plSoundRef.current.unloadAsync(); } catch {}
       plSoundRef.current = null;
     }
     setPlIsPlaying(false);
@@ -272,35 +270,30 @@ export default function TerminalScreen() {
 
   const slPlayPreview = async (track: Track, albumName: string) => {
     try {
-      // Stop any existing playback
+      // Stop any lingering expo-av instance
       if (slSoundRef.current) {
-        await slSoundRef.current.unloadAsync();
+        try { await slSoundRef.current.unloadAsync(); } catch {}
         slSoundRef.current = null;
       }
       // Also stop particle lab playback
       if (plSoundRef.current) {
-        await plSoundRef.current.stopAsync();
-        await plSoundRef.current.unloadAsync();
+        try { await plSoundRef.current.stopAsync(); } catch {}
+        try { await plSoundRef.current.unloadAsync(); } catch {}
         plSoundRef.current = null;
         setPlIsPlaying(false);
         setPlSelectedTrack(null);
       }
       const trackKey = `${albumName}-${track.number}`;
       if (slPlayingTrack === trackKey) {
+        AudioEngine.stopMedia();
         setSlPlayingTrack(null);
         return;
       }
       setSlPlayingTrack(trackKey);
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: track.previewUrl },
-        { shouldPlay: true }
-      );
-      slSoundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate((status: any) => {
-        if (status.didJustFinish) {
-          setSlPlayingTrack(null);
-        }
-      });
+      // Route through AudioEngine so the CymaScope reacts to the song
+      AudioEngine.stopMedia();
+      AudioEngine.unlockAudio();
+      AudioEngine.playMedia(track.previewUrl, () => setSlPlayingTrack(null));
     } catch (e) {
       console.log('Sound Lab playback error:', e);
       setSlPlayingTrack(null);
@@ -308,9 +301,10 @@ export default function TerminalScreen() {
   };
 
   const slStopPreview = async () => {
+    AudioEngine.stopMedia();
     if (slSoundRef.current) {
-      await slSoundRef.current.stopAsync();
-      await slSoundRef.current.unloadAsync();
+      try { await slSoundRef.current.stopAsync(); } catch {}
+      try { await slSoundRef.current.unloadAsync(); } catch {}
       slSoundRef.current = null;
     }
     setSlPlayingTrack(null);
