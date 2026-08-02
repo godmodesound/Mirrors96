@@ -12,8 +12,10 @@ import Svg, { Circle, Line, Path, Defs, RadialGradient, Stop } from 'react-nativ
 interface Props {
   hz: number;                 // current scalar pulse Hz
   active: boolean;            // scalar armed
+  sweep: 'off' | 'up' | 'down' | 'pingpong';
   onChange: (hz: number) => void;
   onToggle: () => void;
+  onSweep: (mode: 'off' | 'up' | 'down' | 'pingpong') => void;
   size?: number;
 }
 
@@ -37,7 +39,7 @@ const PRESETS: { hz: number; label: string }[] = [
   { hz: 20,   label: '20' },
 ];
 
-export default function ScalarKnob({ hz, active, onChange, onToggle, size = 118 }: Props) {
+export default function ScalarKnob({ hz, active, sweep, onChange, onToggle, onSweep, size = 118 }: Props) {
   const S = size, C = S / 2, R = C - 8;
   const hzRef = useRef(hz);
   hzRef.current = hz;
@@ -152,7 +154,35 @@ export default function ScalarKnob({ hz, active, onChange, onToggle, size = 118 
         })}
       </View>
 
-      <Text style={st.hint}>DRAG · TAP CORE TO {active ? 'DISARM' : 'ARM'}</Text>
+      {/* ANALOG-styled control strip — PLAY + SWEEP UP/DOWN/PING-PONG */}
+      <View style={st.analogStrip}>
+        <TouchableWithoutFeedback onPress={onToggle}>
+          <View style={[st.analogBtn, st.analogPlay, active && st.analogPlayOn]}>
+            <Text style={[st.analogGlyph, active && st.analogGlyphOn]}>{active ? '■' : '▶'}</Text>
+            <Text style={[st.analogLbl, active && st.analogLblOn]}>{active ? 'ARM' : 'PLAY'}</Text>
+          </View>
+        </TouchableWithoutFeedback>
+        <TouchableWithoutFeedback onPress={() => onSweep(sweep === 'down' ? 'off' : 'down')}>
+          <View style={[st.analogBtn, sweep === 'down' && st.analogSweepOn]}>
+            <Text style={[st.analogGlyph, sweep === 'down' && st.analogGlyphOn]}>▼</Text>
+            <Text style={[st.analogLbl, sweep === 'down' && st.analogLblOn]}>SWP−</Text>
+          </View>
+        </TouchableWithoutFeedback>
+        <TouchableWithoutFeedback onPress={() => onSweep(sweep === 'pingpong' ? 'off' : 'pingpong')}>
+          <View style={[st.analogBtn, sweep === 'pingpong' && st.analogSweepOn]}>
+            <Text style={[st.analogGlyph, sweep === 'pingpong' && st.analogGlyphOn]}>◆</Text>
+            <Text style={[st.analogLbl, sweep === 'pingpong' && st.analogLblOn]}>PING</Text>
+          </View>
+        </TouchableWithoutFeedback>
+        <TouchableWithoutFeedback onPress={() => onSweep(sweep === 'up' ? 'off' : 'up')}>
+          <View style={[st.analogBtn, sweep === 'up' && st.analogSweepOn]}>
+            <Text style={[st.analogGlyph, sweep === 'up' && st.analogGlyphOn]}>▲</Text>
+            <Text style={[st.analogLbl, sweep === 'up' && st.analogLblOn]}>SWP+</Text>
+          </View>
+        </TouchableWithoutFeedback>
+      </View>
+
+      <Text style={st.hint}>DRAG · TAP CORE TO {active ? 'DISARM' : 'ARM'}{sweep !== 'off' ? ` · SWEEPING ${sweep.toUpperCase()}` : ''}</Text>
     </View>
   );
 }
@@ -203,5 +233,56 @@ const st = StyleSheet.create({
   presetChipOn: { borderColor: '#ff9d45', backgroundColor: '#2a1608' },
   presetTxt: { color: '#8a744c', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
   presetTxtOn: { color: '#ff9d45' },
+  // ANALOG-styled sweep/play strip
+  analogStrip: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'stretch',
+    gap: 4,
+    marginTop: 8,
+    width: '100%',
+  },
+  analogBtn: {
+    flex: 1,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    borderWidth: 1.2,
+    borderColor: '#5a646f',
+    backgroundColor: '#0b0e12',
+    paddingVertical: 4,
+  },
+  analogPlay: { borderColor: '#c9a86a' },
+  analogPlayOn: {
+    borderColor: '#ff9d45',
+    backgroundColor: '#2a1608',
+    shadowColor: '#ff6a00', shadowOpacity: 0.9, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
+  },
+  analogSweepOn: {
+    borderColor: '#ff5c5c',
+    backgroundColor: '#170a0a',
+    shadowColor: '#ff0a0a', shadowOpacity: 0.85, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
+  },
+  analogGlyph: {
+    color: '#7d8794',
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 14,
+  },
+  analogGlyphOn: {
+    color: '#ffb0b0',
+    textShadowColor: '#ff0a0a',
+    textShadowRadius: 6,
+    textShadowOffset: { width: 0, height: 0 },
+  },
+  analogLbl: {
+    color: '#5a646f',
+    fontSize: 6.5,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    marginTop: 1,
+  },
+  analogLblOn: { color: '#ffb0b0' },
   hint: { color: '#5a4a30', fontSize: 6, fontWeight: '800', letterSpacing: 1.2, marginTop: 5 },
 });

@@ -415,10 +415,38 @@ export default function TerminalScreen() {
   const SCALAR_GAIN = 0.25;
   const [scalarOn, setScalarOn] = useState(false);
   const [scalarHz, setScalarHz] = useState(7.83); // Schumann default
+  const [scalarSweep, setScalarSweep] = useState<'off' | 'up' | 'down' | 'pingpong'>('off');
   const scalarOnRef = useRef(scalarOn);
   scalarOnRef.current = scalarOn;
   const scalarHzRef = useRef(scalarHz);
   scalarHzRef.current = scalarHz;
+
+  // Continuous sweep — log-space traversal of 0.10Hz → 40Hz
+  useEffect(() => {
+    if (scalarSweep === 'off') return;
+    const MIN = 0.10, MAX = 40.0;
+    const L_MIN = Math.log(MIN), L_MAX = Math.log(MAX);
+    let dir: 1 | -1 = scalarSweep === 'down' ? -1 : 1;
+    const stepMs = 60;
+    const octPerSec = 0.35; // rate: ~0.35 octaves/sec → covers 8+ octaves in ~24s
+    const stepLog = octPerSec * Math.LN2 * (stepMs / 1000);
+    const t = setInterval(() => {
+      const cur = Math.log(Math.max(scalarHzRef.current, MIN));
+      let next = cur + dir * stepLog;
+      if (next >= L_MAX) {
+        next = L_MAX;
+        if (scalarSweep === 'pingpong') dir = -1;
+        else if (scalarSweep === 'up') next = L_MIN;
+      } else if (next <= L_MIN) {
+        next = L_MIN;
+        if (scalarSweep === 'pingpong') dir = 1;
+        else if (scalarSweep === 'down') next = L_MAX;
+      }
+      const hzNew = Math.round(Math.exp(next) * 100) / 100;
+      setScalarHz(hzNew);
+    }, stepMs);
+    return () => clearInterval(t);
+  }, [scalarSweep]);
 
   // ═══ PRESETS — save/load current layer session to AsyncStorage ═══
   type LayerPreset = { id: number; frequency: number; gain: number; wave?: WaveKey };
@@ -891,8 +919,13 @@ export default function TerminalScreen() {
               <ScalarKnob
                 hz={scalarHz}
                 active={scalarOn}
-                onChange={(hz) => setScalarHz(Math.max(0.1, Math.min(40, hz)))}
+                sweep={scalarSweep}
+                onChange={(hz) => {
+                  if (scalarSweep !== 'off') setScalarSweep('off');
+                  setScalarHz(Math.max(0.1, Math.min(40, hz)));
+                }}
                 onToggle={toggleScalar}
+                onSweep={setScalarSweep}
               />
               <View style={styles.scalarKnobInfo}>
                 <Text style={styles.scalarKnobInfoTitle}>◈ SCALAR PULSE</Text>

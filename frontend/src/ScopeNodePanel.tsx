@@ -14,11 +14,13 @@ import { chakraForFreq, mapOrbitGeometry, detectBeat } from './OrbitGeometry';
 //                real harmonic stack of the base frequency.
 // ═══════════════════════════════════════════════════════════
 
-export const MEDIUMS = ['CYMASCOPE', 'CHLADNI', 'WATER', 'SAND', 'CYMATICS', 'MERCURY', 'GOLD', 'FIRE'] as const;
+export const MEDIUMS = ['CYMASCOPE', 'LASER', 'MIRRORS', 'CHLADNI', 'WATER', 'SAND', 'CYMATICS', 'MERCURY', 'GOLD', 'FIRE'] as const;
 export type Medium = typeof MEDIUMS[number];
 
 const MEDIUM_COLORS: Record<Medium, string> = {
   CYMASCOPE: '#7fd4ff',
+  LASER: '#ff2a5e',
+  MIRRORS: '#e8ecf5',
   CHLADNI: '#7de87d',
   WATER: '#5fc9ff',
   SAND: '#e8c87d',
@@ -62,6 +64,8 @@ var cfg={freqs:[432],playing:false,medium:'CYMATICS',geometries:[],view:'SCOPE',
 var LIVE={wave:new Array(128).fill(128),peak:0,ts:0,peaks:[]};
 var PAL={
   CYMASCOPE:{main:'#a8e2ff',glow:'#3ec6ff',dim:'rgba(127,212,255,0.08)'},
+  LASER:{main:'#ff88b0',glow:'#ff0a5e',dim:'rgba(255,42,94,0.10)'},
+  MIRRORS:{main:'#eef0f6',glow:'#b8bfd6',dim:'rgba(232,236,245,0.10)'},
   CHLADNI:{main:'#9be89b',glow:'#3aff6e',dim:'rgba(125,232,125,0.10)'},
   WATER:{main:'#8fd8ff',glow:'#19b6ff',dim:'rgba(95,201,255,0.10)'},
   SAND:{main:'#eed9a6',glow:'#d9a441',dim:'rgba(232,200,125,0.10)'},
@@ -378,12 +382,144 @@ function drawCymascope(t,env,R){
   ctx.restore();
 }
 
+// ═══ LASER — swept-coherent light medium. Scanning laser lines carve
+// the field along the top spectral peaks; interference speckles pulse
+// in step with the audio envelope. Deep-red/magenta on black.
+function drawLaser(t,env,R){
+  ctx.save();
+  ctx.beginPath();ctx.arc(CX,CY,R,0,6.2832);ctx.clip();
+  // Base dark chamber gradient
+  var bg=ctx.createRadialGradient(CX,CY,0,CX,CY,R);
+  bg.addColorStop(0,'rgba(20,2,10,1)');
+  bg.addColorStop(0.7,'rgba(4,0,4,1)');
+  bg.addColorStop(1,'rgba(0,0,0,1)');
+  ctx.fillStyle=bg;ctx.beginPath();ctx.arc(CX,CY,R,0,6.2832);ctx.fill();
+
+  // Peaks (spectrum) become laser beams sweeping through the chamber
+  var freshP=(performance.now()-LIVE.ts)<500;
+  var beams=[];
+  if(freshP&&LIVE.peaks&&LIVE.peaks.length){
+    for(var i=0;i<LIVE.peaks.length&&i<6;i++){beams.push({f:LIVE.peaks[i].hz,a:Math.min(1,LIVE.peaks[i].mag/220)});}
+  } else {
+    for(var j=0;j<cfg.freqs.length&&j<4;j++){beams.push({f:cfg.freqs[j],a:cfg.playing?0.55:0.16});}
+  }
+  ctx.globalCompositeOperation='lighter';
+  for(var b=0;b<beams.length;b++){
+    var f=Math.max(beams[b].f,1);
+    var amp=beams[b].a;
+    var swAng=(t*0.001*(0.35+((f%13)/13)*1.1)+b*1.1)%(6.2832);
+    var col=b===0?'rgba(255,20,80,':b<3?'rgba(255,60,140,':'rgba(255,140,180,';
+    // Laser beam as long thin gradient rectangle from CX,CY outward
+    var bx=CX+Math.cos(swAng)*R*1.02;
+    var by=CY+Math.sin(swAng)*R*1.02;
+    var grd=ctx.createLinearGradient(CX,CY,bx,by);
+    grd.addColorStop(0,col+(0.02+amp*0.15).toFixed(3)+')');
+    grd.addColorStop(0.5,col+(0.55+amp*0.4).toFixed(3)+')');
+    grd.addColorStop(1,col+'0)');
+    ctx.strokeStyle=grd;
+    ctx.lineWidth=1.4+amp*3.6+env*2.5;
+    ctx.beginPath();ctx.moveTo(CX,CY);ctx.lineTo(bx,by);ctx.stroke();
+    // Bloom endpoint
+    var eg=ctx.createRadialGradient(bx,by,0,bx,by,10+amp*10);
+    eg.addColorStop(0,col+(0.85+env*0.15).toFixed(3)+')');
+    eg.addColorStop(1,col+'0)');
+    ctx.fillStyle=eg;ctx.beginPath();ctx.arc(bx,by,10+amp*10,0,6.2832);ctx.fill();
+  }
+  // Coherent speckles — random scattered dots that flicker with env
+  var spec=Math.floor(120+env*260);
+  for(var s=0;s<spec;s++){
+    var sa=Math.random()*6.2832,sr=Math.sqrt(Math.random())*R*0.98;
+    var sx=CX+Math.cos(sa)*sr,sy=CY+Math.sin(sa)*sr;
+    var si=Math.random()*(0.35+env*0.65);
+    ctx.fillStyle='rgba(255,'+Math.floor(60+si*180)+','+Math.floor(120+si*80)+','+si.toFixed(3)+')';
+    ctx.fillRect(sx,sy,1.2,1.2);
+  }
+  ctx.globalCompositeOperation='source-over';
+  // Chamber rim
+  ctx.strokeStyle='rgba(255,50,110,0.55)';ctx.lineWidth=1.6;
+  ctx.beginPath();ctx.arc(CX,CY,R*0.985,0,6.2832);ctx.stroke();
+  ctx.restore();
+}
+
+// ═══ MIRRORS — kaleidoscope reflection medium. Live waveform trace is
+// mirrored across N radial axes to produce a symmetric mirror-flower.
+// Chrome/silver palette, dark obsidian ground. "One display" clean.
+function drawMirrors(t,env,R){
+  ctx.save();
+  ctx.beginPath();ctx.arc(CX,CY,R,0,6.2832);ctx.clip();
+  // Polished obsidian base
+  var bg=ctx.createRadialGradient(CX,CY,0,CX,CY,R);
+  bg.addColorStop(0,'rgba(20,22,28,1)');
+  bg.addColorStop(0.6,'rgba(6,7,10,1)');
+  bg.addColorStop(1,'rgba(0,0,0,1)');
+  ctx.fillStyle=bg;ctx.beginPath();ctx.arc(CX,CY,R,0,6.2832);ctx.fill();
+
+  // Symmetry axes count driven by carrier
+  var f=(cfg.freqs&&cfg.freqs[0])||432;
+  var seg=Math.max(4,Math.min(24,3+Math.round(Math.sqrt(f/40))));
+  var seed=t*0.001;
+  var pts=[];
+  var N=LIVE.wave&&LIVE.wave.length?LIVE.wave.length:64;
+  // Build a wedge shape from the live waveform (radial extrusion) — this wedge is mirrored around
+  for(var i=0;i<N;i++){
+    var wv=(LIVE.wave[i%N]-128)/128;
+    var rr=R*(0.10+0.85*(i/N))+wv*R*0.10*(0.4+env*1.4);
+    pts.push(rr);
+  }
+  // Draw N mirrored wedges with chrome gradient
+  var beatMod=1;if(cfg.beat>0){var bD=cfg.beat;while(bD>16)bD/=2;beatMod=0.85+0.15*Math.sin(t*0.001*6.2832*bD);}
+  ctx.globalCompositeOperation='lighter';
+  for(var k=0;k<seg;k++){
+    var a0=(k/seg)*6.2832+seed*0.15;
+    var flip=k%2===0?1:-1;
+    ctx.save();
+    ctx.translate(CX,CY);
+    ctx.rotate(a0);
+    ctx.scale(1,flip);
+    // Wedge fill
+    var grd=ctx.createLinearGradient(0,0,R,0);
+    grd.addColorStop(0,'rgba(255,255,255,'+(0.02+env*0.05).toFixed(3)+')');
+    grd.addColorStop(0.5,'rgba(200,210,225,'+(0.20+env*0.35).toFixed(3)+')');
+    grd.addColorStop(1,'rgba(90,100,120,0)');
+    ctx.fillStyle=grd;
+    ctx.beginPath();ctx.moveTo(0,0);
+    var wedge=6.2832/seg*0.98;
+    for(var ii=0;ii<pts.length;ii++){
+      var pa=(ii/pts.length)*wedge;
+      var pr=pts[ii]*beatMod;
+      ctx.lineTo(Math.cos(pa)*pr,Math.sin(pa)*pr);
+    }
+    ctx.closePath();ctx.fill();
+    // Reflective edge outline
+    ctx.strokeStyle='rgba(240,245,255,'+(0.35+env*0.45).toFixed(3)+')';
+    ctx.lineWidth=1;
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.globalCompositeOperation='source-over';
+  // Central mirror pupil — reflects a bright specular highlight
+  var pR=R*(0.10+env*0.06);
+  var pg=ctx.createRadialGradient(CX-pR*0.3,CY-pR*0.3,0,CX,CY,pR);
+  pg.addColorStop(0,'rgba(255,255,255,0.95)');
+  pg.addColorStop(0.4,'rgba(210,220,235,0.55)');
+  pg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=pg;ctx.beginPath();ctx.arc(CX,CY,pR,0,6.2832);ctx.fill();
+  // Fine chrome rim
+  ctx.strokeStyle='rgba(220,225,235,0.75)';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.arc(CX,CY,R*0.985,0,6.2832);ctx.stroke();
+  ctx.restore();
+}
+
 function drawScopeFace(t,envSmooth){
   var isCyma=cfg.medium==='CYMASCOPE';
-  if(isCyma){ctx.fillStyle='#010409';ctx.fillRect(0,0,W,H);}
+  var isLaser=cfg.medium==='LASER';
+  var isMirrors=cfg.medium==='MIRRORS';
+  // "One display at a time" — cyma-family mediums render exclusively (no polar grid, particles, FFT ring or stacked geometries)
+  var exclusive=isCyma||isLaser||isMirrors;
+  if(exclusive){ctx.fillStyle='#010409';ctx.fillRect(0,0,W,H);}
   else{ctx.fillStyle='rgba(0,0,0,0.22)';ctx.fillRect(0,0,W,H);}
   var p=PAL[cfg.medium]||PAL.CYMATICS;
-  if(!isCyma)polarGrid(p);
+  if(!exclusive)polarGrid(p);
   var audioActive=envSmooth>0.02;
   var f=(cfg.freqs&&cfg.freqs[0])||432;
   var n=2+Math.round(f%12);
@@ -395,6 +531,10 @@ function drawScopeFace(t,envSmooth){
   var fresh=(performance.now()-LIVE.ts)<400;
   if(isCyma){
     drawCymascope(t,envSmooth,R);
+  } else if(isLaser){
+    drawLaser(t,envSmooth,R);
+  } else if(isMirrors){
+    drawMirrors(t,envSmooth,R);
   } else {
   var pts=Math.floor((audioActive?(med==='SAND'?1400:900):320)*(0.4+envSmooth*1.4));
   for(var i=0;i<pts;i++){
@@ -419,7 +559,7 @@ function drawScopeFace(t,envSmooth){
   }
   }
   ctx.globalAlpha=1;
-  if(fresh){
+  if(fresh && !exclusive){
     ctx.save();ctx.shadowColor=p.glow;ctx.shadowBlur=8;
     ctx.strokeStyle=p.main;ctx.lineWidth=1.2;ctx.globalAlpha=0.7;
     ctx.beginPath();
@@ -437,7 +577,7 @@ function drawScopeFace(t,envSmooth){
   var beatMod=1;
   if(cfg.beat>0){var bD=cfg.beat;while(bD>16)bD/=2;beatMod=0.78+0.22*Math.sin(t*0.001*6.2832*bD);}
   var geoEnv=Math.min(1,envSmooth*beatMod+(cfg.beat>0&&audioActive?0.05:0));
-  if(cfg.geometries && cfg.geometries.length){
+  if(!exclusive && cfg.geometries && cfg.geometries.length){
     ctx.save();
     ctx.shadowColor=p.glow;ctx.shadowBlur=audioActive?12+envSmooth*18:6;
     var geomRot=spin*0.6;
