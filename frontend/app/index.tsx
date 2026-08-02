@@ -31,7 +31,7 @@ import DisclaimerFooter from '../src/DisclaimerFooter';
 import { FrequencyMap } from '../src/FrequencyMap';
 import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
 import ScopeNodePanel from '../src/ScopeNodePanel';
-import ScalarFreqMeter from '../src/ScalarFreqMeter';
+import ScalarKnob from '../src/ScalarKnob';
 import SendCodesModal from '../src/SendCodesModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -414,14 +414,17 @@ export default function TerminalScreen() {
   // ═══ LINK LAYERS — when enabled, dragging any Analog dial shifts all layers by the same ratio ═══
   const [layersLinked, setLayersLinked] = useState(false);
 
-  // ═══ SCALAR — folded into the LINK bar (no dedicated section). Uses Layer 1's freq as carrier. ═══
+  // ═══ SCALAR — compact knob within CODES LAB header. Uses Layer 1's freq as carrier;
+  //     the knob modulates the scalar PULSE (0.10 → 40 Hz), Schumann-band by default.
   const SCALAR_A_ID = 91;
   const SCALAR_B_ID = 92;
-  const SCALAR_PULSE = 7.83; // Schumann default
   const SCALAR_GAIN = 0.25;
   const [scalarOn, setScalarOn] = useState(false);
+  const [scalarHz, setScalarHz] = useState(7.83); // Schumann default
   const scalarOnRef = useRef(scalarOn);
   scalarOnRef.current = scalarOn;
+  const scalarHzRef = useRef(scalarHz);
+  scalarHzRef.current = scalarHz;
 
   // ═══ PRESETS — save/load current layer session to AsyncStorage ═══
   type LayerPreset = { id: number; frequency: number; gain: number; wave?: WaveKey };
@@ -487,19 +490,21 @@ export default function TerminalScreen() {
       setScalarOn(false);
     } else {
       const c = carrierFreqRef.current;
-      AudioEngine.startTone(SCALAR_A_ID, Math.max(1, c - SCALAR_PULSE / 2), SCALAR_GAIN);
-      AudioEngine.startTone(SCALAR_B_ID, c + SCALAR_PULSE / 2, SCALAR_GAIN);
+      const p = scalarHzRef.current;
+      AudioEngine.startTone(SCALAR_A_ID, Math.max(1, c - p / 2), SCALAR_GAIN);
+      AudioEngine.startTone(SCALAR_B_ID, c + p / 2, SCALAR_GAIN);
       setScalarOn(true);
     }
   };
 
-  // Track carrier live — when Layer 1's freq changes, retune scalar
+  // Track carrier live — when Layer 1's freq OR pulse Hz changes, retune scalar
   useEffect(() => {
     if (!scalarOnRef.current) return;
     const c = layers[0]?.frequency || 432;
-    AudioEngine.updateFreq(SCALAR_A_ID, Math.max(1, c - SCALAR_PULSE / 2));
-    AudioEngine.updateFreq(SCALAR_B_ID, c + SCALAR_PULSE / 2);
-  }, [layers]);
+    const p = scalarHz;
+    AudioEngine.updateFreq(SCALAR_A_ID, Math.max(1, c - p / 2));
+    AudioEngine.updateFreq(SCALAR_B_ID, c + p / 2);
+  }, [layers, scalarHz]);
 
   const updateLayerFrequency = (id: number, frequency: number) => {
     if (layersLinked && layers.length > 1) {
@@ -831,15 +836,6 @@ export default function TerminalScreen() {
                 <Text style={styles.labPresetChipTxt}>◆ LOAD {presets.length > 0 ? `(${presets.length})` : ''}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.scalarBtn, scalarOn && styles.scalarBtnActive]}
-                onPress={toggleScalar}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.scalarBtnText, scalarOn && styles.scalarBtnTextActive]}>
-                  {scalarOn ? '◈ SCLR' : '◇ SCLR'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
                 style={[styles.linkBtn, layersLinked && styles.linkBtnActive]}
                 onPress={() => setLayersLinked(v => !v)}
                 activeOpacity={0.7}
@@ -893,18 +889,29 @@ export default function TerminalScreen() {
             <ScopeNodePanel
               frequencies={layers.map(l => l.frequency)}
               playing={isPlaying}
-              scalarBeatHz={scalarOn ? SCALAR_PULSE : 0}
+              scalarBeatHz={scalarOn ? scalarHz : 0}
             />
 
-            {/* SCALAR FREQ METER — precision master: enter/adjust the ENTIRE spectrum in 0.01 Hz steps */}
-            <ScalarFreqMeter
-              value={layers[0]?.frequency || 432}
-              layerCount={layers.length}
-              onShift={shiftSpectrum}
-              onSet={setSpectrumTo}
-              isPlaying={isPlaying}
-              onPlay={handlePlay}
-            />
+            {/* SCALAR KNOB — compact rotary that modulates the scalar pulse frequency. */}
+            <View style={styles.scalarKnobRow}>
+              <ScalarKnob
+                hz={scalarHz}
+                active={scalarOn}
+                onChange={(hz) => setScalarHz(Math.max(0.1, Math.min(40, hz)))}
+                onToggle={toggleScalar}
+              />
+              <View style={styles.scalarKnobInfo}>
+                <Text style={styles.scalarKnobInfoTitle}>◈ SCALAR PULSE</Text>
+                <Text style={styles.scalarKnobInfoLine}>CARRIER · {(layers[0]?.frequency || 432).toFixed(2)} Hz</Text>
+                <Text style={styles.scalarKnobInfoLine}>SIDEBAND · ±{(scalarHz / 2).toFixed(2)} Hz</Text>
+                <Text style={styles.scalarKnobInfoLine}>MODE · BINAURAL PULSE</Text>
+                <Text style={styles.scalarKnobInfoDim}>
+                  {scalarOn
+                    ? `PAIR ARMED · ${(Math.max(1, (layers[0]?.frequency || 432) - scalarHz / 2)).toFixed(2)} / ${((layers[0]?.frequency || 432) + scalarHz / 2).toFixed(2)} Hz`
+                    : 'TAP KNOB CORE TO ARM · DRAG TO SWEEP'}
+                </Text>
+              </View>
+            </View>
 
             {layers.map((layer, index) => {
               // XYZ coordinates for this Node — X: log-freq position, Y: gain, Z: depth
@@ -1987,6 +1994,43 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   scalarBtnTextActive: { color: '#000' },
+  scalarKnobRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 10,
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  scalarKnobInfo: {
+    flex: 1,
+    backgroundColor: '#0d0805',
+    borderWidth: 1,
+    borderColor: '#3a2e1c',
+    borderRadius: 6,
+    padding: 10,
+    justifyContent: 'center',
+  },
+  scalarKnobInfoTitle: {
+    color: '#e8dcc0',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.6,
+    marginBottom: 6,
+  },
+  scalarKnobInfoLine: {
+    color: '#c9a86a',
+    fontSize: 8.5,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    marginBottom: 2,
+  },
+  scalarKnobInfoDim: {
+    color: '#6a5a40',
+    fontSize: 7,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginTop: 6,
+  },
   labPresetChip: {
     borderWidth: 1,
     borderColor: '#2a3340',

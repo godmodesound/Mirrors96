@@ -330,6 +330,51 @@ function drawCymascope(t,env,R){
   ctx.beginPath();ctx.arc(CX,CY,R,0,6.2832);ctx.clip();
   ctx.imageSmoothingEnabled=true;
   ctx.drawImage(cymaCv,CX-R,CY-R,R*2,R*2);
+
+  // ═══ DARK MATTER — slow-drifting invisible clumps that absorb light with a faint gravitational-lensing blue rim.
+  var dmT=t*0.00042;
+  for(var m=0;m<4;m++){
+    var mx=CX+Math.cos(dmT+m*1.5707963)*R*0.55;
+    var my=CY+Math.sin(dmT*0.72+m*1.11)*R*0.55;
+    var mr=R*(0.14+0.03*Math.sin(dmT*2+m));
+    var grd=ctx.createRadialGradient(mx,my,0,mx,my,mr);
+    grd.addColorStop(0,'rgba(0,0,0,0.82)');           // absorbing core
+    grd.addColorStop(0.55,'rgba(4,8,22,0.48)');        // deep void
+    grd.addColorStop(0.82,'rgba(60,110,220,0.20)');    // gravitational lens rim
+    grd.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=grd;
+    ctx.beginPath();ctx.arc(mx,my,mr,0,6.2832);ctx.fill();
+  }
+
+  // ═══ DARK ENERGY — radial expansion aurora. Magenta/violet filaments that flow outward, amplified by audio env.
+  ctx.globalCompositeOperation='lighter';
+  var det=t*0.00072;
+  var eCount=16;
+  for(var e=0;e<eCount;e++){
+    var ang=(e/eCount)*6.2832+det*0.4+Math.sin(det+e)*0.15;
+    var phase=(det*R*0.36+e*R*0.055)%(R*0.94);
+    var ex=CX+Math.cos(ang)*phase;
+    var ey=CY+Math.sin(ang)*phase;
+    var er=R*0.055+env*R*0.10;
+    var falloff=1-phase/(R*0.94);
+    var alpha=(0.18+env*0.45)*falloff;
+    var eg=ctx.createRadialGradient(ex,ey,0,ex,ey,er);
+    eg.addColorStop(0,'rgba(220,100,255,'+alpha.toFixed(3)+')');
+    eg.addColorStop(0.45,'rgba(160,50,200,'+(alpha*0.55).toFixed(3)+')');
+    eg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=eg;
+    ctx.beginPath();ctx.arc(ex,ey,er,0,6.2832);ctx.fill();
+  }
+  // Central singularity glow — pulses with the beat
+  var sgR=R*(0.18+env*0.10);
+  var sgG=ctx.createRadialGradient(CX,CY,0,CX,CY,sgR);
+  sgG.addColorStop(0,'rgba(255,200,255,'+(0.15+env*0.35).toFixed(3)+')');
+  sgG.addColorStop(0.6,'rgba(140,40,200,'+(0.08+env*0.20).toFixed(3)+')');
+  sgG.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=sgG;
+  ctx.beginPath();ctx.arc(CX,CY,sgR,0,6.2832);ctx.fill();
+  ctx.globalCompositeOperation='source-over';
+
   ctx.restore();
 }
 
