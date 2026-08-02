@@ -31,7 +31,6 @@ import DisclaimerFooter from '../src/DisclaimerFooter';
 import { FrequencyMap } from '../src/FrequencyMap';
 import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
 import ScopeNodePanel from '../src/ScopeNodePanel';
-import ScalarKnob from '../src/ScalarKnob';
 import SendCodesModal from '../src/SendCodesModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -866,6 +865,39 @@ export default function TerminalScreen() {
                   {layersLinked ? '◈ LNK' : '◇ LNK'}
                 </Text>
               </TouchableOpacity>
+              {/* SCALAR — folded into the CODES LAB header (pulse toggle + step + sweep) */}
+              <TouchableOpacity
+                style={[styles.scalarBtn, scalarOn && styles.scalarBtnActive]}
+                onPress={toggleScalar}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.scalarBtnText, scalarOn && styles.scalarBtnTextActive]}>
+                  {scalarOn ? '◈' : '◇'} SCLR {scalarHz.toFixed(2)}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.scalarStepBtn}
+                onPress={() => { if (scalarSweep !== 'off') setScalarSweep('off'); setScalarHz(h => Math.max(0.1, Math.round((h / 1.25) * 100) / 100)); }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.scalarStepTxt}>−</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.scalarStepBtn}
+                onPress={() => { if (scalarSweep !== 'off') setScalarSweep('off'); setScalarHz(h => Math.min(40, Math.round((h * 1.25) * 100) / 100)); }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.scalarStepTxt}>+</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.scalarStepBtn, scalarSweep !== 'off' && styles.scalarBtnActive]}
+                onPress={() => setScalarSweep(s => (s === 'off' ? 'up' : s === 'up' ? 'down' : s === 'down' ? 'pingpong' : 'off'))}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.scalarStepTxt, scalarSweep !== 'off' && styles.scalarBtnTextActive]}>
+                  {scalarSweep === 'off' ? 'SWP' : scalarSweep === 'up' ? 'SWP▲' : scalarSweep === 'down' ? 'SWP▼' : 'SWP◆'}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {presetListOpen && (
@@ -913,32 +945,6 @@ export default function TerminalScreen() {
               playing={isPlaying}
               scalarBeatHz={scalarOn ? scalarHz : 0}
             />
-
-            {/* SCALAR KNOB — compact rotary that modulates the scalar pulse frequency. */}
-            <View style={styles.scalarKnobRow}>
-              <ScalarKnob
-                hz={scalarHz}
-                active={scalarOn}
-                sweep={scalarSweep}
-                onChange={(hz) => {
-                  if (scalarSweep !== 'off') setScalarSweep('off');
-                  setScalarHz(Math.max(0.1, Math.min(40, hz)));
-                }}
-                onToggle={toggleScalar}
-                onSweep={setScalarSweep}
-              />
-              <View style={styles.scalarKnobInfo}>
-                <Text style={styles.scalarKnobInfoTitle}>◈ SCALAR PULSE</Text>
-                <Text style={styles.scalarKnobInfoLine}>CARRIER · {(layers[0]?.frequency || 432).toFixed(2)} Hz</Text>
-                <Text style={styles.scalarKnobInfoLine}>SIDEBAND · ±{(scalarHz / 2).toFixed(2)} Hz</Text>
-                <Text style={styles.scalarKnobInfoLine}>MODE · BINAURAL PULSE</Text>
-                <Text style={styles.scalarKnobInfoDim}>
-                  {scalarOn
-                    ? `PAIR ARMED · ${(Math.max(1, (layers[0]?.frequency || 432) - scalarHz / 2)).toFixed(2)} / ${((layers[0]?.frequency || 432) + scalarHz / 2).toFixed(2)} Hz`
-                    : 'TAP KNOB CORE TO ARM · DRAG TO SWEEP'}
-                </Text>
-              </View>
-            </View>
 
             {layers.map((layer, index) => {
               // XYZ coordinates for this Node — X: log-freq position, Y: gain, Z: depth
@@ -2004,11 +2010,10 @@ const styles = StyleSheet.create({
   scalarBtn: {
     borderWidth: 1,
     borderColor: '#5fc9ff',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
     borderRadius: 4,
     backgroundColor: '#070a0e',
-    marginRight: 6,
   },
   scalarBtnActive: {
     borderColor: '#5fc9ff',
@@ -2016,47 +2021,26 @@ const styles = StyleSheet.create({
   },
   scalarBtnText: {
     color: '#5fc9ff',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-  },
-  scalarBtnTextActive: { color: '#000' },
-  scalarKnobRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: 10,
-    marginTop: 10,
-    marginBottom: 6,
-  },
-  scalarKnobInfo: {
-    flex: 1,
-    backgroundColor: '#0d0805',
-    borderWidth: 1,
-    borderColor: '#3a2e1c',
-    borderRadius: 6,
-    padding: 10,
-    justifyContent: 'center',
-  },
-  scalarKnobInfoTitle: {
-    color: '#e8dcc0',
     fontSize: 9,
     fontWeight: '900',
-    letterSpacing: 1.6,
-    marginBottom: 6,
+    letterSpacing: 1.2,
   },
-  scalarKnobInfoLine: {
-    color: '#c9a86a',
-    fontSize: 8.5,
-    fontWeight: '800',
-    letterSpacing: 1.1,
-    marginBottom: 2,
+  scalarBtnTextActive: { color: '#000' },
+  scalarStepBtn: {
+    borderWidth: 1,
+    borderColor: '#2a3340',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 4,
+    backgroundColor: '#0b0e12',
+    minWidth: 28,
+    alignItems: 'center',
   },
-  scalarKnobInfoDim: {
-    color: '#6a5a40',
-    fontSize: 7,
-    fontWeight: '800',
+  scalarStepTxt: {
+    color: '#5fc9ff',
+    fontSize: 9,
+    fontWeight: '900',
     letterSpacing: 1,
-    marginTop: 6,
   },
   labPresetChip: {
     borderWidth: 1,

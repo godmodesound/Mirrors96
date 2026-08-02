@@ -283,7 +283,7 @@ function drawJulia(R,rot,pal,env,freq){
 // Bessel-like radial decay + meniscus rim damping. Driven by the
 // LIVE multi-peak FFT of the master bus — every sounding partial
 // contributes its own interference mode in real time.
-var cymaCv=null,cymaCtx=null,CYS=112,cymaFrame=0;
+var cymaCv=null,cymaCtx=null,CYS=144,cymaFrame=0,cymaAmp=[0,0,0,0,0,0];
 function drawCymascope(t,env,R){
   if(!cymaCv){cymaCv=document.createElement('canvas');cymaCv.width=CYS;cymaCv.height=CYS;cymaCtx=cymaCv.getContext('2d');}
   cymaFrame++;
@@ -294,17 +294,19 @@ function drawCymascope(t,env,R){
     var drv=[];
     var freshP=(performance.now()-LIVE.ts)<500;
     if(freshP&&LIVE.peaks&&LIVE.peaks.length){
-      for(var i=0;i<LIVE.peaks.length&&i<4;i++){drv.push({f:LIVE.peaks[i].hz,a:Math.min(1,LIVE.peaks[i].mag/220)});}
+      for(var i=0;i<LIVE.peaks.length&&i<6;i++){drv.push({f:LIVE.peaks[i].hz,a:Math.min(1,LIVE.peaks[i].mag/190)});}
     } else {
       for(var j=0;j<cfg.freqs.length&&j<4;j++){drv.push({f:cfg.freqs[j],a:cfg.playing?0.5:0.16});}
     }
+    // Temporal smoothing per driver slot — kills FFT flicker so songs read as clean, steady patterns
+    for(var sm=0;sm<6;sm++){var tgt=sm<drv.length?drv[sm].a:0;cymaAmp[sm]=cymaAmp[sm]*0.62+tgt*0.38;if(sm<drv.length)drv[sm].a=cymaAmp[sm];}
     for(var q=0;q<drv.length;q++){
       var f=Math.max(drv[q].f,1);
       drv[q].k=6.2832*4.6*Math.pow(f/432,0.6667);           // capillary Faraday scaling
       drv[q].n=Math.max(3,Math.round(Math.sqrt(f/432)*6));   // angular symmetry
       drv[q].ph=t*0.001*(0.7+(f%7)*0.4);                     // ripple phase
     }
-    var amp=0.30+env*0.85;
+    var amp=0.32+env*0.90;
     var half=CYS/2;
     for(var y=0;y<CYS;y++){
       for(var x=0;x<CYS;x++){
@@ -321,11 +323,11 @@ function drawCymascope(t,env,R){
           z+=D.a*radial*angular;
         }
         z*=amp*(1-Math.pow(r,6)); // meniscus rim damping
-        var I=Math.min(1,Math.abs(z)*2.1);
+        var I=Math.min(1,Math.pow(Math.abs(z)*2.2,0.92)); // soft gamma — crisper node/antinode separation
         var rr,gg,bb;
-        if(I<0.5){var u=I*2;rr=3+u*11;gg=18+u*126;bb=44+u*168;}
-        else{var u2=(I-0.5)*2;rr=14+u2*226;gg=144+u2*111;bb=212+u2*43;}
-        d[idx]=rr;d[idx+1]=gg;d[idx+2]=bb;d[idx+3]=Math.floor(255*(0.30+I*0.70));
+        if(I<0.5){var u=I*2;rr=2+u*12;gg=14+u*130;bb=38+u*174;}
+        else{var u2=(I-0.5)*2;rr=14+u2*228;gg=144+u2*111;bb=212+u2*43;}
+        d[idx]=rr;d[idx+1]=gg;d[idx+2]=bb;d[idx+3]=Math.floor(255*(0.28+I*0.72));
       }
     }
     cymaCtx.putImageData(img,0,0);
@@ -335,16 +337,19 @@ function drawCymascope(t,env,R){
   ctx.imageSmoothingEnabled=true;
   ctx.drawImage(cymaCv,CX-R,CY-R,R*2,R*2);
 
+  // ═══ DARK FX GATE — cosmic overlays only bloom with live signal, keeping the membrane clean at rest and readable under songs.
+  var fx=Math.max(0,Math.min(1,(env-0.05)*2.0));
+  if(fx>0.02){
   // ═══ DARK MATTER — slow-drifting invisible clumps that absorb light with a faint gravitational-lensing blue rim.
   var dmT=t*0.00042;
-  for(var m=0;m<4;m++){
-    var mx=CX+Math.cos(dmT+m*1.5707963)*R*0.55;
-    var my=CY+Math.sin(dmT*0.72+m*1.11)*R*0.55;
-    var mr=R*(0.14+0.03*Math.sin(dmT*2+m));
+  for(var m=0;m<3;m++){
+    var mx=CX+Math.cos(dmT+m*2.0944)*R*0.58;
+    var my=CY+Math.sin(dmT*0.72+m*1.11)*R*0.58;
+    var mr=R*(0.11+0.025*Math.sin(dmT*2+m));
     var grd=ctx.createRadialGradient(mx,my,0,mx,my,mr);
-    grd.addColorStop(0,'rgba(0,0,0,0.82)');           // absorbing core
-    grd.addColorStop(0.55,'rgba(4,8,22,0.48)');        // deep void
-    grd.addColorStop(0.82,'rgba(60,110,220,0.20)');    // gravitational lens rim
+    grd.addColorStop(0,'rgba(0,0,0,'+(0.60*fx).toFixed(3)+')');           // absorbing core
+    grd.addColorStop(0.55,'rgba(4,8,22,'+(0.34*fx).toFixed(3)+')');        // deep void
+    grd.addColorStop(0.82,'rgba(60,110,220,'+(0.16*fx).toFixed(3)+')');    // gravitational lens rim
     grd.addColorStop(1,'rgba(0,0,0,0)');
     ctx.fillStyle=grd;
     ctx.beginPath();ctx.arc(mx,my,mr,0,6.2832);ctx.fill();
@@ -353,15 +358,15 @@ function drawCymascope(t,env,R){
   // ═══ DARK ENERGY — radial expansion aurora. Magenta/violet filaments that flow outward, amplified by audio env.
   ctx.globalCompositeOperation='lighter';
   var det=t*0.00072;
-  var eCount=16;
+  var eCount=12;
   for(var e=0;e<eCount;e++){
     var ang=(e/eCount)*6.2832+det*0.4+Math.sin(det+e)*0.15;
     var phase=(det*R*0.36+e*R*0.055)%(R*0.94);
     var ex=CX+Math.cos(ang)*phase;
     var ey=CY+Math.sin(ang)*phase;
-    var er=R*0.055+env*R*0.10;
+    var er=R*0.05+env*R*0.09;
     var falloff=1-phase/(R*0.94);
-    var alpha=(0.18+env*0.45)*falloff;
+    var alpha=(0.12+env*0.40)*falloff*fx;
     var eg=ctx.createRadialGradient(ex,ey,0,ex,ey,er);
     eg.addColorStop(0,'rgba(220,100,255,'+alpha.toFixed(3)+')');
     eg.addColorStop(0.45,'rgba(160,50,200,'+(alpha*0.55).toFixed(3)+')');
@@ -370,14 +375,15 @@ function drawCymascope(t,env,R){
     ctx.beginPath();ctx.arc(ex,ey,er,0,6.2832);ctx.fill();
   }
   // Central singularity glow — pulses with the beat
-  var sgR=R*(0.18+env*0.10);
+  var sgR=R*(0.16+env*0.10);
   var sgG=ctx.createRadialGradient(CX,CY,0,CX,CY,sgR);
-  sgG.addColorStop(0,'rgba(255,200,255,'+(0.15+env*0.35).toFixed(3)+')');
-  sgG.addColorStop(0.6,'rgba(140,40,200,'+(0.08+env*0.20).toFixed(3)+')');
+  sgG.addColorStop(0,'rgba(255,200,255,'+((0.10+env*0.32)*fx).toFixed(3)+')');
+  sgG.addColorStop(0.6,'rgba(140,40,200,'+((0.06+env*0.18)*fx).toFixed(3)+')');
   sgG.addColorStop(1,'rgba(0,0,0,0)');
   ctx.fillStyle=sgG;
   ctx.beginPath();ctx.arc(CX,CY,sgR,0,6.2832);ctx.fill();
   ctx.globalCompositeOperation='source-over';
+  }
 
   ctx.restore();
 }
