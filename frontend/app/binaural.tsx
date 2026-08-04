@@ -13,6 +13,7 @@ import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
 import { WebView } from 'react-native-webview';
 import { AudioEngine } from '../src/AudioEngine';
+import ScopeNodePanel from '../src/ScopeNodePanel';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CANVAS_SIZE = Math.min(SCREEN_WIDTH - 32, 360);
@@ -743,6 +744,16 @@ export default function BinauralScreen() {
               <Text style={styles.freqChLabel}>R CHANNEL</Text>
               <Text style={styles.freqChValue}>{(carrierFreq + beatFreq).toFixed(0)} Hz</Text>
             </View>
+          </View>
+
+          {/* ═══ CYMASCOPE — live master-bus FFT drive (zero-latency: frames stream
+              straight from the audio analyser, not from React state) ═══ */}
+          <View style={styles.scopeSection}>
+            <ScopeNodePanel
+              frequencies={[carrierFreq, carrierFreq + beatFreq]}
+              playing={isPlaying}
+              scalarBeatHz={isPlaying ? beatFreq : 0}
+            />
           </View>
 
           {/* Timer */}
