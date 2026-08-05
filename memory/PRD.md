@@ -108,3 +108,11 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - **Arc radius guard**: monkey-patched CanvasRenderingContext2D.arc in PANEL_HTML + binaural HEAD_MODEL_HTML to clamp negative/non-finite radii (fixed intermittent '/binaural radius -6.08 negative' pageerror; verified 0 pageerrors after).
 - NOTE: testing agent's "library $ prefix missing" was a FALSE NEGATIVE (entries were collapsed in codex view; verified working with expanded category).
 - Also this session: CymaScope enhancement (144px field, 6 smoothed FFT drivers, audio-gated dark FX), scalar knob → header SCLR chip (+/− steppers, SWP cycle), ScalarKnob.tsx DELETED, ScopeNodePanel added to /binaural tab.
+
+### 3 new visual options added to BOTH labs (done, screenshot-verified — CODON / GENUS / E8, mapped from user ref images)
+- **CymaScope (ScopeNodePanel.tsx)** — added as MEDIUMS (exclusive full-canvas, cycled via MED button; NOT geometries, since geometries are suppressed under exclusive cyma-family mediums). MEDIUMS now: CYMASCOPE,LASER,MIRRORS,CODON,GENUS,E8,CHLADNI,WATER,SAND,CYMATICS,MERCURY,GOLD,FIRE. Added PAL + MEDIUM_COLORS entries. drawScopeFace: isCodon/isGenus/isE8 added to `exclusive`; branches call drawCodon/drawGenus/drawE8(R, t*k+spin, pal, envSmooth).
+  - drawCodon: genetic-code wheel — 4 nested base rings (A/G/C/U pastel palette) carved into 4/8/12/16 radial wedges + base glyphs + 5' hub, env wobble.
+  - drawGenus: high-genus manifold — superformula organic body w/ iridescent blue gradient + rim light + 7 orbiting through-holes (dark cores, golden lens rims) + central hole.
+  - drawE8: Gosset/E8 Petrie projection — 8 concentric rings ×30 verts (240), sparse-but-dense chord lattice, ring-hued orbs (8-color wheel), center singularity.
+- **Particle Lab (GodmodeFeatures.tsx)** — added 3 modes to MODES + MODE_LABELS: codon, genus, e8. getTarget switch cases: codon=4 concentric rings, genus=6 small tori orbiting a ring (holes), e8=8 concentric rings (per=n/8). Uses existing chakra-hue color path.
+- Draw functions drawCodon/drawGenus/drawE8 defined in ScopeNodePanel geometry section (before drawJulia) so they're in scope for drawScopeFace.

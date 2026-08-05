@@ -476,6 +476,22 @@ function getTarget(p,i,t){
       const bx=Math.sin(t*0.6+i*0.008)*1.2;
       const by=Math.cos(t*0.5+i*0.01)*1.2;
       return{x:rx+bx,y:ry+by,z:Math.sin(t*0.4+i*0.015)*6};}
+    case'codon':{ // genetic-code wheel — 4 concentric base rings carved into codon wedges
+      const rings=4;const per=Math.ceil(n/rings);const ring=Math.floor(i/per);const idx=i%per;
+      const rr=r*(0.30+ring/(rings-1)*0.68);
+      const a=idx/per*Math.PI*2+t*(0.1+ring*0.04)+ring*0.2;
+      return{x:W/2+rr*Math.cos(a),y:H/2+rr*Math.sin(a),z:Math.sin(a*2+ring)*24};}
+    case'genus':{ // high-genus manifold — N through-holes: small tori orbiting a ring
+      const holes=6;const seg=i%holes;const per2=n/holes;const k=Math.floor(i/holes);
+      const ha=seg/holes*Math.PI*2+t*0.15;
+      const hx=W/2+Math.cos(ha)*r*0.52;const hy=H/2+Math.sin(ha)*r*0.52;
+      const ta=k/per2*Math.PI*2*2+t*1.2;const tr=r*0.20;
+      return{x:hx+tr*Math.cos(ta),y:hy+tr*Math.sin(ta),z:Math.sin(ta)*34};}
+    case'e8':{ // Gosset / E8 root-system Petrie projection — 8 concentric rings
+      const rings8=8;const per8=Math.ceil(n/rings8);const ring8=Math.floor(i/per8);const idx8=i%per8;
+      const rr8=r*(0.12+ring8/(rings8-1)*0.86);
+      const a8=idx8/per8*Math.PI*2+ring8*0.20+t*(0.05+ring8*0.02);
+      return{x:W/2+rr8*Math.cos(a8),y:H/2+rr8*Math.sin(a8),z:Math.sin(a8*2)*20};}
     default:return{x:W/2,y:H/2,z:0};
   }
 }
@@ -619,13 +635,16 @@ window.addEventListener('message',handleMsg);
 document.addEventListener('message',handleMsg);
 </script></body></html>`;
 
-const MODES = ['sphere', 'spiral', 'wave', 'dna', '96signal', '13signal', 'cym432', 'cym528', 'cym963'];
+const MODES = ['sphere', 'spiral', 'wave', 'dna', 'codon', 'genus', 'e8', '96signal', '13signal', 'cym432', 'cym528', 'cym963'];
 
 const MODE_LABELS: Record<string, string> = {
   sphere: 'SPHERE',
   spiral: 'SPIRAL',
   wave: 'WAVE',
   dna: 'DNA',
+  codon: 'CODON',
+  genus: 'GENUS',
+  e8: 'E8',
   '96signal': '#96 BIOFIELD',
   '13signal': '#13 LOCALE',
   cym432: '432 Hz',

@@ -14,13 +14,16 @@ import { chakraForFreq, mapOrbitGeometry, detectBeat } from './OrbitGeometry';
 //                real harmonic stack of the base frequency.
 // ═══════════════════════════════════════════════════════════
 
-export const MEDIUMS = ['CYMASCOPE', 'LASER', 'MIRRORS', 'CHLADNI', 'WATER', 'SAND', 'CYMATICS', 'MERCURY', 'GOLD', 'FIRE'] as const;
+export const MEDIUMS = ['CYMASCOPE', 'LASER', 'MIRRORS', 'CODON', 'GENUS', 'E8', 'CHLADNI', 'WATER', 'SAND', 'CYMATICS', 'MERCURY', 'GOLD', 'FIRE'] as const;
 export type Medium = typeof MEDIUMS[number];
 
 const MEDIUM_COLORS: Record<Medium, string> = {
   CYMASCOPE: '#7fd4ff',
   LASER: '#ff2a5e',
   MIRRORS: '#e8ecf5',
+  CODON: '#9be89b',
+  GENUS: '#8fb0ff',
+  E8: '#ffd21e',
   CHLADNI: '#7de87d',
   WATER: '#5fc9ff',
   SAND: '#e8c87d',
@@ -69,6 +72,9 @@ var PAL={
   CYMASCOPE:{main:'#a8e2ff',glow:'#3ec6ff',dim:'rgba(127,212,255,0.08)'},
   LASER:{main:'#ff88b0',glow:'#ff0a5e',dim:'rgba(255,42,94,0.10)'},
   MIRRORS:{main:'#eef0f6',glow:'#b8bfd6',dim:'rgba(232,236,245,0.10)'},
+  CODON:{main:'#9be89b',glow:'#3aff6e',dim:'rgba(125,232,125,0.10)'},
+  GENUS:{main:'#8fb0ff',glow:'#5b7bff',dim:'rgba(120,150,255,0.10)'},
+  E8:{main:'#ffe08a',glow:'#ffd21e',dim:'rgba(255,215,94,0.10)'},
   CHLADNI:{main:'#9be89b',glow:'#3aff6e',dim:'rgba(125,232,125,0.10)'},
   WATER:{main:'#8fd8ff',glow:'#19b6ff',dim:'rgba(95,201,255,0.10)'},
   SAND:{main:'#eed9a6',glow:'#d9a441',dim:'rgba(232,200,125,0.10)'},
@@ -239,6 +245,146 @@ function drawLissajous(R,rot,pal,env,freq){
   ctx.stroke();
   ctx.restore();
 }
+// ═══ CODON — genetic-code wheel. Concentric base rings (A/G/C/U) carved into
+// radial codon wedges, driven by the carrier; a living rendition of the standard
+// codon table (image ref). Zero-latency wobble on the audio env.
+function drawCodon(R,rot,pal,env){
+  var BASE=[['A','rgba(247,169,196,X)'],['G','rgba(151,220,151,X)'],['C','rgba(247,225,141,X)'],['U','rgba(150,206,235,X)']];
+  var rings=[0.34,0.56,0.78,0.98];
+  ctx.save();
+  ctx.lineWidth=1;
+  // radial dividers
+  ctx.strokeStyle=pal.dim;
+  for(var s=0;s<16;s++){var a=rot+s*6.2832/16;ctx.beginPath();ctx.moveTo(CX+Math.cos(a)*R*0.30,CY+Math.sin(a)*R*0.30);ctx.lineTo(CX+Math.cos(a)*R,CY+Math.sin(a)*R);ctx.stroke();}
+  for(var ri=0;ri<rings.length;ri++){
+    var r1=R*(ri===0?0.30:rings[ri-1]);
+    var r2=R*rings[ri];
+    var segs=(ri+1)*4; // 4,8,12,16 wedges → nested base structure
+    if(segs>16)segs=16;
+    for(var k=0;k<segs;k++){
+      var a0=rot+k*6.2832/segs, a1=a0+6.2832/segs;
+      var base=BASE[k%4];
+      var alpha=(0.14+env*0.5)*(0.55+0.45*Math.sin(rot*2+k+ri));
+      ctx.fillStyle=base[1].replace('X',alpha.toFixed(3));
+      ctx.beginPath();
+      ctx.arc(CX,CY,r2,a0,a1);
+      ctx.arc(CX,CY,r1,a1,a0,true);
+      ctx.closePath();ctx.fill();
+      // base glyph
+      if(ri>=1){
+        var am=(a0+a1)/2, rm=(r1+r2)/2;
+        ctx.fillStyle='rgba(20,20,24,'+(0.5+env*0.4).toFixed(3)+')';
+        ctx.font='bold '+Math.max(7,Math.floor(R*0.05))+'px monospace';
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(base[0],CX+Math.cos(am)*rm,CY+Math.sin(am)*rm);
+      }
+    }
+    ctx.strokeStyle=pal.glow;ctx.globalAlpha=0.35+env*0.4;
+    ctx.beginPath();ctx.arc(CX,CY,r2,0,6.2832);ctx.stroke();ctx.globalAlpha=1;
+  }
+  // 5' hub
+  ctx.fillStyle=pal.glow;ctx.globalAlpha=0.9;
+  ctx.beginPath();ctx.arc(CX,CY,3+env*3,0,6.2832);ctx.fill();ctx.globalAlpha=1;
+  ctx.textAlign='left';ctx.textBaseline='alphabetic';
+  ctx.restore();
+}
+
+// ═══ GENUS — smooth high-genus manifold (gyroid/Seifert blob, image ref).
+// An organic superformula body with N circular through-holes; iridescent rim
+// light sweeps the tube edges. Holes orbit slowly, breathing with the env.
+function drawGenus(R,rot,pal,env){
+  ctx.save();
+  ctx.beginPath();ctx.arc(CX,CY,R,0,6.2832);ctx.clip();
+  // Organic body — superformula outline filled with a cool iridescent gradient
+  var m=6, n1=0.3, n2=1.7, n3=1.7, a=1, b=1;
+  function superR(th){
+    var t1=Math.pow(Math.abs(Math.cos(m*th/4)/a),n2);
+    var t2=Math.pow(Math.abs(Math.sin(m*th/4)/b),n3);
+    return Math.pow(t1+t2,-1/n1);
+  }
+  var maxr=0; for(var s=0;s<64;s++){var rr=superR(s/64*6.2832);if(rr>maxr)maxr=rr;}
+  var scale=R*0.95/maxr;
+  var bodyGrad=ctx.createRadialGradient(CX-R*0.2,CY-R*0.2,0,CX,CY,R);
+  bodyGrad.addColorStop(0,'rgba(90,120,255,'+(0.30+env*0.25).toFixed(3)+')');
+  bodyGrad.addColorStop(0.5,'rgba(60,60,180,'+(0.22+env*0.20).toFixed(3)+')');
+  bodyGrad.addColorStop(1,'rgba(20,15,60,'+(0.10+env*0.10).toFixed(3)+')');
+  ctx.fillStyle=bodyGrad;
+  ctx.beginPath();
+  for(var i=0;i<=128;i++){var th=i/128*6.2832;var rr2=superR(th)*scale*(1+0.04*Math.sin(th*3+rot*2)*env);var x=CX+Math.cos(th+rot*0.3)*rr2,y=CY+Math.sin(th+rot*0.3)*rr2;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+  ctx.closePath();ctx.fill();
+  // rim light
+  ctx.strokeStyle='rgba(150,190,255,'+(0.5+env*0.4).toFixed(3)+')';ctx.lineWidth=1.5;ctx.shadowColor='rgba(120,160,255,0.9)';ctx.shadowBlur=10+env*14;ctx.stroke();ctx.shadowBlur=0;
+  // Through-holes — dark cores with warm golden lens rims (matches ref)
+  var holes=7;
+  ctx.globalCompositeOperation='source-over';
+  for(var h=0;h<holes;h++){
+    var ha=rot*0.4+h*6.2832/holes;
+    var hd=R*(0.12+0.34*((h%3)/2));
+    var hx=CX+Math.cos(ha)*hd, hy=CY+Math.sin(ha)*hd;
+    var hr=R*(0.10+0.05*Math.sin(rot*2+h)+env*0.03);
+    var hg=ctx.createRadialGradient(hx,hy,0,hx,hy,hr);
+    hg.addColorStop(0,'rgba(2,2,10,0.96)');
+    hg.addColorStop(0.7,'rgba(8,10,26,0.85)');
+    hg.addColorStop(0.9,'rgba(255,180,80,'+(0.35+env*0.4).toFixed(3)+')');
+    hg.addColorStop(1,'rgba(120,150,255,0)');
+    ctx.fillStyle=hg;ctx.beginPath();ctx.arc(hx,hy,hr,0,6.2832);ctx.fill();
+    ctx.strokeStyle='rgba(255,200,120,'+(0.3+env*0.4).toFixed(3)+')';ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(hx,hy,hr*0.92,0,6.2832);ctx.stroke();
+  }
+  // central hole
+  var cr=R*(0.07+env*0.03);
+  var cg=ctx.createRadialGradient(CX,CY,0,CX,CY,cr);
+  cg.addColorStop(0,'rgba(2,2,10,0.96)');cg.addColorStop(0.85,'rgba(255,170,70,'+(0.3+env*0.4).toFixed(3)+')');cg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=cg;ctx.beginPath();ctx.arc(CX,CY,cr,0,6.2832);ctx.fill();
+  ctx.restore();
+}
+
+// ═══ E8 — Gosset polytope / E8 root-system Petrie projection (image ref).
+// 8 concentric rings of 30 vertices (240 roots) with the dense all-pairs chord
+// lattice; vertices hued by ring, whole figure slow-rotates + breathes.
+function drawE8(R,rot,pal,env){
+  var rings=8, per=30;
+  var pts=[];
+  for(var ri=0;ri<rings;ri++){
+    var rr=R*(0.12+ri/(rings-1)*0.86);
+    var off=ri*0.20+rot*(0.25+ri*0.03);
+    for(var k=0;k<per;k++){
+      var a=off+k*6.2832/per;
+      pts.push({x:CX+Math.cos(a)*rr,y:CY+Math.sin(a)*rr,ring:ri});
+    }
+  }
+  ctx.save();
+  // Chord lattice — connect each vertex to a stride set of others (kept sparse for perf but dense-looking)
+  ctx.strokeStyle='rgba(200,210,230,'+(0.05+env*0.06).toFixed(3)+')';
+  ctx.lineWidth=0.4;
+  var Np=pts.length;
+  ctx.beginPath();
+  for(var i=0;i<Np;i+=1){
+    var strides=[per-1,per,per+1,73,120];
+    for(var sI=0;sI<strides.length;sI++){
+      var j=(i+strides[sI])%Np;
+      ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);
+    }
+  }
+  ctx.stroke();
+  // Vertices — ring-hued orbs
+  var HUES=['#ff3b3b','#ff8a1e','#ffd21e','#7be03a','#2ec5b6','#2e8bff','#8b5bff','#e05be0'];
+  for(var v=0;v<Np;v++){
+    var col=HUES[pts[v].ring%HUES.length];
+    var sz=2.0+env*1.6;
+    var g=ctx.createRadialGradient(pts[v].x,pts[v].y,0,pts[v].x,pts[v].y,sz*2.4);
+    g.addColorStop(0,col);g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g;ctx.globalAlpha=0.9;
+    ctx.beginPath();ctx.arc(pts[v].x,pts[v].y,sz*2.4,0,6.2832);ctx.fill();
+    ctx.globalAlpha=1;ctx.fillStyle='#ffffff';
+    ctx.beginPath();ctx.arc(pts[v].x,pts[v].y,Math.max(1,sz*0.6),0,6.2832);ctx.fill();
+  }
+  // center singularity
+  ctx.fillStyle='#ffffff';ctx.globalAlpha=0.9;
+  ctx.beginPath();ctx.arc(CX,CY,1.6+env*2,0,6.2832);ctx.fill();ctx.globalAlpha=1;
+  ctx.restore();
+}
+
 function drawJulia(R,rot,pal,env,freq){
   var cols=90,rows=54;
   var maxIter=Math.min(48,16+Math.floor(env*40));
@@ -600,8 +746,11 @@ function drawScopeFace(t,envSmooth){
   var isCyma=cfg.medium==='CYMASCOPE';
   var isLaser=cfg.medium==='LASER';
   var isMirrors=cfg.medium==='MIRRORS';
+  var isCodon=cfg.medium==='CODON';
+  var isGenus=cfg.medium==='GENUS';
+  var isE8=cfg.medium==='E8';
   // "One display at a time" — cyma-family mediums render exclusively (no polar grid, particles, FFT ring or stacked geometries)
-  var exclusive=isCyma||isLaser||isMirrors;
+  var exclusive=isCyma||isLaser||isMirrors||isCodon||isGenus||isE8;
   if(exclusive){ctx.fillStyle='#010409';ctx.fillRect(0,0,W,H);}
   else{ctx.fillStyle='rgba(0,0,0,0.22)';ctx.fillRect(0,0,W,H);}
   var p=PAL[cfg.medium]||PAL.CYMATICS;
@@ -621,6 +770,12 @@ function drawScopeFace(t,envSmooth){
     drawLaser(t,envSmooth,R);
   } else if(isMirrors){
     drawMirrors(t,envSmooth,R);
+  } else if(isCodon){
+    drawCodon(R,t*0.0002+spin,p,envSmooth);
+  } else if(isGenus){
+    drawGenus(R,t*0.0003+spin,p,envSmooth);
+  } else if(isE8){
+    drawE8(R,t*0.00016+spin,p,envSmooth);
   } else {
   var pts=Math.floor((audioActive?(med==='SAND'?1400:900):320)*(0.4+envSmooth*1.4));
   for(var i=0;i<pts;i++){
