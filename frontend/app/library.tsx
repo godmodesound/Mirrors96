@@ -45,6 +45,12 @@ type ViewMode = 'archive' | 'alpha' | 'lab';
 
 export default function LibraryScreen() {
   const [playingItem, setPlayingItem] = useState<string | null>(null);
+  // $-Codes tier — scalar-augmented GodMode generator (engine-wide flag)
+  const [godTier, setGodTier] = useState(AudioEngine.getGodMode());
+  const setTier = (on: boolean) => {
+    setGodTier(on);
+    AudioEngine.setGodMode(on);
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('archive');
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
@@ -160,7 +166,7 @@ export default function LibraryScreen() {
           </View>
           <View style={s.entryInfoCol}>
             <Text style={[s.entryName, isActive && s.entryNameActive]}>
-              {entry.name}
+              {godTier ? '$ ' : ''}{entry.name}
             </Text>
             <View style={s.entryFreqRow}>
               {entry.frequencies.map((f, i) => (
@@ -309,6 +315,25 @@ export default function LibraryScreen() {
               </Text>
             </TouchableOpacity>
           ))}
+        </View>
+
+        {/* ═══ $-CODES TIER ═══ */}
+        <View style={s.tierRow}>
+          <TouchableOpacity
+            style={[s.tierBtn, !godTier && s.tierBtnStd]}
+            onPress={() => setTier(false)}
+            activeOpacity={0.7}
+          >
+            <Text style={[s.tierTxt, !godTier && s.tierTxtStd]}>STANDARD</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.tierBtn, godTier && s.tierBtnGold]}
+            onPress={() => setTier(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={[s.tierTxt, godTier && s.tierTxtGold]}>$-CODES</Text>
+          </TouchableOpacity>
+          <Text style={s.tierHint}>{godTier ? 'GODMODE · SCALAR-AUGMENTED' : 'SINGLE-DDS REFERENCE'}</Text>
         </View>
 
         {/* ═══ NOW PLAYING ═══ */}
@@ -524,6 +549,39 @@ const s = StyleSheet.create({
   viewTabActive: { borderColor: '#ff0a0a', backgroundColor: '#0a0505' },
   viewTabText: { color: '#3a1010', fontSize: 9, fontWeight: '700', letterSpacing: 2 },
   viewTabTextActive: { color: '#ff0a0a' },
+  tierRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: 16,
+    marginBottom: 10,
+  },
+  tierBtn: {
+    borderWidth: 1,
+    borderColor: '#2a1010',
+    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#0b0505',
+  },
+  tierBtnStd: { borderColor: '#c9d2dd', backgroundColor: '#c9d2dd' },
+  tierBtnGold: { borderColor: '#ffd75e', backgroundColor: '#ffd75e' },
+  tierTxt: {
+    color: '#5a4a30',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  tierTxtStd: { color: '#000' },
+  tierTxtGold: { color: '#000' },
+  tierHint: {
+    flex: 1,
+    color: '#c9a227',
+    fontSize: 7,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textAlign: 'right',
+  },
 
   // Now Playing
   nowPlaying: {

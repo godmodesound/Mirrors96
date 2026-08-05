@@ -283,6 +283,79 @@ function drawJulia(R,rot,pal,env,freq){
 // Bessel-like radial decay + meniscus rim damping. Driven by the
 // LIVE multi-peak FFT of the master bus — every sounding partial
 // contributes its own interference mode in real time.
+// ═══ THREE-FIELD SEQUENCE — I·POTENTIAL → II·BIOFIELD → III·COHERENCE ═══
+// Signal-driven, zero latency: each field arms from the LIVE analyser frames.
+//   I   POTENTIAL — signal detected on the master bus (instant)
+//   II  BIOFIELD  — stable FFT lock held (peaks resolved > 0.9s)
+//   III COHERENCE — beat/sideband sync achieved (scalar pair or sustained lock)
+var FLD={p:0,b:0,c:0,on:0};
+function drawFields(t,env,R){
+  var now=performance.now();
+  var sig=env>0.03;
+  if(sig){if(!FLD.on)FLD.on=now;}else FLD.on=0;
+  var held=FLD.on?now-FLD.on:0;
+  var freshPk=(now-LIVE.ts)<400&&LIVE.peaks&&LIVE.peaks.length>0;
+  var tp=sig?1:0;
+  var tb=(sig&&freshPk&&held>900)?1:0;
+  var tc=(tb&&(cfg.beat>0||held>2400))?1:0;
+  FLD.p+=(tp-FLD.p)*0.10;FLD.b+=(tb-FLD.b)*0.07;FLD.c+=(tc-FLD.c)*0.06;
+  var rot=t*0.00025;
+  // I · POTENTIAL — outer golden seed ring
+  if(FLD.p>0.02){
+    var aP=FLD.p*(0.30+env*0.5);
+    ctx.save();
+    ctx.strokeStyle='rgba(255,215,94,'+aP.toFixed(3)+')';
+    ctx.lineWidth=1.1;ctx.shadowColor='rgba(255,215,94,0.9)';ctx.shadowBlur=8*FLD.p;
+    ctx.setLineDash([2,6]);
+    ctx.beginPath();ctx.arc(CX,CY,R*0.955,0,6.2832);ctx.stroke();
+    ctx.setLineDash([]);
+    for(var i=0;i<6;i++){var a=rot+i*1.0472;ctx.beginPath();ctx.arc(CX+Math.cos(a)*R*0.80,CY+Math.sin(a)*R*0.80,R*0.10,0,6.2832);ctx.stroke();}
+    ctx.restore();
+  }
+  // II · BIOFIELD — mid teal flower torus (counter-rotating)
+  if(FLD.b>0.02){
+    var aB=FLD.b*(0.30+env*0.5);
+    ctx.save();
+    ctx.strokeStyle='rgba(61,255,171,'+aB.toFixed(3)+')';
+    ctx.lineWidth=1.0;ctx.shadowColor='rgba(61,255,171,0.9)';ctx.shadowBlur=9*FLD.b;
+    var r2=R*0.52;
+    ctx.beginPath();ctx.arc(CX,CY,r2,0,6.2832);ctx.stroke();
+    for(var j=0;j<6;j++){var a2=-rot*1.4+j*1.0472;ctx.beginPath();ctx.arc(CX+Math.cos(a2)*r2*0.5,CY+Math.sin(a2)*r2*0.5,r2*0.5,0,6.2832);ctx.stroke();}
+    ctx.restore();
+  }
+  // III · COHERENCE — core violet-white merkaba, pulse-locked to the beat
+  if(FLD.c>0.02){
+    var beatPulse=1;if(cfg.beat>0){var bD=cfg.beat;while(bD>16)bD/=2;beatPulse=0.82+0.18*Math.sin(t*0.001*6.2832*bD);}
+    var aC=FLD.c*(0.40+env*0.5)*beatPulse;
+    ctx.save();
+    ctx.strokeStyle='rgba(240,240,255,'+aC.toFixed(3)+')';
+    ctx.lineWidth=1.2;ctx.shadowColor='rgba(200,160,255,1)';ctx.shadowBlur=12*FLD.c;
+    var r3=R*0.30*beatPulse;
+    polygon(CX,CY,r3,3,rot*2);
+    polygon(CX,CY,r3,3,rot*2+Math.PI);
+    ctx.fillStyle='rgba(255,255,255,'+(aC*0.9).toFixed(3)+')';
+    ctx.beginPath();ctx.arc(CX,CY,2.5+FLD.c*3.5,0,6.2832);ctx.fill();
+    ctx.restore();
+  }
+}
+function drawFieldLabels(){
+  var names=['I \u00B7 POTENTIAL','II \u00B7 BIOFIELD','III \u00B7 COHERENCE'];
+  var cols=['255,215,94','61,255,171','220,190,255'];
+  var vals=[FLD.p,FLD.b,FLD.c];
+  ctx.save();
+  ctx.font='bold 7px monospace';ctx.textAlign='center';
+  for(var i=0;i<3;i++){
+    var x=W*(0.20+i*0.30);
+    var lit=vals[i];
+    ctx.fillStyle=lit>0.5?'rgba('+cols[i]+',1)':'rgba('+cols[i]+',0.18)';
+    ctx.beginPath();ctx.arc(x,7,2,0,6.2832);ctx.fill();
+    ctx.fillStyle='rgba('+cols[i]+','+(0.28+lit*0.72).toFixed(3)+')';
+    ctx.fillText(names[i],x,18);
+  }
+  ctx.textAlign='left';
+  ctx.restore();
+}
+
 var cymaCv=null,cymaCtx=null,CYS=144,cymaFrame=0,cymaAmp=[0,0,0,0,0,0];
 function drawCymascope(t,env,R){
   if(!cymaCv){cymaCv=document.createElement('canvas');cymaCv.width=CYS;cymaCv.height=CYS;cymaCtx=cymaCv.getContext('2d');}
@@ -385,7 +458,11 @@ function drawCymascope(t,env,R){
   ctx.globalCompositeOperation='source-over';
   }
 
+  // ═══ THREE-FIELD ACTIVATION — sequential POTENTIAL → BIOFIELD → COHERENCE overlay ═══
+  drawFields(t,env,R);
+
   ctx.restore();
+  drawFieldLabels();
 }
 
 // ═══ LASER — swept-coherent light medium. Scanning laser lines carve

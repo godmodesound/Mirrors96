@@ -1,0 +1,40 @@
+{
+  "summary": "Frontend-only regression + $-Codes/GodMode functional testing. All 7 requested flows exercised via mobile viewport (390x844) Playwright. Home CODES_LAB EXECUTE plays 432Hz (measured 433.4Hz, scope 25%); STOP returns to STBY. '$ CODES' chip toggles to '$ GODMODE' — with playback live, scope meta line reads 'BEAT 7.8 Hz SYNC' and iframe canvas pixel scan at y=0-25 shows gold(9)+teal(16)+white(6) pixels confirming I·POTENTIAL / II·BIOFIELD / III·COHERENCE field labels lighting sequentially. Toggling god OFF while playing keeps audio alive (chip back to '$ CODES', 25% level, STOP still visible — live-rebuild works, no silence/crash). SCLR chip toggles ◇↔◈, +/- steppers work (7.83→9.79→7.83). CODES ARCHIVE modal shows STANDARD/'$-CODES · GODMODE' tier row, gold-fill activates, 'SCALAR-AUGMENTED · DUAL-DDS ±3.92Hz SIDEBANDS · AM BURST 7.83Hz · OPPOSED-COIL FIELD' meta visible, entries carry '$ ' name prefix in A-Z view. /library tier row present, ▶ starts (9% scope) and ◼ stops. /binaural INITIATE plays 432Hz carrier (measured 431.9Hz, 25%), TERMINATE stops. Two non-blocking issues observed: (1) canvas 'arc' negative-radius pageerror on /binaural, (2) library entries do NOT gain '$ ' name prefix when $-CODES tier is selected (archive modal DOES apply it — inconsistent). Deprecated: expo-av (Expo SDK 54).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      { "component": "/binaural CymaScope canvas", "issue": "PAGEERROR: Failed to execute 'arc' on 'CanvasRenderingContext2D': The radius provided (-6.08) is negative. Likely a beat-pulse or orb radius calculation that goes negative when scalar/god settings interact with binaural view. Reference: /app/frontend/src/ScopeNodePanel.tsx (drawOrb / drawFields / drawCymascope beatPulse math).", "testID": "n/a (no testIDs in project)", "priority": "MEDIUM" },
+      { "component": "/library A-Z / preset cards", "issue": "When $-CODES tier is selected on /library the entry names are NOT prefixed with '$ ' (archive modal does apply the prefix correctly). Inconsistent tier presentation. Reference: /app/frontend/app/library.tsx.", "testID": "n/a", "priority": "LOW" }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      { "screen": "Global", "issues": ["No testID props on any TouchableOpacity/Pressable/TextInput. Tests had to rely on brittle text selectors (e.g. 'EXECUTE', 'SCLR', 'PLAY'). Add testIDs for: godChip, execBtn, sclrChip, sclrPlus, sclrMinus, archiveOpen, archiveTierStd, archiveTierGod, libraryTierStd, libraryTierGod, binauralInitiate, binauralTerminate."] }
+    ],
+    "react_native_issues": [
+      { "component": "expo-av", "issue": "Deprecated package in use — will be removed in SDK 54. Migrate to expo-audio (audio) and expo-video (video). Console warning fires on every page load. Reference: /app/frontend/package.json (expo-av dependency)." },
+      { "component": "TouchableMixin", "issue": "'TouchableMixin is deprecated. Please use Pressable.' console warning — old react-native Touchable* wrapper is somewhere in tree (likely a third-party package)." },
+      { "component": "Style deprecations", "issue": "'shadow*' and 'textShadow*' style props are deprecated on web — should be migrated to 'boxShadow' / 'textShadow' shorthand where possible." },
+      { "component": "Web-only responder handlers", "issue": "Unknown event handler property: onStartShouldSetResponder / onResponderTerminationRequest / onResponderGrant / onResponderMove / onResponderRelease / onResponderTerminate — these RN-native touch responder props leak to the DOM on web preview (React warnings). Guard with Platform.OS !== 'web' or use PanResponder.web-safe wrappers." }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix negative-radius canvas.arc bug on /binaural (guard radius with Math.max(0, r) in drawOrb / beatPulse-modulated size calcs in ScopeNodePanel.tsx).",
+    "Apply '$ ' name prefix to library.tsx entries when godMode is on to match CODES ARCHIVE modal behaviour.",
+    "Migrate expo-av → expo-audio / expo-video (SDK 54 removal).",
+    "Add testID props on all interactive elements listed under design_issues to make future automated testing robust.",
+    "Suppress or Platform-gate RN touch-responder props on web preview to eliminate the six React warnings."
+  ],
+  "critical_code_review_comments": [
+    "AudioEngine.tsx is 1200+ lines mixing WebView-HTML bridge + web implementations + provider component. Consider splitting into audioBridgeHtml.ts, audioEngineWeb.ts, audioEngineNative.ts, AudioBridgeProvider.tsx for maintainability.",
+    "AudioEngine.tsx duplicates the full generator chain (godMode, oscs, binaural, soundscape, media) once in the WebView HTML string and once in web* functions — any change must be made twice; risk of divergence is high.",
+    "ScopeNodePanel.tsx PANEL_HTML is 860+ lines of embedded JS inside a template literal — no lint coverage. Consider externalising and injecting."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (skipped per request)", "frontend": "~90% (7/7 flows functional; 2 non-blocking bugs found)" },
+  "seed_data_creation": "None.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Home page CODES_LAB is below the hero — scroll ~6 wheel ticks. Use text selectors (no testIDs): 'EXECUTE'/'STOP' regex '[▶ EXECUTE]|[■ STOP]', chip '$ CODES'/'$ GODMODE', 'SCLR 7.83', 'CODES ARCHIVE', '$-CODES · GODMODE'. Scope % lives in headerBar state pill (regex '\\d+%'). Measured Hz appears after '→' in header. Canvas iframe field-label pixels can be sampled via page.evaluate on iframe.contentDocument canvas (top 25px band, look for gold RGB(255,215,94)/teal RGB(61,255,171)/white). To confirm binaural: /binaural page has INITIATE/TERMINATE with a full CymaScope panel that currently throws negative-radius canvas.arc error.",
+  "rca_of_issue": "Binaural canvas error RCA: 'The radius provided (-6.08) is negative' fires inside ScopeNodePanel.tsx PANEL_HTML. Most likely source is beatPulse math in drawFields()/drawCymascope() (`R*0.30*beatPulse` etc.) or drawOrb size×intensity when livePeak spikes negative on binaural (which uses stereo channels — the mono analyser tap can report edge values). Repro: navigate to /binaural → click INITIATE → observe pageerror in console within ~1-2s. Mitigation: wrap every ctx.arc(..., r, ...) with `Math.max(0.001, r)` and clamp pR/geomR/r3/mr computations to >=0."
+}

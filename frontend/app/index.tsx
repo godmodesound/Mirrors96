@@ -447,6 +447,22 @@ export default function TerminalScreen() {
     return () => clearInterval(t);
   }, [scalarSweep]);
 
+  // ═══ $-CODES / GODMODE — scalar-augmented tier. Rewires the engine's
+  //     organizing chain (dual-DDS sidebands ± pulse/2 + AM burst + opposed-coil
+  //     interference) so every generated tone becomes measurable field output. ═══
+  const [godMode, setGodModeState] = useState(AudioEngine.getGodMode());
+  const godModeRef = useRef(godMode);
+  godModeRef.current = godMode;
+  const toggleGodMode = () => {
+    const next = !godMode;
+    setGodModeState(next);
+    AudioEngine.setGodMode(next, scalarHzRef.current); // live-rebuilds all sounding chains
+  };
+  // Keep the god chain's pulse locked to the scalar knob value
+  useEffect(() => {
+    if (godModeRef.current) AudioEngine.setGodMode(true, scalarHz);
+  }, [scalarHz]);
+
   // ═══ PRESETS — save/load current layer session to AsyncStorage ═══
   type LayerPreset = { id: number; frequency: number; gain: number; wave?: WaveKey };
   type Preset = { name: string; ts: number; layers: LayerPreset[]; scalar: boolean; linked: boolean };
@@ -865,6 +881,16 @@ export default function TerminalScreen() {
                   {layersLinked ? '◈ LNK' : '◇ LNK'}
                 </Text>
               </TouchableOpacity>
+              {/* $-CODES tier — GodMode scalar-augmented generator */}
+              <TouchableOpacity
+                style={[styles.godChip, godMode && styles.godChipActive]}
+                onPress={toggleGodMode}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.godChipTxt, godMode && styles.godChipTxtActive]}>
+                  {godMode ? '$ GODMODE' : '$ CODES'}
+                </Text>
+              </TouchableOpacity>
               {/* SCALAR — folded into the CODES LAB header (pulse toggle + step + sweep) */}
               <TouchableOpacity
                 style={[styles.scalarBtn, scalarOn && styles.scalarBtnActive]}
@@ -943,7 +969,7 @@ export default function TerminalScreen() {
             <ScopeNodePanel
               frequencies={layers.map(l => l.frequency)}
               playing={isPlaying}
-              scalarBeatHz={scalarOn ? scalarHz : 0}
+              scalarBeatHz={scalarOn || (godMode && isPlaying) ? scalarHz : 0}
             />
 
             {layers.map((layer, index) => {
@@ -1357,6 +1383,28 @@ export default function TerminalScreen() {
               <Text style={archiveStyles.modalStats}>
                 {FREQUENCY_ARCHIVE.length} FREQUENCIES · {ARCHIVE_CATEGORIES.length - 1} CODICES · 432Hz CALIBRATED
               </Text>
+              {/* ═══ TIER SELECT — STANDARD vs $-CODES (scalar-augmented GodMode) ═══ */}
+              <View style={archiveStyles.tierRow}>
+                <TouchableOpacity
+                  style={[archiveStyles.tierBtn, !godMode && archiveStyles.tierBtnActive]}
+                  onPress={() => { if (godMode) toggleGodMode(); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[archiveStyles.tierBtnText, !godMode && archiveStyles.tierBtnTextActive]}>STANDARD</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[archiveStyles.tierBtn, godMode && archiveStyles.tierBtnGold]}
+                  onPress={() => { if (!godMode) toggleGodMode(); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[archiveStyles.tierBtnText, godMode && archiveStyles.tierBtnTextGold]}>$-CODES · GODMODE</Text>
+                </TouchableOpacity>
+              </View>
+              {godMode && (
+                <Text style={archiveStyles.tierMeta}>
+                  SCALAR-AUGMENTED · DUAL-DDS ±{(scalarHz / 2).toFixed(2)}Hz SIDEBANDS · AM BURST {scalarHz.toFixed(2)}Hz · OPPOSED-COIL FIELD
+                </Text>
+              )}
               <TouchableOpacity
                 style={archiveStyles.modalCloseBtn}
                 onPress={() => { setArchiveModalVisible(false); AudioEngine.stopMulti(); setArchivePlayingItem(null); setSelectedCodex(null); }}
@@ -1457,8 +1505,8 @@ export default function TerminalScreen() {
                       <View style={[archiveStyles.archiveCard, isPlaying && archiveStyles.archiveCardActive]}>
                         <View style={archiveStyles.archiveCardHeader}>
                           <View style={archiveStyles.archiveCardInfo}>
-                            <Text style={archiveStyles.archiveCardName}>{item.name}</Text>
-                            <Text style={archiveStyles.archiveCardCategory}>{item.frequencies.length} FREQUENCIES</Text>
+                            <Text style={archiveStyles.archiveCardName}>{godMode ? '$ ' : ''}{item.name}</Text>
+                            <Text style={archiveStyles.archiveCardCategory}>{item.frequencies.length} FREQUENCIES{godMode ? ' · $-CODE' : ''}</Text>
                           </View>
                         </View>
                         <View style={archiveStyles.freqChipRow}>
@@ -1500,8 +1548,8 @@ export default function TerminalScreen() {
                     <View style={[archiveStyles.archiveCard, isPlaying && archiveStyles.archiveCardActive]}>
                       <View style={archiveStyles.archiveCardHeader}>
                         <View style={archiveStyles.archiveCardInfo}>
-                          <Text style={archiveStyles.archiveCardName}>{item.name}</Text>
-                          <Text style={archiveStyles.archiveCardCategory}>{item.category.toUpperCase()} · {item.frequencies.length} FREQ</Text>
+                          <Text style={archiveStyles.archiveCardName}>{godMode ? '$ ' : ''}{item.name}</Text>
+                          <Text style={archiveStyles.archiveCardCategory}>{item.category.toUpperCase()} · {item.frequencies.length} FREQ{godMode ? ' · $-CODE' : ''}</Text>
                         </View>
                       </View>
                       <View style={archiveStyles.freqChipRow}>
@@ -2042,6 +2090,25 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 1,
   },
+  godChip: {
+    borderWidth: 1,
+    borderColor: '#c9a227',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 4,
+    backgroundColor: '#0e0a04',
+  },
+  godChipActive: {
+    borderColor: '#ffd75e',
+    backgroundColor: '#ffd75e',
+  },
+  godChipTxt: {
+    color: '#ffd75e',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  godChipTxtActive: { color: '#000' },
   labPresetChip: {
     borderWidth: 1,
     borderColor: '#2a3340',
@@ -2839,6 +2906,43 @@ const archiveStyles = StyleSheet.create({
     letterSpacing: 1.5,
     marginTop: 4,
     fontFamily: 'TerminatorRealNFI',
+  },
+  tierRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 10,
+  },
+  tierBtn: {
+    borderWidth: 1,
+    borderColor: '#2a1010',
+    borderRadius: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#0b0505',
+  },
+  tierBtnActive: {
+    borderColor: '#c9d2dd',
+    backgroundColor: '#c9d2dd',
+  },
+  tierBtnGold: {
+    borderColor: '#ffd75e',
+    backgroundColor: '#ffd75e',
+  },
+  tierBtnText: {
+    color: '#5a4a30',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  tierBtnTextActive: { color: '#000' },
+  tierBtnTextGold: { color: '#000' },
+  tierMeta: {
+    color: '#c9a227',
+    fontSize: 7,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    marginTop: 6,
+    textAlign: 'center',
   },
   modalCloseBtn: {
     position: 'absolute',

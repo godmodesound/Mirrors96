@@ -157,14 +157,70 @@ function applyWave(osc, type) {
   } catch(e) { osc.type = 'sine'; }
 }
 
+// ═══ $-CODES / GODMODE — scalar-augmented generator chain ═══
+// dual-channel DDS → controlled AM/burst gate → isolated constant-current
+// drivers → matched opposed coils (inverted cross-feed interference) →
+// calibrated field sensing (master-bus analyser measures the real sidebands).
+let godMode = false, godPulse = 7.83;
+function retuneGod(o, freq) {
+  var p = godPulse, t0 = ctx.currentTime;
+  o.freq = freq;
+  o.oL.frequency.setValueAtTime(Math.max(1, freq - p / 2), t0);
+  o.oR.frequency.setValueAtTime(freq + p / 2, t0);
+  o.lfo.frequency.setValueAtTime(p, t0);
+}
+function buildGod(id, freq, gain) {
+  var t0 = ctx.currentTime, p = godPulse;
+  var merger = ctx.createChannelMerger(2);
+  var amp = ctx.createGain(); amp.gain.setValueAtTime(gain, t0);      // AM/burst gate stage
+  merger.connect(amp); amp.connect(masterGain);                        // field sensing tap
+  var oL = ctx.createOscillator(); oL.frequency.setValueAtTime(Math.max(1, freq - p / 2), t0); // DDS ch A
+  var oR = ctx.createOscillator(); oR.frequency.setValueAtTime(freq + p / 2, t0);              // DDS ch B
+  var gL = ctx.createGain(); gL.gain.setValueAtTime(0.5, t0);          // constant-current driver L
+  var gR = ctx.createGain(); gR.gain.setValueAtTime(0.5, t0);          // constant-current driver R
+  oL.connect(gL); gL.connect(merger, 0, 0);
+  oR.connect(gR); gR.connect(merger, 0, 1);
+  var inv = ctx.createGain(); inv.gain.setValueAtTime(-0.22, t0);      // opposed-coil interference
+  gL.connect(inv); gR.connect(inv);
+  inv.connect(merger, 0, 0); inv.connect(merger, 0, 1);
+  var lfo = ctx.createOscillator(); lfo.frequency.setValueAtTime(p, t0); // burst generator
+  var lfoDepth = ctx.createGain(); lfoDepth.gain.setValueAtTime(gain * 0.45, t0);
+  lfo.connect(lfoDepth); lfoDepth.connect(amp.gain);
+  oL.start(); oR.start(); lfo.start();
+  oscs[id] = { god: true, freq: freq, oL: oL, oR: oR, lfo: lfo, gL: gL, gR: gR, amp: amp, lfoDepth: lfoDepth, merger: merger, inv: inv };
+}
+function setGodMode(on, pulse) {
+  godMode = !!on;
+  if (pulse) godPulse = pulse;
+  // Live-rebuild every sounding chain to match the new organizing mode
+  Object.keys(oscs).forEach(function(id) {
+    var o = oscs[id]; if (!o) return;
+    if (!!o.god === godMode) { if (o.god) retuneGod(o, o.freq); return; }
+    var f = o.god ? o.freq : o.osc.frequency.value;
+    var g = o.god ? o.amp.gain.value : o.gain.gain.value;
+    stopTone(id);
+    if (godMode) buildGod(id, f, g);
+    else startTone(id, f, g, 'sine');
+  });
+}
+
 function startTone(id, freq, gain, wave) {
   ensureCtx();
-  if (oscs[id]) {
-    oscs[id].osc.frequency.setValueAtTime(freq, ctx.currentTime);
-    oscs[id].gain.gain.setValueAtTime(gain, ctx.currentTime);
-    if (wave) applyWave(oscs[id].osc, wave);
+  var ex = oscs[id];
+  if (ex && !!ex.god === godMode) {
+    if (ex.god) {
+      retuneGod(ex, freq);
+      ex.amp.gain.setValueAtTime(gain, ctx.currentTime);
+      ex.lfoDepth.gain.setValueAtTime(gain * 0.45, ctx.currentTime);
+    } else {
+      ex.osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      ex.gain.gain.setValueAtTime(gain, ctx.currentTime);
+      if (wave) applyWave(ex.osc, wave);
+    }
     return;
   }
+  if (ex) stopTone(id);
+  if (godMode) { buildGod(id, freq, gain); return; }
   const osc = ctx.createOscillator();
   const gn = ctx.createGain();
   applyWave(osc, wave || 'sine');
@@ -177,14 +233,17 @@ function startTone(id, freq, gain, wave) {
 }
 
 function updateWave(id, wave) {
-  if (oscs[id]) applyWave(oscs[id].osc, wave);
+  if (oscs[id] && !oscs[id].god) applyWave(oscs[id].osc, wave);
 }
 
 function stopTone(id) {
-  if (oscs[id]) {
-    try { oscs[id].osc.stop(); oscs[id].osc.disconnect(); } catch(e) {}
-    delete oscs[id];
-  }
+  var o = oscs[id];
+  if (!o) return;
+  try {
+    if (o.god) { o.oL.stop(); o.oR.stop(); o.lfo.stop(); o.oL.disconnect(); o.oR.disconnect(); o.lfo.disconnect(); o.merger.disconnect(); o.amp.disconnect(); }
+    else { o.osc.stop(); o.osc.disconnect(); }
+  } catch(e) {}
+  delete oscs[id];
 }
 
 function stopAll() {
@@ -192,34 +251,35 @@ function stopAll() {
 }
 
 function updateFreq(id, freq) {
-  if (oscs[id]) oscs[id].osc.frequency.setValueAtTime(freq, ctx.currentTime);
+  var o = oscs[id];
+  if (!o) return;
+  if (o.god) retuneGod(o, freq);
+  else o.osc.frequency.setValueAtTime(freq, ctx.currentTime);
 }
 
 function updateGain(id, gain) {
-  if (oscs[id]) oscs[id].gain.gain.setValueAtTime(gain, ctx.currentTime);
+  var o = oscs[id];
+  if (!o) return;
+  if (o.god) { o.amp.gain.setValueAtTime(gain, ctx.currentTime); o.lfoDepth.gain.setValueAtTime(gain * 0.45, ctx.currentTime); }
+  else o.gain.gain.setValueAtTime(gain, ctx.currentTime);
 }
 
-// Multi-frequency play (for library/moods)
-let multiOscs = [];
+// Multi-frequency play (for library/moods) — routed through startTone so the
+// $-Codes godMode chain applies to archive stacks automatically
+let multiIds = [];
 function playMulti(freqs, gainVal) {
   ensureCtx();
   stopMulti();
-  freqs.forEach(freq => {
-    const osc = ctx.createOscillator();
-    const gn = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq, ctx.currentTime);
-    gn.gain.setValueAtTime(gainVal / Math.sqrt(freqs.length), ctx.currentTime);
-    osc.connect(gn);
-    gn.connect(masterGain);
-    osc.start();
-    multiOscs.push({ osc, gain: gn });
+  freqs.forEach(function(freq, i) {
+    var id = 9000 + i;
+    startTone(id, freq, gainVal / Math.sqrt(freqs.length), 'sine');
+    multiIds.push(id);
   });
 }
 
 function stopMulti() {
-  multiOscs.forEach(({ osc }) => { try { osc.stop(); osc.disconnect(); } catch(e) {} });
-  multiOscs = [];
+  multiIds.forEach(function(id) { stopTone(id); });
+  multiIds = [];
 }
 
 // Binaural beats
@@ -389,6 +449,7 @@ function handleMsg(raw) {
     const msg = JSON.parse(raw);
     switch(msg.type) {
       case 'startTone': startTone(msg.id, msg.freq, msg.gain, msg.wave); break;
+      case 'setGodMode': setGodMode(msg.on, msg.pulse); break;
       case 'stopTone': stopTone(msg.id); break;
       case 'stopAll': stopAll(); break;
       case 'updateFreq': updateFreq(msg.id, msg.freq); break;
@@ -451,6 +512,7 @@ document.addEventListener('touchstart', function unlockAudio() {
 let webViewRef: any = null;
 let isWebViewReady = false;
 let pendingMessages: string[] = [];
+let godModeFlag = false; // JS-side mirror of the engine's $-Codes tier
 
 const sendToWebView = (msg: object) => {
   const json = JSON.stringify(msg);
@@ -507,6 +569,17 @@ export const AudioEngine = {
       sendToWebView({ type: 'updateGain', id, gain });
     }
   },
+  // ═══ $-CODES / GODMODE tier — rewires the generator into the scalar-augmented
+  //     chain (dual-DDS sidebands + AM burst + opposed-coil interference) ═══
+  setGodMode: (on: boolean, pulse?: number) => {
+    godModeFlag = on;
+    if (Platform.OS === 'web') {
+      webSetGodMode(on, pulse);
+    } else {
+      sendToWebView({ type: 'setGodMode', on, pulse });
+    }
+  },
+  getGodMode: () => godModeFlag,
   // Multi-frequency (library/moods)
   playMulti: (freqs: number[], gain: number = 0.3) => {
     if (Platform.OS === 'web') {
@@ -635,7 +708,7 @@ let mediaEndCb: (() => void) | null = null;
 
 // ===== Web-only direct implementations =====
 let audioCtx: AudioContext | null = null;
-const webOscs: { [key: number]: { osc: OscillatorNode; gain: GainNode } } = {};
+const webOscs: { [key: number]: any } = {};
 let webMasterGain: GainNode | null = null;
 let webAnalyser: AnalyserNode | null = null;
 let webScopeBuf: Uint8Array<ArrayBuffer> | null = null;
@@ -732,14 +805,73 @@ const webApplyWave = (osc: OscillatorNode, type?: string) => {
   } catch { osc.type = 'sine'; }
 };
 
+// ═══ $-CODES / GODMODE (web) — scalar-augmented generator chain ═══
+// dual-channel DDS → AM/burst gate → constant-current drivers →
+// matched opposed coils (inverted cross-feed) → field sensing (analyser).
+let webGodMode = false;
+let webGodPulse = 7.83;
+const webRetuneGod = (o: any, freq: number) => {
+  if (!audioCtx) return;
+  const p = webGodPulse, t0 = audioCtx.currentTime;
+  o.freq = freq;
+  o.oL.frequency.setValueAtTime(Math.max(1, freq - p / 2), t0);
+  o.oR.frequency.setValueAtTime(freq + p / 2, t0);
+  o.lfo.frequency.setValueAtTime(p, t0);
+};
+const webBuildGod = (id: number, freq: number, gain: number) => {
+  if (!audioCtx || !webMasterGain) return;
+  const t0 = audioCtx.currentTime, p = webGodPulse;
+  const merger = audioCtx.createChannelMerger(2);
+  const amp = audioCtx.createGain(); amp.gain.setValueAtTime(gain, t0);      // AM/burst gate
+  merger.connect(amp); amp.connect(webMasterGain);                            // field sensing tap
+  const oL = audioCtx.createOscillator(); oL.frequency.setValueAtTime(Math.max(1, freq - p / 2), t0);
+  const oR = audioCtx.createOscillator(); oR.frequency.setValueAtTime(freq + p / 2, t0);
+  const gL = audioCtx.createGain(); gL.gain.setValueAtTime(0.5, t0);          // constant-current L
+  const gR = audioCtx.createGain(); gR.gain.setValueAtTime(0.5, t0);          // constant-current R
+  oL.connect(gL); gL.connect(merger, 0, 0);
+  oR.connect(gR); gR.connect(merger, 0, 1);
+  const inv = audioCtx.createGain(); inv.gain.setValueAtTime(-0.22, t0);      // opposed-coil interference
+  gL.connect(inv); gR.connect(inv);
+  inv.connect(merger, 0, 0); inv.connect(merger, 0, 1);
+  const lfo = audioCtx.createOscillator(); lfo.frequency.setValueAtTime(p, t0);
+  const lfoDepth = audioCtx.createGain(); lfoDepth.gain.setValueAtTime(gain * 0.45, t0);
+  lfo.connect(lfoDepth); lfoDepth.connect(amp.gain);
+  oL.start(); oR.start(); lfo.start();
+  webOscs[id] = { god: true, freq, oL, oR, lfo, gL, gR, amp, lfoDepth, merger, inv };
+};
+const webSetGodMode = (on: boolean, pulse?: number) => {
+  webGodMode = on;
+  if (pulse) webGodPulse = pulse;
+  Object.keys(webOscs).forEach(k => {
+    const id = parseInt(k);
+    const o = webOscs[id];
+    if (!o) return;
+    if (!!o.god === webGodMode) { if (o.god) webRetuneGod(o, o.freq); return; }
+    const f = o.god ? o.freq : o.osc.frequency.value;
+    const g = o.god ? o.amp.gain.value : o.gain.gain.value;
+    webStopTone(id);
+    if (webGodMode) webBuildGod(id, f, g);
+    else webStartTone(id, f, g, 'sine');
+  });
+};
+
 const webStartTone = (id: number, freq: number, gain: number, wave?: string) => {
   if (!ensureWebCtx() || !audioCtx || !webMasterGain) return;
-  if (webOscs[id]) {
-    webOscs[id].osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-    webOscs[id].gain.gain.setValueAtTime(gain, audioCtx.currentTime);
-    if (wave) webApplyWave(webOscs[id].osc, wave);
+  const ex = webOscs[id];
+  if (ex && !!ex.god === webGodMode) {
+    if (ex.god) {
+      webRetuneGod(ex, freq);
+      ex.amp.gain.setValueAtTime(gain, audioCtx.currentTime);
+      ex.lfoDepth.gain.setValueAtTime(gain * 0.45, audioCtx.currentTime);
+    } else {
+      ex.osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      ex.gain.gain.setValueAtTime(gain, audioCtx.currentTime);
+      if (wave) webApplyWave(ex.osc, wave);
+    }
     return;
   }
+  if (ex) webStopTone(id);
+  if (webGodMode) { webBuildGod(id, freq, gain); return; }
   const osc = audioCtx.createOscillator();
   const gn = audioCtx.createGain();
   webApplyWave(osc, wave || 'sine');
@@ -752,14 +884,17 @@ const webStartTone = (id: number, freq: number, gain: number, wave?: string) => 
 };
 
 const webUpdateWave = (id: number, wave: string) => {
-  if (webOscs[id]) webApplyWave(webOscs[id].osc, wave);
+  if (webOscs[id] && !webOscs[id].god) webApplyWave(webOscs[id].osc, wave);
 };
 
 const webStopTone = (id: number) => {
-  if (webOscs[id]) {
-    try { webOscs[id].osc.stop(); webOscs[id].osc.disconnect(); } catch (e) {}
-    delete webOscs[id];
-  }
+  const o = webOscs[id];
+  if (!o) return;
+  try {
+    if (o.god) { o.oL.stop(); o.oR.stop(); o.lfo.stop(); o.oL.disconnect(); o.oR.disconnect(); o.lfo.disconnect(); o.merger.disconnect(); o.amp.disconnect(); }
+    else { o.osc.stop(); o.osc.disconnect(); }
+  } catch (e) {}
+  delete webOscs[id];
 };
 
 const webStopAll = () => {
@@ -767,33 +902,34 @@ const webStopAll = () => {
 };
 
 const webUpdateFreq = (id: number, freq: number) => {
-  if (audioCtx && webOscs[id]) webOscs[id].osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  const o = webOscs[id];
+  if (!audioCtx || !o) return;
+  if (o.god) webRetuneGod(o, freq);
+  else o.osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
 };
 
 const webUpdateGain = (id: number, gain: number) => {
-  if (audioCtx && webOscs[id]) webOscs[id].gain.gain.setValueAtTime(gain, audioCtx.currentTime);
+  const o = webOscs[id];
+  if (!audioCtx || !o) return;
+  if (o.god) { o.amp.gain.setValueAtTime(gain, audioCtx.currentTime); o.lfoDepth.gain.setValueAtTime(gain * 0.45, audioCtx.currentTime); }
+  else o.gain.gain.setValueAtTime(gain, audioCtx.currentTime);
 };
 
-let webMultiOscs: { osc: OscillatorNode; gain: GainNode }[] = [];
+// Routed through webStartTone so $-Codes godMode applies to archive stacks
+let webMultiIds: number[] = [];
 const webPlayMulti = (freqs: number[], gainVal: number) => {
   if (!ensureWebCtx() || !audioCtx || !webMasterGain) return;
   webStopMulti();
-  freqs.forEach(freq => {
-    const osc = audioCtx!.createOscillator();
-    const gn = audioCtx!.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq, audioCtx!.currentTime);
-    gn.gain.setValueAtTime(gainVal / Math.sqrt(freqs.length), audioCtx!.currentTime);
-    osc.connect(gn);
-    gn.connect(webMasterGain!);
-    osc.start();
-    webMultiOscs.push({ osc, gain: gn });
+  freqs.forEach((freq, i) => {
+    const id = 9000 + i;
+    webStartTone(id, freq, gainVal / Math.sqrt(freqs.length), 'sine');
+    webMultiIds.push(id);
   });
 };
 
 const webStopMulti = () => {
-  webMultiOscs.forEach(({ osc }) => { try { osc.stop(); osc.disconnect(); } catch (e) {} });
-  webMultiOscs = [];
+  webMultiIds.forEach(id => webStopTone(id));
+  webMultiIds = [];
 };
 
 let webBinL: OscillatorNode | null = null;
