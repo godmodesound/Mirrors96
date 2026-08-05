@@ -52,6 +52,9 @@ canvas{display:block;}</style>
 <script>
 const c=document.getElementById('c');
 const ctx=c.getContext('2d');
+// Guard: clamp all arc radii — animated radii can transiently go negative
+const __arc=CanvasRenderingContext2D.prototype.arc;
+CanvasRenderingContext2D.prototype.arc=function(x,y,r,a0,a1,ccw){return __arc.call(this,x,y,(isFinite(r)&&r>0)?r:0,a0,a1,ccw);};
 const S=${CANVAS_SIZE};
 c.width=S;c.height=S;
 const cx=S/2,cy=S/2;

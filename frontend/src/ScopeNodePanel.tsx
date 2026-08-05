@@ -57,6 +57,9 @@ const PANEL_HTML = `<!DOCTYPE html>
 <canvas id="c"></canvas>
 <script>
 var canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+// Guard: dynamic radii can transiently go negative during resize/flip — clamp all arcs
+var __arc=CanvasRenderingContext2D.prototype.arc;
+CanvasRenderingContext2D.prototype.arc=function(x,y,r,a0,a1,ccw){return __arc.call(this,x,y,(isFinite(r)&&r>0)?r:0,a0,a1,ccw);};
 var W=0,H=0,CX=0,CY=0,R0=0;
 function resize(){W=window.innerWidth;H=window.innerHeight;canvas.width=W;canvas.height=H;CX=W/2;CY=H/2;R0=Math.min(W,H)*0.40;}
 resize();window.addEventListener('resize',resize);
