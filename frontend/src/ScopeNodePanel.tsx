@@ -1088,10 +1088,15 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
   const [livePeak, setLivePeak] = useState(0);
   const [measuredHz, setMeasuredHz] = useState(0);
   const [livePeaks, setLivePeaks] = useState<number[]>([]);
+  const [tuningA, setTuningA] = useState<432 | 440>(AudioEngine.getTuning());
   const lastPeaksTs = useRef(0);
   const [geoPickerOpen, setGeoPickerOpen] = useState(false);
   const webRef = useRef<WebView>(null);
   const iframeRef = useRef<any>(null);
+
+  // Subscribe to global tuning changes so multiple pills stay in sync
+  useEffect(() => AudioEngine.subscribeTuning(setTuningA), []);
+  const toggleTuning = () => AudioEngine.setTuning(tuningA === 432 ? 440 : 432);
 
   const baseFreq = frequencies[0] || 432;
 
@@ -1303,6 +1308,16 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
             {audioActive ? `${Math.round((livePeak / 128) * 100)}%` : (playing || resonating ? 'ACT' : 'STBY')}
           </Text>
         </View>
+
+        {/* ── REF-A tuning pill (432/440) — global multiplicative scale ── */}
+        <TouchableOpacity
+          onPress={toggleTuning}
+          style={[st.tunePill, tuningA === 432 ? st.tunePill432 : st.tunePill440]}
+          activeOpacity={0.7}
+        >
+          <Text style={[st.tuneLabel, tuningA === 432 ? st.tuneLabel432 : st.tuneLabel440]}>A</Text>
+          <Text style={[st.tuneVal, tuningA === 432 ? st.tuneVal432 : st.tuneVal440]}>{tuningA}</Text>
+        </TouchableOpacity>
       </View>
 
       {/* ── Face-specific control strip ── */}
@@ -1367,7 +1382,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
 
       {view === 'SCOPE' && medium === 'CYMASCOPE' && (
         <Text style={st.patternMeta}>
-          ≋ CYMASCOPE · FARADAY k∝f^⅔ · {livePeaks.length > 0 ? `LIVE FFT DRIVE ${livePeaks.join(' · ')} Hz` : 'AWAITING SIGNAL — WATER AT REST'}
+          ≋ CYMASCOPE · A={tuningA} · ZERO-LATENCY FFT · {livePeaks.length > 0 ? `LIVE ${livePeaks.join(' · ')} Hz` : 'AWAITING SIGNAL — WATER AT REST'}
         </Text>
       )}
 
@@ -1459,6 +1474,25 @@ const st = StyleSheet.create({
   statePill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 4 },
   stateDot: { width: 6, height: 6, borderRadius: 3 },
   stateTxt: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  // REF-A tuning pill (432 / 440)
+  tunePill: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 3,
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    backgroundColor: '#070a0e',
+  },
+  tunePill432: { borderColor: '#ff0a0a' },
+  tunePill440: { borderColor: '#3a4450' },
+  tuneLabel: { fontSize: 7, fontWeight: '900', letterSpacing: 1 },
+  tuneLabel432: { color: '#ff0a0a' },
+  tuneLabel440: { color: '#7d8794' },
+  tuneVal: { fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
+  tuneVal432: { color: '#ff2a2a' },
+  tuneVal440: { color: '#c9d2dd' },
   faceRow: {
     flexDirection: 'row',
     alignItems: 'center',

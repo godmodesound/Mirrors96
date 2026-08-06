@@ -18,10 +18,15 @@ let analyser = null;
 let scopeBuffer = null;
 let scopeStreamActive = false;
 let scopeRAF = null;
+// ═══ A-432 / A-440 GLOBAL TUNING — every frequency passed to the engine is
+//     multiplied by (tuningA / 432). Default 432 → scale = 1 (pass-through).
+//     Selecting 440 shifts every osc up by ~1.85% for concert-pitch feel. ═══
+let tuningA = 432;
+function scaleFreq(f) { return f * (tuningA / 432); }
 function ensureCtx() {
   if (!ctx) {
     try {
-      ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+      ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100, latencyHint: 'interactive' });
     } catch(e) {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
     }
@@ -29,7 +34,7 @@ function ensureCtx() {
     // Global analyser tap: masterGain -> analyser -> destination
     analyser = ctx.createAnalyser();
     analyser.fftSize = 8192; // 5.4Hz bins -> ~1Hz accuracy after parabolic interpolation
-    analyser.smoothingTimeConstant = 0.65;
+    analyser.smoothingTimeConstant = 0; // ZERO LATENCY — no exponential smoothing
     masterGain.connect(analyser);
     analyser.connect(ctx.destination);
     scopeBuffer = new Uint8Array(analyser.fftSize);
@@ -39,14 +44,14 @@ function ensureCtx() {
   return true;
 }
 
-// Live scope stream — broadcasts time-domain frames to RN at ~30fps
+// Live scope stream — broadcasts time-domain frames + spectral peaks to RN at ~60fps
 function startScopeStream() {
   if (scopeStreamActive || !analyser || !scopeBuffer) return;
   scopeStreamActive = true;
   var last = 0;
   function tick(ts) {
     if (!scopeStreamActive) return;
-    if (ts - last >= 33) {
+    if (ts - last >= 16) {
       last = ts;
       try {
         analyser.getByteTimeDomainData(scopeBuffer);
@@ -63,10 +68,12 @@ function startScopeStream() {
         }
         // MEASURED Hz — FFT peak-bin detection with parabolic interpolation
         var measuredHz = 0;
+        var specPeaks = [];
         try {
           var fftLen = analyser.frequencyBinCount;
           if (!window.__freqBuf || window.__freqBuf.length !== fftLen) window.__freqBuf = new Uint8Array(fftLen);
           analyser.getByteFrequencyData(window.__freqBuf);
+          var binHz = ctx.sampleRate / analyser.fftSize;
           var maxV = 0, maxI = 0;
           for (var k = 1; k < fftLen - 1; k++) {
             if (window.__freqBuf[k] > maxV) { maxV = window.__freqBuf[k]; maxI = k; }
@@ -75,12 +82,24 @@ function startScopeStream() {
             var yL = window.__freqBuf[maxI - 1], yC = window.__freqBuf[maxI], yR = window.__freqBuf[maxI + 1];
             var denom = (yL - 2 * yC + yR);
             var offset = denom !== 0 ? 0.5 * (yL - yR) / denom : 0;
-            var binHz = ctx.sampleRate / analyser.fftSize;
             measuredHz = (maxI + offset) * binHz;
           }
+          // MULTI-PEAK spectrum — top local maxima for accurate CymaScope drive
+          for (var q = 2; q < fftLen - 2; q++) {
+            var v2 = window.__freqBuf[q];
+            if (v2 > 28 && v2 >= window.__freqBuf[q-1] && v2 >= window.__freqBuf[q+1] && v2 > window.__freqBuf[q-2] && v2 > window.__freqBuf[q+2]) {
+              var pL = window.__freqBuf[q-1], pR = window.__freqBuf[q+1];
+              var pden = (pL - 2 * v2 + pR);
+              var poff = pden !== 0 ? 0.5 * (pL - pR) / pden : 0;
+              specPeaks.push({ hz: Math.round((q + poff) * binHz * 10) / 10, mag: v2 });
+              q += 2;
+            }
+          }
+          specPeaks.sort(function(a,b){return b.mag - a.mag;});
+          if (specPeaks.length > 6) specPeaks.length = 6;
         } catch(e) {}
         window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-          type: 'scope', wave: out, peak: peak, measuredHz: measuredHz,
+          type: 'scope', wave: out, peak: peak, measuredHz: measuredHz, peaks: specPeaks,
         }));
       } catch(e) {}
     }
@@ -165,17 +184,19 @@ let godMode = false, godPulse = 7.83;
 function retuneGod(o, freq) {
   var p = godPulse, t0 = ctx.currentTime;
   o.freq = freq;
-  o.oL.frequency.setValueAtTime(Math.max(1, freq - p / 2), t0);
-  o.oR.frequency.setValueAtTime(freq + p / 2, t0);
+  var sf = scaleFreq(freq);
+  o.oL.frequency.setValueAtTime(Math.max(1, sf - p / 2), t0);
+  o.oR.frequency.setValueAtTime(sf + p / 2, t0);
   o.lfo.frequency.setValueAtTime(p, t0);
 }
 function buildGod(id, freq, gain) {
   var t0 = ctx.currentTime, p = godPulse;
+  var sf = scaleFreq(freq);
   var merger = ctx.createChannelMerger(2);
   var amp = ctx.createGain(); amp.gain.setValueAtTime(gain, t0);      // AM/burst gate stage
   merger.connect(amp); amp.connect(masterGain);                        // field sensing tap
-  var oL = ctx.createOscillator(); oL.frequency.setValueAtTime(Math.max(1, freq - p / 2), t0); // DDS ch A
-  var oR = ctx.createOscillator(); oR.frequency.setValueAtTime(freq + p / 2, t0);              // DDS ch B
+  var oL = ctx.createOscillator(); oL.frequency.setValueAtTime(Math.max(1, sf - p / 2), t0); // DDS ch A
+  var oR = ctx.createOscillator(); oR.frequency.setValueAtTime(sf + p / 2, t0);              // DDS ch B
   var gL = ctx.createGain(); gL.gain.setValueAtTime(0.5, t0);          // constant-current driver L
   var gR = ctx.createGain(); gR.gain.setValueAtTime(0.5, t0);          // constant-current driver R
   oL.connect(gL); gL.connect(merger, 0, 0);
@@ -213,7 +234,8 @@ function startTone(id, freq, gain, wave) {
       ex.amp.gain.setValueAtTime(gain, ctx.currentTime);
       ex.lfoDepth.gain.setValueAtTime(gain * 0.45, ctx.currentTime);
     } else {
-      ex.osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      ex.osc.frequency.setValueAtTime(scaleFreq(freq), ctx.currentTime);
+      ex.baseFreq = freq;
       ex.gain.gain.setValueAtTime(gain, ctx.currentTime);
       if (wave) applyWave(ex.osc, wave);
     }
@@ -224,12 +246,12 @@ function startTone(id, freq, gain, wave) {
   const osc = ctx.createOscillator();
   const gn = ctx.createGain();
   applyWave(osc, wave || 'sine');
-  osc.frequency.setValueAtTime(freq, ctx.currentTime);
+  osc.frequency.setValueAtTime(scaleFreq(freq), ctx.currentTime);
   gn.gain.setValueAtTime(gain, ctx.currentTime);
   osc.connect(gn);
   gn.connect(masterGain);
   osc.start();
-  oscs[id] = { osc, gain: gn };
+  oscs[id] = { osc: osc, gain: gn, baseFreq: freq };
 }
 
 function updateWave(id, wave) {
@@ -254,7 +276,7 @@ function updateFreq(id, freq) {
   var o = oscs[id];
   if (!o) return;
   if (o.god) retuneGod(o, freq);
-  else o.osc.frequency.setValueAtTime(freq, ctx.currentTime);
+  else { o.osc.frequency.setValueAtTime(scaleFreq(freq), ctx.currentTime); o.baseFreq = freq; }
 }
 
 function updateGain(id, gain) {
@@ -284,20 +306,22 @@ function stopMulti() {
 
 // Binaural beats
 let binL = null, binR = null, merger = null;
+let binCarrier = 0, binBeat = 0;
 function startBinaural(carrier, beat) {
   ensureCtx();
   stopBinaural();
+  binCarrier = carrier; binBeat = beat;
   merger = ctx.createChannelMerger(2);
   merger.connect(masterGain);
   binL = ctx.createOscillator();
   const lGain = ctx.createGain();
-  binL.frequency.setValueAtTime(carrier, ctx.currentTime);
+  binL.frequency.setValueAtTime(scaleFreq(carrier), ctx.currentTime);
   lGain.gain.setValueAtTime(0.5, ctx.currentTime);
   binL.connect(lGain);
   lGain.connect(merger, 0, 0);
   binR = ctx.createOscillator();
   const rGain = ctx.createGain();
-  binR.frequency.setValueAtTime(carrier + beat, ctx.currentTime);
+  binR.frequency.setValueAtTime(scaleFreq(carrier) + beat, ctx.currentTime);
   rGain.gain.setValueAtTime(0.5, ctx.currentTime);
   binR.connect(rGain);
   rGain.connect(merger, 0, 1);
@@ -312,28 +336,31 @@ function stopBinaural() {
 }
 
 function updateBinaural(carrier, beat) {
+  binCarrier = carrier; binBeat = beat;
   if (binL && binR) {
-    binL.frequency.setValueAtTime(carrier, ctx.currentTime);
-    binR.frequency.setValueAtTime(carrier + beat, ctx.currentTime);
+    binL.frequency.setValueAtTime(scaleFreq(carrier), ctx.currentTime);
+    binR.frequency.setValueAtTime(scaleFreq(carrier) + beat, ctx.currentTime);
   }
 }
 
 // Soundscape
 let scOscs = [];
+let scBaseFreq = 0, scHarmonics = [];
 let noiseNode = null;
 function playSoundscape(baseFreq, harmonics, includeNoise, noiseLevel, volume) {
   ensureCtx();
   stopSoundscape();
+  scBaseFreq = baseFreq; scHarmonics = harmonics.slice();
   masterGain.gain.value = volume;
   harmonics.forEach((h, i) => {
     const osc = ctx.createOscillator();
     const gn = ctx.createGain();
-    osc.frequency.setValueAtTime(baseFreq * h, ctx.currentTime);
+    osc.frequency.setValueAtTime(scaleFreq(baseFreq * h), ctx.currentTime);
     gn.gain.setValueAtTime(0.3 / (i + 1), ctx.currentTime);
     osc.connect(gn);
     gn.connect(masterGain);
     osc.start();
-    scOscs.push(osc);
+    scOscs.push({ osc: osc, h: h });
   });
   if (includeNoise && noiseLevel > 0) {
     const bufSize = ctx.sampleRate * 10;
@@ -358,7 +385,7 @@ function playSoundscape(baseFreq, harmonics, includeNoise, noiseLevel, volume) {
 }
 
 function stopSoundscape() {
-  scOscs.forEach(osc => { try { osc.stop(); osc.disconnect(); } catch(e) {} });
+  scOscs.forEach(function(o) { try { o.osc.stop(); o.osc.disconnect(); } catch(e) {} });
   scOscs = [];
   if (noiseNode) { try { noiseNode.stop(); noiseNode.disconnect(); } catch(e) {} noiseNode = null; }
 }
@@ -369,32 +396,66 @@ function updateVolume(vol) {
 
 // Camelot tones
 let camelotOscs = [];
+let camelotFreq = 0;
 function playCamelot(freq) {
   ensureCtx();
   stopCamelot();
+  camelotFreq = freq;
   const osc = ctx.createOscillator();
   const gn = ctx.createGain();
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(freq, ctx.currentTime);
+  osc.frequency.setValueAtTime(scaleFreq(freq), ctx.currentTime);
   gn.gain.setValueAtTime(0.35, ctx.currentTime);
   osc.connect(gn);
   gn.connect(masterGain);
   osc.start();
-  camelotOscs.push({ osc, gain: gn });
+  camelotOscs.push({ osc: osc, gain: gn, mult: 1 });
   const osc2 = ctx.createOscillator();
   const gn2 = ctx.createGain();
   osc2.type = 'sine';
-  osc2.frequency.setValueAtTime(freq * 2, ctx.currentTime);
+  osc2.frequency.setValueAtTime(scaleFreq(freq * 2), ctx.currentTime);
   gn2.gain.setValueAtTime(0.12, ctx.currentTime);
   osc2.connect(gn2);
   gn2.connect(masterGain);
   osc2.start();
-  camelotOscs.push({ osc: osc2, gain: gn2 });
+  camelotOscs.push({ osc: osc2, gain: gn2, mult: 2 });
 }
 
 function stopCamelot() {
-  camelotOscs.forEach(({ osc }) => { try { osc.stop(); osc.disconnect(); } catch(e) {} });
+  camelotOscs.forEach(function(c) { try { c.osc.stop(); c.osc.disconnect(); } catch(e) {} });
   camelotOscs = [];
+}
+
+// ═══ Global tuning setter — smoothly re-tunes every sounding oscillator
+//     so the frequency change appears instant (no rebuild, no click). ═══
+function setTuning(a) {
+  if (a !== 432 && a !== 440) return;
+  if (a === tuningA) return;
+  tuningA = a;
+  var t0 = ctx ? ctx.currentTime : 0;
+  // Re-tune generic oscs
+  Object.keys(oscs).forEach(function(id) {
+    var o = oscs[id]; if (!o) return;
+    if (o.god) { retuneGod(o, o.freq); }
+    else if (o.osc && typeof o.baseFreq === 'number') {
+      o.osc.frequency.setValueAtTime(scaleFreq(o.baseFreq), t0);
+    }
+  });
+  // Binaural
+  if (binL && binR && ctx) {
+    binL.frequency.setValueAtTime(scaleFreq(binCarrier), t0);
+    binR.frequency.setValueAtTime(scaleFreq(binCarrier) + binBeat, t0);
+  }
+  // Soundscape harmonics
+  scOscs.forEach(function(entry) {
+    try { entry.osc.frequency.setValueAtTime(scaleFreq(scBaseFreq * entry.h), t0); } catch(e) {}
+  });
+  // Camelot
+  camelotOscs.forEach(function(c) {
+    try { c.osc.frequency.setValueAtTime(scaleFreq(camelotFreq * c.mult), t0); } catch(e) {}
+  });
+  // Broadcast so RN mirrors state
+  window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'tuning', a: tuningA }));
 }
 
 // Message handler
@@ -472,6 +533,7 @@ function handleMsg(raw) {
       case 'detectSilentSwitch': detectSilentSwitch(); break;
       case 'startScopeStream': ensureCtx(); startScopeStream(); break;
       case 'stopScopeStream': stopScopeStream(); break;
+      case 'setTuning': setTuning(msg.a); break;
     }
     window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ ok: true, type: msg.type }));
   } catch(err) {
@@ -701,7 +763,28 @@ export const AudioEngine = {
     if (Platform.OS === 'web') webSetMediaVolume(v);
     else sendToWebView({ type: 'setMediaVolume', volume: v });
   },
+  // ═══ A-432 / A-440 GLOBAL TUNING ═══
+  // Multiplicative reference scale: every osc frequency is multiplied by
+  // (tuningA / 432). Default 432 = pass-through. Selecting 440 shifts every
+  // sounding oscillator up by ~1.85% (Western concert-pitch feel). All live
+  // tones re-tune smoothly without click or restart.
+  setTuning: (a: 432 | 440) => {
+    tuningState = a;
+    if (Platform.OS === 'web') webSetTuning(a);
+    else sendToWebView({ type: 'setTuning', a });
+    tuningSubsRN.forEach(cb => { try { cb(a); } catch {} });
+  },
+  getTuning: (): 432 | 440 => tuningState,
+  subscribeTuning: (cb: (a: 432 | 440) => void) => {
+    tuningSubsRN.push(cb);
+    try { cb(tuningState); } catch {}
+    return () => { tuningSubsRN = tuningSubsRN.filter(s => s !== cb); };
+  },
 };
+
+// RN-side tuning state mirror (shared across web + native)
+let tuningState: 432 | 440 = 432;
+let tuningSubsRN: ((a: 432 | 440) => void)[] = [];
 
 // Media-end callback for native (WebView reports via postMessage)
 let mediaEndCb: (() => void) | null = null;
@@ -754,14 +837,14 @@ const ensureWebCtx = () => {
   if (Platform.OS !== 'web') return false;
   if (!audioCtx) {
     try {
-      audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 44100 } as any);
+      audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 44100, latencyHint: 'interactive' } as any);
     } catch(e) {
       audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
     webMasterGain = audioCtx.createGain();
     webAnalyser = audioCtx.createAnalyser();
     webAnalyser.fftSize = 8192; // 5.4Hz bins -> ~1Hz accuracy after parabolic interpolation
-    webAnalyser.smoothingTimeConstant = 0.65;
+    webAnalyser.smoothingTimeConstant = 0; // ZERO LATENCY
     webMasterGain.connect(webAnalyser);
     webAnalyser.connect(audioCtx.destination);
     webScopeBuf = new Uint8Array(webAnalyser.fftSize);
@@ -805,6 +888,14 @@ const webApplyWave = (osc: OscillatorNode, type?: string) => {
   } catch { osc.type = 'sine'; }
 };
 
+// ═══ A-432 / A-440 GLOBAL TUNING (web path) — mirrors the WebView engine ═══
+let webTuningA = 432;
+const webScaleFreq = (f: number) => f * (webTuningA / 432);
+let tuningSubs: ((a: number) => void)[] = [];
+const emitTuning = () => {
+  tuningSubs.forEach(cb => { try { cb(webTuningA); } catch {} });
+};
+
 // ═══ $-CODES / GODMODE (web) — scalar-augmented generator chain ═══
 // dual-channel DDS → AM/burst gate → constant-current drivers →
 // matched opposed coils (inverted cross-feed) → field sensing (analyser).
@@ -814,18 +905,20 @@ const webRetuneGod = (o: any, freq: number) => {
   if (!audioCtx) return;
   const p = webGodPulse, t0 = audioCtx.currentTime;
   o.freq = freq;
-  o.oL.frequency.setValueAtTime(Math.max(1, freq - p / 2), t0);
-  o.oR.frequency.setValueAtTime(freq + p / 2, t0);
+  const sf = webScaleFreq(freq);
+  o.oL.frequency.setValueAtTime(Math.max(1, sf - p / 2), t0);
+  o.oR.frequency.setValueAtTime(sf + p / 2, t0);
   o.lfo.frequency.setValueAtTime(p, t0);
 };
 const webBuildGod = (id: number, freq: number, gain: number) => {
   if (!audioCtx || !webMasterGain) return;
   const t0 = audioCtx.currentTime, p = webGodPulse;
+  const sf = webScaleFreq(freq);
   const merger = audioCtx.createChannelMerger(2);
   const amp = audioCtx.createGain(); amp.gain.setValueAtTime(gain, t0);      // AM/burst gate
   merger.connect(amp); amp.connect(webMasterGain);                            // field sensing tap
-  const oL = audioCtx.createOscillator(); oL.frequency.setValueAtTime(Math.max(1, freq - p / 2), t0);
-  const oR = audioCtx.createOscillator(); oR.frequency.setValueAtTime(freq + p / 2, t0);
+  const oL = audioCtx.createOscillator(); oL.frequency.setValueAtTime(Math.max(1, sf - p / 2), t0);
+  const oR = audioCtx.createOscillator(); oR.frequency.setValueAtTime(sf + p / 2, t0);
   const gL = audioCtx.createGain(); gL.gain.setValueAtTime(0.5, t0);          // constant-current L
   const gR = audioCtx.createGain(); gR.gain.setValueAtTime(0.5, t0);          // constant-current R
   oL.connect(gL); gL.connect(merger, 0, 0);
@@ -864,7 +957,8 @@ const webStartTone = (id: number, freq: number, gain: number, wave?: string) => 
       ex.amp.gain.setValueAtTime(gain, audioCtx.currentTime);
       ex.lfoDepth.gain.setValueAtTime(gain * 0.45, audioCtx.currentTime);
     } else {
-      ex.osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      ex.osc.frequency.setValueAtTime(webScaleFreq(freq), audioCtx.currentTime);
+      ex.baseFreq = freq;
       ex.gain.gain.setValueAtTime(gain, audioCtx.currentTime);
       if (wave) webApplyWave(ex.osc, wave);
     }
@@ -875,12 +969,12 @@ const webStartTone = (id: number, freq: number, gain: number, wave?: string) => 
   const osc = audioCtx.createOscillator();
   const gn = audioCtx.createGain();
   webApplyWave(osc, wave || 'sine');
-  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  osc.frequency.setValueAtTime(webScaleFreq(freq), audioCtx.currentTime);
   gn.gain.setValueAtTime(gain, audioCtx.currentTime);
   osc.connect(gn);
   gn.connect(webMasterGain);
   osc.start();
-  webOscs[id] = { osc, gain: gn };
+  webOscs[id] = { osc, gain: gn, baseFreq: freq };
 };
 
 const webUpdateWave = (id: number, wave: string) => {
@@ -905,7 +999,7 @@ const webUpdateFreq = (id: number, freq: number) => {
   const o = webOscs[id];
   if (!audioCtx || !o) return;
   if (o.god) webRetuneGod(o, freq);
-  else o.osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  else { o.osc.frequency.setValueAtTime(webScaleFreq(freq), audioCtx.currentTime); o.baseFreq = freq; }
 };
 
 const webUpdateGain = (id: number, gain: number) => {
@@ -935,21 +1029,23 @@ const webStopMulti = () => {
 let webBinL: OscillatorNode | null = null;
 let webBinR: OscillatorNode | null = null;
 let webMerger: ChannelMergerNode | null = null;
+let webBinCarrier = 0, webBinBeat = 0;
 
 const webStartBinaural = (carrier: number, beat: number) => {
   if (!ensureWebCtx() || !audioCtx || !webMasterGain) return;
   webStopBinaural();
+  webBinCarrier = carrier; webBinBeat = beat;
   webMerger = audioCtx.createChannelMerger(2);
   webMerger.connect(webMasterGain);
   webBinL = audioCtx.createOscillator();
   const lGain = audioCtx.createGain();
-  webBinL.frequency.setValueAtTime(carrier, audioCtx.currentTime);
+  webBinL.frequency.setValueAtTime(webScaleFreq(carrier), audioCtx.currentTime);
   lGain.gain.setValueAtTime(0.5, audioCtx.currentTime);
   webBinL.connect(lGain);
   lGain.connect(webMerger, 0, 0);
   webBinR = audioCtx.createOscillator();
   const rGain = audioCtx.createGain();
-  webBinR.frequency.setValueAtTime(carrier + beat, audioCtx.currentTime);
+  webBinR.frequency.setValueAtTime(webScaleFreq(carrier) + beat, audioCtx.currentTime);
   rGain.gain.setValueAtTime(0.5, audioCtx.currentTime);
   webBinR.connect(rGain);
   rGain.connect(webMerger, 0, 1);
@@ -964,28 +1060,31 @@ const webStopBinaural = () => {
 };
 
 const webUpdateBinaural = (carrier: number, beat: number) => {
+  webBinCarrier = carrier; webBinBeat = beat;
   if (audioCtx && webBinL && webBinR) {
-    webBinL.frequency.setValueAtTime(carrier, audioCtx.currentTime);
-    webBinR.frequency.setValueAtTime(carrier + beat, audioCtx.currentTime);
+    webBinL.frequency.setValueAtTime(webScaleFreq(carrier), audioCtx.currentTime);
+    webBinR.frequency.setValueAtTime(webScaleFreq(carrier) + beat, audioCtx.currentTime);
   }
 };
 
-let webScOscs: OscillatorNode[] = [];
+let webScOscs: { osc: OscillatorNode; h: number }[] = [];
+let webScBaseFreq = 0;
 let webNoiseNode: AudioBufferSourceNode | null = null;
 
 const webPlaySoundscape = (baseFreq: number, harmonics: number[], includeNoise: boolean, noiseLevel: number, volume: number) => {
   if (!ensureWebCtx() || !audioCtx || !webMasterGain) return;
   webStopSoundscape();
+  webScBaseFreq = baseFreq;
   webMasterGain.gain.value = volume;
   harmonics.forEach((h, i) => {
     const osc = audioCtx!.createOscillator();
     const gn = audioCtx!.createGain();
-    osc.frequency.setValueAtTime(baseFreq * h, audioCtx!.currentTime);
+    osc.frequency.setValueAtTime(webScaleFreq(baseFreq * h), audioCtx!.currentTime);
     gn.gain.setValueAtTime(0.3 / (i + 1), audioCtx!.currentTime);
     osc.connect(gn);
     gn.connect(webMasterGain!);
     osc.start();
-    webScOscs.push(osc);
+    webScOscs.push({ osc, h });
   });
   if (includeNoise && noiseLevel > 0) {
     const bufSize = audioCtx.sampleRate * 10;
@@ -1010,7 +1109,7 @@ const webPlaySoundscape = (baseFreq: number, harmonics: number[], includeNoise: 
 };
 
 const webStopSoundscape = () => {
-  webScOscs.forEach(osc => { try { osc.stop(); osc.disconnect(); } catch (e) {} });
+  webScOscs.forEach(({ osc }) => { try { osc.stop(); osc.disconnect(); } catch (e) {} });
   webScOscs = [];
   if (webNoiseNode) { try { webNoiseNode.stop(); webNoiseNode.disconnect(); } catch (e) {} webNoiseNode = null; }
 };
@@ -1019,33 +1118,62 @@ const webUpdateVolume = (vol: number) => {
   if (webMasterGain) webMasterGain.gain.value = vol;
 };
 
-let webCamelotOscs: { osc: OscillatorNode; gain: GainNode }[] = [];
+let webCamelotOscs: { osc: OscillatorNode; gain: GainNode; mult: number }[] = [];
+let webCamelotFreq = 0;
 const webPlayCamelot = (freq: number) => {
   if (!ensureWebCtx() || !audioCtx || !webMasterGain) return;
   webStopCamelot();
+  webCamelotFreq = freq;
   const osc = audioCtx.createOscillator();
   const gn = audioCtx.createGain();
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  osc.frequency.setValueAtTime(webScaleFreq(freq), audioCtx.currentTime);
   gn.gain.setValueAtTime(0.35, audioCtx.currentTime);
   osc.connect(gn);
   gn.connect(webMasterGain);
   osc.start();
-  webCamelotOscs.push({ osc, gain: gn });
+  webCamelotOscs.push({ osc, gain: gn, mult: 1 });
   const osc2 = audioCtx.createOscillator();
   const gn2 = audioCtx.createGain();
   osc2.type = 'sine';
-  osc2.frequency.setValueAtTime(freq * 2, audioCtx.currentTime);
+  osc2.frequency.setValueAtTime(webScaleFreq(freq * 2), audioCtx.currentTime);
   gn2.gain.setValueAtTime(0.12, audioCtx.currentTime);
   osc2.connect(gn2);
   gn2.connect(webMasterGain);
   osc2.start();
-  webCamelotOscs.push({ osc: osc2, gain: gn2 });
+  webCamelotOscs.push({ osc: osc2, gain: gn2, mult: 2 });
 };
 
 const webStopCamelot = () => {
   webCamelotOscs.forEach(({ osc }) => { try { osc.stop(); osc.disconnect(); } catch (e) {} });
   webCamelotOscs = [];
+};
+
+// ═══ Web-path global tuning setter — smoothly retunes every sounding osc ═══
+const webSetTuning = (a: number) => {
+  if (a !== 432 && a !== 440) return;
+  if (a === webTuningA) return;
+  webTuningA = a;
+  const t0 = audioCtx ? audioCtx.currentTime : 0;
+  Object.keys(webOscs).forEach(k => {
+    const o = webOscs[parseInt(k)];
+    if (!o) return;
+    if (o.god) webRetuneGod(o, o.freq);
+    else if (o.osc && typeof o.baseFreq === 'number') {
+      o.osc.frequency.setValueAtTime(webScaleFreq(o.baseFreq), t0);
+    }
+  });
+  if (audioCtx && webBinL && webBinR) {
+    webBinL.frequency.setValueAtTime(webScaleFreq(webBinCarrier), t0);
+    webBinR.frequency.setValueAtTime(webScaleFreq(webBinCarrier) + webBinBeat, t0);
+  }
+  webScOscs.forEach(({ osc, h }) => {
+    try { osc.frequency.setValueAtTime(webScaleFreq(webScBaseFreq * h), t0); } catch {}
+  });
+  webCamelotOscs.forEach(({ osc, mult }) => {
+    try { osc.frequency.setValueAtTime(webScaleFreq(webCamelotFreq * mult), t0); } catch {}
+  });
+  emitTuning();
 };
 
 // ===== Global scope subscribers (real-time master-bus waveform) =====
@@ -1067,7 +1195,7 @@ const startWebScopeLoop = () => {
   let freqBuf: Uint8Array<ArrayBuffer> | null = null;
   const tick = (ts: number) => {
     if (!webAnalyser || !webScopeBuf) return;
-    if (ts - last >= 33) {
+    if (ts - last >= 16) {
       last = ts;
       try {
         webAnalyser.getByteTimeDomainData(webScopeBuf);
