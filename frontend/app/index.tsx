@@ -31,6 +31,7 @@ import DisclaimerFooter from '../src/DisclaimerFooter';
 import { FrequencyMap } from '../src/FrequencyMap';
 import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
 import ScopeNodePanel from '../src/ScopeNodePanel';
+import LatticeFramework from '../src/LatticeFramework';
 import SendCodesModal from '../src/SendCodesModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -797,7 +798,7 @@ export default function TerminalScreen() {
             {/* CENTER — Nav Pills */}
             <View style={styles.navPills}>
               <TouchableOpacity style={styles.navPill} onPress={() => router.push('/library')}>
-                <Text style={styles.navPillText}>MIRRORS</Text>
+                <Text style={styles.navPillText}>CODES</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.navPill} onPress={() => router.push('/sound')}>
                 <Text style={styles.navPillText}>90.6</Text>
@@ -971,6 +972,10 @@ export default function TerminalScreen() {
               playing={isPlaying}
               scalarBeatHz={scalarOn || (godMode && isPlaying) ? scalarHz : 0}
             />
+
+            {/* ═══ LATTICE FRAMEWORK — infuses "The Lattice That Binds All Dimensions"
+                 into the lab; maps carrier freq to its dimensional/energetic slot. ═══ */}
+            <LatticeFramework baseFreq={layers[0]?.frequency || 432} />
 
             {layers.map((layer, index) => {
               // XYZ coordinates for this Node — X: log-freq position, Y: gain, Z: depth
