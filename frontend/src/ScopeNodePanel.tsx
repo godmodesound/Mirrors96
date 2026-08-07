@@ -66,7 +66,7 @@ CanvasRenderingContext2D.prototype.arc=function(x,y,r,a0,a1,ccw){return __arc.ca
 var W=0,H=0,CX=0,CY=0,R0=0;
 function resize(){W=window.innerWidth;H=window.innerHeight;canvas.width=W;canvas.height=H;CX=W/2;CY=H/2;R0=Math.min(W,H)*0.40;}
 resize();window.addEventListener('resize',resize);
-var cfg={freqs:[432],playing:false,medium:'CYMATICS',geometries:[],view:'SCOPE',orbs:[],resonating:false,baseFreq:432,pattern:'SEED',orbit:null,beat:0};
+var cfg={freqs:[432],playing:false,medium:'CYMATICS',geometries:[],view:'SCOPE',orbs:[],resonating:false,baseFreq:432,pattern:'SEED',orbit:null,beat:0,layers:{darkFx:true,threeField:true,orbit:true,labels:true,waveRing:true}};
 var LIVE={wave:new Array(128).fill(128),peak:0,ts:0,peaks:[]};
 var PAL={
   CYMASCOPE:{main:'#a8e2ff',glow:'#3ec6ff',dim:'rgba(127,212,255,0.08)'},
@@ -83,7 +83,7 @@ var PAL={
   GOLD:{main:'#ffe08a',glow:'#ffaa00',dim:'rgba(255,215,94,0.10)'},
   FIRE:{main:'#ff9a5a',glow:'#ff2a0a',dim:'rgba(255,90,42,0.10)'}
 };
-window.updateScope=function(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.freqs)cfg.freqs=c.freqs;if(typeof c.playing==='boolean')cfg.playing=c.playing;if(c.medium)cfg.medium=c.medium;if(Array.isArray(c.geometries))cfg.geometries=c.geometries;if(c.view)cfg.view=c.view;if(Array.isArray(c.orbs))cfg.orbs=c.orbs;if(typeof c.resonating==='boolean')cfg.resonating=c.resonating;if(c.baseFreq)cfg.baseFreq=c.baseFreq;if(c.pattern)cfg.pattern=c.pattern;if(c.orbit!==undefined)cfg.orbit=c.orbit;if(typeof c.beat==='number')cfg.beat=c.beat;}catch(e){}};
+window.updateScope=function(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.freqs)cfg.freqs=c.freqs;if(typeof c.playing==='boolean')cfg.playing=c.playing;if(c.medium)cfg.medium=c.medium;if(Array.isArray(c.geometries))cfg.geometries=c.geometries;if(c.view)cfg.view=c.view;if(Array.isArray(c.orbs))cfg.orbs=c.orbs;if(typeof c.resonating==='boolean')cfg.resonating=c.resonating;if(c.baseFreq)cfg.baseFreq=c.baseFreq;if(c.pattern)cfg.pattern=c.pattern;if(c.orbit!==undefined)cfg.orbit=c.orbit;if(typeof c.beat==='number')cfg.beat=c.beat;if(c.layers){cfg.layers.darkFx=!!c.layers.darkFx;cfg.layers.threeField=!!c.layers.threeField;cfg.layers.orbit=!!c.layers.orbit;cfg.layers.labels=!!c.layers.labels;cfg.layers.waveRing=!!c.layers.waveRing;}}catch(e){}};
 window.pushWave=function(w){try{if(typeof w==='string')w=JSON.parse(w);if(w&&w.wave){LIVE.wave=w.wave;LIVE.peak=w.peak||0;LIVE.peaks=Array.isArray(w.peaks)?w.peaks:LIVE.peaks;LIVE.ts=performance.now();}}catch(e){}};
 window.addEventListener('message',function(e){
   var d=e.data;try{var p=typeof d==='string'?JSON.parse(d):d;if(p&&p.__wave){window.pushWave(p);return;}}catch(_){}
@@ -561,7 +561,7 @@ function drawCymascope(t,env,R){
 
   // ═══ DARK FX GATE — cosmic overlays only bloom with live signal, keeping the membrane clean at rest and readable under songs.
   var fx=Math.max(0,Math.min(1,(env-0.05)*2.0));
-  if(fx>0.02){
+  if(fx>0.02 && cfg.layers.darkFx){
   // ═══ DARK MATTER — slow-drifting invisible clumps that absorb light with a faint gravitational-lensing blue rim.
   var dmT=t*0.00042;
   for(var m=0;m<3;m++){
@@ -608,10 +608,10 @@ function drawCymascope(t,env,R){
   }
 
   // ═══ THREE-FIELD ACTIVATION — sequential POTENTIAL → BIOFIELD → COHERENCE overlay ═══
-  drawFields(t,env,R);
+  if(cfg.layers.threeField) drawFields(t,env,R);
 
   ctx.restore();
-  drawFieldLabels();
+  if(cfg.layers.labels) drawFieldLabels();
 }
 
 // ═══ LASER — swept-coherent light medium. Scanning laser lines carve
@@ -800,7 +800,7 @@ function drawScopeFace(t,envSmooth){
   }
   }
   ctx.globalAlpha=1;
-  if(fresh && !exclusive){
+  if(fresh && cfg.layers.waveRing && (!exclusive || isCyma)){
     ctx.save();ctx.shadowColor=p.glow;ctx.shadowBlur=8;
     ctx.strokeStyle=p.main;ctx.lineWidth=1.2;ctx.globalAlpha=0.7;
     ctx.beginPath();
@@ -842,7 +842,7 @@ function drawScopeFace(t,envSmooth){
     ctx.globalAlpha=1;
   }
   // ═══ ORBIT — planet marker locked to the carrier's cosmic-octave orbit tone ═══
-  if(cfg.orbit){
+  if(cfg.orbit && cfg.layers.orbit){
     var oc=cfg.orbit;
     var orad=R*1.10;
     ctx.save();
@@ -1089,6 +1089,17 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
   const [measuredHz, setMeasuredHz] = useState(0);
   const [livePeaks, setLivePeaks] = useState<number[]>([]);
   const [tuningA, setTuningA] = useState<432 | 440>(AudioEngine.getTuning());
+  // ═══ CYMASCOPE LAYER TOGGLES — separate each overlay for cleaner cymatic
+  //     response. Base water field always renders; each layer can be muted
+  //     independently for a stripped-down or maximal cosmic view. ═══
+  const [layers, setLayers] = useState({
+    darkFx: false,      // Dark matter clumps + dark energy filaments (cosmic bloom)
+    threeField: false,  // Potential → Biofield → Coherence sequential rings
+    orbit: true,        // Planet marker orbit
+    labels: false,      // Field side labels
+    waveRing: false,    // Outer waveform overlay ring
+  });
+  const toggleLayer = (k: keyof typeof layers) => setLayers(prev => ({ ...prev, [k]: !prev[k] }));
   const lastPeaksTs = useRef(0);
   const [geoPickerOpen, setGeoPickerOpen] = useState(false);
   const webRef = useRef<WebView>(null);
@@ -1219,7 +1230,8 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
     pattern: PATTERN_NAME[orbCount] || '',
     orbit: autoOrbit ? { planet: orbitInfo.planet, symbol: orbitInfo.symbol, color: orbitInfo.color, hz: orbitInfo.orbitHz } : null,
     beat: beatHz,
-  }), [frequencies, playing, medium, geometries, view, orbs, resonating, baseFreq, orbCount, autoOrbit, orbitInfo, beatHz]);
+    layers,
+  }), [frequencies, playing, medium, geometries, view, orbs, resonating, baseFreq, orbCount, autoOrbit, orbitInfo, beatHz, layers]);
 
   useEffect(() => {
     pushConfig(fullConfig());
@@ -1381,6 +1393,31 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
       )}
 
       {view === 'SCOPE' && medium === 'CYMASCOPE' && (
+        <View style={st.layerRow}>
+          <Text style={st.layerRowLabel}>LYR</Text>
+          {([
+            ['FX·DK', 'darkFx'],
+            ['3·FLD', 'threeField'],
+            ['ORB',   'orbit'],
+            ['LBL',   'labels'],
+            ['WAV',   'waveRing'],
+          ] as [string, keyof typeof layers][]).map(([label, key]) => {
+            const on = layers[key];
+            return (
+              <TouchableOpacity
+                key={key}
+                onPress={() => toggleLayer(key)}
+                style={[st.layerChip, on && st.layerChipOn]}
+                activeOpacity={0.7}
+              >
+                <Text style={[st.layerChipTxt, on && st.layerChipTxtOn]}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
+      {view === 'SCOPE' && medium === 'CYMASCOPE' && (
         <Text style={st.patternMeta}>
           ≋ CYMASCOPE · A={tuningA} · ZERO-LATENCY FFT · {livePeaks.length > 0 ? `LIVE ${livePeaks.join(' · ')} Hz` : 'AWAITING SIGNAL — WATER AT REST'}
         </Text>
@@ -1493,6 +1530,49 @@ const st = StyleSheet.create({
   tuneVal: { fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
   tuneVal432: { color: '#ff2a2a' },
   tuneVal440: { color: '#c9d2dd' },
+  // ═══ CYMASCOPE layer toggle chips ═══
+  layerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    borderWidth: 1,
+    borderColor: '#1a2028',
+    borderRadius: 4,
+    backgroundColor: '#050709',
+  },
+  layerRowLabel: {
+    fontSize: 7,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    color: '#5a646f',
+    marginRight: 2,
+  },
+  layerChip: {
+    borderWidth: 1,
+    borderColor: '#2a3340',
+    borderRadius: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  layerChipOn: {
+    borderColor: '#7fd4ff',
+    backgroundColor: 'rgba(127,212,255,0.12)',
+  },
+  layerChipTxt: {
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    color: '#5a646f',
+  },
+  layerChipTxtOn: {
+    color: '#a8e2ff',
+  },
   faceRow: {
     flexDirection: 'row',
     alignItems: 'center',
