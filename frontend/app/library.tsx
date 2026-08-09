@@ -52,7 +52,7 @@ export default function LibraryScreen() {
     AudioEngine.setGodMode(on);
   };
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>('archive');
+  const [viewMode, setViewMode] = useState<ViewMode>('alpha');
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [activeAlpha, setActiveAlpha] = useState<string | null>(null);
   const [showCodesLab, setShowCodesLab] = useState(true);
@@ -298,11 +298,11 @@ export default function LibraryScreen() {
           )}
         </View>
 
-        {/* ═══ VIEW TABS ═══ */}
+        {/* ═══ VIEW TABS — A-Z first row, CODEX second, LAB third ═══ */}
         <View style={s.viewTabs}>
           {([
-            { id: 'archive' as ViewMode, label: 'CODEX' },
             { id: 'alpha' as ViewMode, label: 'A-Z' },
+            { id: 'archive' as ViewMode, label: 'CODEX' },
             { id: 'lab' as ViewMode, label: 'LAB' },
           ]).map(tab => (
             <TouchableOpacity
