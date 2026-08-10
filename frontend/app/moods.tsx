@@ -13,6 +13,7 @@ import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
 import { AudioEngine } from '../src/AudioEngine';
 import { FrequencyMap } from '../src/FrequencyMap';
+import ElementCube from '../src/ElementCube';
 
 const { width } = Dimensions.get('window');
 
@@ -130,7 +131,12 @@ export default function MoodsScreen() {
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
         <MirrorsIdBanner />
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
-          
+
+          {/* ═══ ELEMENT CUBE — interactive 3D periodic-table cube.
+               Each facet plays its Cosmic-Octave audible frequency
+               (primary emission spectra transposed into 20-2000 Hz). ═══ */}
+          <ElementCube />
+
           {/* Frequency Map Section */}
           <View style={styles.frequencyMapSection}>
             <FrequencyMap
