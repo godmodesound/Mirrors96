@@ -4,14 +4,16 @@ import { WebView } from 'react-native-webview';
 import { AudioEngine } from './AudioEngine';
 
 // ═══════════════════════════════════════════════════════════════
-// ELEMENT CUBE — 3D faceted periodic-table cube for the BRAIN tab
+// MIRROR CUBES — 3D faceted periodic-table cube for the BRAIN tab
 //
-// Each face groups elements by their neurobiological role.
-// Frequencies are derived from primary emission spectral lines
-// (Hans Cousto Cosmic Octave method) — octave-shifted into the
-// audible 20-2000 Hz band. Tap a facet → play the element's
-// resonant tone through the master AudioEngine bus.
+// Each face IS a "Mirror Cube" — a resonance chord of 6 elements
+// bound by their neurobiological role. Frequencies are derived
+// from primary emission spectral lines (Hans Cousto Cosmic Octave
+// method) — octave-shifted into the audible 20-2000 Hz band.
 //
+//   Tap a single facet → plays that ONE element's Hz.
+//   PLAY CUBE          → stacks ALL 6 frequencies of the current
+//                        face together (the true "Mirror Cube" chord).
 //   SPIN     — free-rotate mode
 //   ALIGN    — snap face back to canonical order (+1 origin)
 //   SCRAMBLE — randomize element positions within each face
@@ -241,6 +243,8 @@ export default function ElementCube({ onElement }: Props) {
   const [face, setFace] = useState<number>(0);
   const [scrambled, setScrambled] = useState(false);
   const currentToneId = useRef<number>(4200);
+  // Multi-freq "cube chord" state — playing all 6 frequencies of a face together
+  const [cubePlaying, setCubePlaying] = useState<number | null>(null);
 
   const html = React.useMemo(() => buildHtml(FACES), []);
 
@@ -299,11 +303,37 @@ export default function ElementCube({ onElement }: Props) {
     send({ cmd: 'scramble', origins: next });
   };
 
+  // ═══ PLAY CUBE — stack all 6 element frequencies of the current face.
+  //     Each face is a "Mirror Cube" — a chord of neurobiologically-linked
+  //     resonances. Second tap toggles off. ═══
+  const playCube = () => {
+    if (cubePlaying === face) {
+      AudioEngine.stopMulti();
+      setCubePlaying(null);
+      return;
+    }
+    const freqs = FACES[face].elems.map(e => e.hz);
+    AudioEngine.playMulti(freqs, 0.28);
+    setCubePlaying(face);
+    setSelected(null);
+  };
+
+  // Auto-stop cube chord if user switches face away from playing one
+  useEffect(() => {
+    if (cubePlaying !== null && cubePlaying !== face) {
+      AudioEngine.stopMulti();
+      setCubePlaying(null);
+    }
+  }, [face, cubePlaying]);
+
+  // Cleanup: stop cube chord on unmount
+  useEffect(() => () => { AudioEngine.stopMulti(); }, []);
+
   return (
     <View style={st.wrap}>
       <View style={st.header}>
-        <Text style={st.title}>◈ ELEMENT CUBE</Text>
-        <Text style={st.subtitle}>36 BRAIN ELEMENTS · COSMIC-OCTAVE Hz</Text>
+        <Text style={st.title}>◈ MIRROR CUBES</Text>
+        <Text style={st.subtitle}>36 BRAIN ELEMENTS · 6 CUBE CHORDS · COSMIC-OCTAVE Hz</Text>
       </View>
 
       <View style={st.stage}>
@@ -337,9 +367,33 @@ export default function ElementCube({ onElement }: Props) {
             <Text style={st.readoutFace}>{FACES[face]?.title}</Text>
           </>
         ) : (
-          <Text style={st.readoutHint}>TAP A FACET TO SOUND ITS RESONANT FREQUENCY</Text>
+          <Text style={st.readoutHint}>TAP A FACET · OR PLAY THE ENTIRE CUBE BELOW</Text>
         )}
       </View>
+
+      {/* ═══ PLAY CUBE — stack all 6 face frequencies together ═══ */}
+      <TouchableOpacity
+        style={[st.cubePlayBtn, cubePlaying === face && st.cubePlayBtnActive]}
+        onPress={playCube}
+        activeOpacity={0.75}
+      >
+        <Text style={[st.cubePlayGlyph, cubePlaying === face && st.cubePlayGlyphActive]}>
+          {cubePlaying === face ? '◼' : '▶'}
+        </Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[st.cubePlayTitle, cubePlaying === face && st.cubePlayTitleActive]}>
+            {cubePlaying === face ? 'STOP MIRROR CUBE' : `PLAY MIRROR CUBE · ${FACES[face].title}`}
+          </Text>
+          <View style={st.cubeChord}>
+            {FACES[face].elems.map((e) => (
+              <View key={e.sym} style={[st.cubeChordChip, { borderColor: e.color + (cubePlaying === face ? 'ff' : '80') }]}>
+                <Text style={[st.cubeChordSym, { color: e.color }]}>{e.sym}</Text>
+                <Text style={[st.cubeChordHz, { color: e.color, opacity: cubePlaying === face ? 1 : 0.75 }]}>{e.hz.toFixed(1)}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </TouchableOpacity>
 
       {/* Controls: SCRAMBLE · ALIGN · SPIN + origins readout */}
       <View style={st.controlRow}>
@@ -431,6 +485,66 @@ const st = StyleSheet.create({
   readoutHz: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
   readoutFace: { color: '#5a646f', fontSize: 7, fontWeight: '800', letterSpacing: 1.4 },
   readoutHint: { color: '#3a7a4a', fontSize: 8, fontWeight: '800', letterSpacing: 1.4, textAlign: 'center', flex: 1 },
+  // ═══ PLAY CUBE bar — stacks all 6 face frequencies as a chord ═══
+  cubePlayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#0a2a0a',
+    borderRadius: 4,
+    backgroundColor: '#040a04',
+    minHeight: 56,
+  },
+  cubePlayBtnActive: {
+    borderColor: '#5aff8a',
+    backgroundColor: 'rgba(90,255,138,0.10)',
+    shadowColor: '#5aff8a',
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+  },
+  cubePlayGlyph: {
+    color: '#3a7a4a',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  cubePlayGlyphActive: { color: '#5aff8a' },
+  cubePlayTitle: {
+    color: '#3a7a4a',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+  },
+  cubePlayTitleActive: { color: '#5aff8a' },
+  cubeChord: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 3,
+    marginTop: 5,
+  },
+  cubeChordChip: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 3,
+    borderWidth: 1,
+    borderRadius: 2,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    backgroundColor: '#000',
+  },
+  cubeChordSym: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  cubeChordHz: {
+    fontSize: 7,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
   controlRow: {
     flexDirection: 'row',
     alignItems: 'center',
