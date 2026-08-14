@@ -62,7 +62,8 @@ var cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=0,H=0,CX=0,CY=0,R=
 function resize(){W=window.innerWidth;H=window.innerHeight;cv.width=W;cv.height=H;CX=W/2;CY=H/2;R=Math.min(W,H)*0.42;}
 resize();window.addEventListener('resize',resize);
 var cfg={depth:1,color:'#7db7ff',year:2026,stageColor:'#7db7ff',spin:true};
-function upd(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.depth!==undefined)cfg.depth=c.depth;if(c.color)cfg.color=c.color;if(c.year!==undefined)cfg.year=c.year;if(c.spin!==undefined)cfg.spin=c.spin;}catch(e){}}
+var flashT=0,flashColor='#7db7ff';
+function upd(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.depth!==undefined)cfg.depth=c.depth;if(c.color)cfg.color=c.color;if(c.year!==undefined)cfg.year=c.year;if(c.spin!==undefined)cfg.spin=c.spin;if(c.flash){flashT=performance.now();flashColor=c.flashColor||cfg.color;}}catch(e){}}
 window.updateDial=upd;
 window.addEventListener('message',function(e){upd(e.data);});
 document.addEventListener('message',function(e){upd(e.data);});
@@ -100,6 +101,16 @@ function frame(t){
   // subtle center singularity — the "birth point / light-body zero"
   ctx.fillStyle=cfg.color;ctx.globalAlpha=0.9;ctx.beginPath();ctx.arc(CX,CY,2.2,0,6.2832);ctx.fill();ctx.globalAlpha=1;
   drawWheel(CX,CY,R,rot,cfg.depth,0.85);
+  // Temporal-jump flash — expanding resonance ring from cube emission
+  var fe=(t-flashT);
+  if(flashT&&fe<900){
+    var p=fe/900;
+    ctx.save();ctx.strokeStyle=flashColor;ctx.lineWidth=2*(1-p)+0.5;ctx.globalAlpha=(1-p)*0.9;
+    ctx.beginPath();ctx.arc(CX,CY,R*0.15+R*1.05*p,0,6.2832);ctx.stroke();
+    ctx.globalAlpha=(1-p)*0.4;
+    ctx.beginPath();ctx.arc(CX,CY,R*0.08+R*0.7*p,0,6.2832);ctx.stroke();
+    ctx.restore();
+  }
   // Year annotation floating at the top
   ctx.font='bold 9px monospace';ctx.fillStyle=cfg.color;ctx.globalAlpha=0.75;ctx.textAlign='center';
   ctx.fillText(String(cfg.year)+' AD',CX,20);
@@ -110,7 +121,30 @@ requestAnimationFrame(frame);
 window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({ready:true}));
 </script></body></html>`;
 
-export default function TimeTravelDial() {
+export interface ResonatorEmission {
+  sym: string;
+  name: string;
+  hz: number;
+  color: string;
+  step: number;
+  face: number;
+  ts: number;
+}
+
+// Deterministic Hz → temporal coordinate mapping across the KRYSTAR cycle.
+// Element emission band (~280-720 Hz) maps linearly onto 2008-3333 AD.
+const HZ_MIN = 280;
+const HZ_MAX = 720;
+const hzToYear = (hz: number) => {
+  const t = Math.min(1, Math.max(0, (hz - HZ_MIN) / (HZ_MAX - HZ_MIN)));
+  return Math.round(2008 + t * (MAX_YEAR - 2008));
+};
+
+interface Props {
+  emission?: ResonatorEmission | null; // live feed from the Mirror Cube resonator
+}
+
+export default function TimeTravelDial({ emission }: Props) {
   const [year, setYear] = useState(DEFAULT_YEAR);
   const [playing, setPlaying] = useState(false);
   const [spin, setSpin] = useState(true);
@@ -132,6 +166,28 @@ export default function TimeTravelDial() {
   useEffect(() => {
     send({ year, color: stage.color, depth: stage.eckashaDepth, spin });
   }, [year, stage, spin, send]);
+
+  // ═══ TEMPORAL RESONATOR INPUT — every cube emission warps the dial
+  //     to that element's temporal coordinate in real time, fires a
+  //     resonance flash in the geometry, and re-syncs the stage chord. ═══
+  const [lock, setLock] = useState<ResonatorEmission | null>(null);
+  useEffect(() => {
+    if (emission === undefined) return;
+    if (emission === null) { setLock(null); return; }
+    setLock(emission);
+    setYear(hzToYear(emission.hz));
+    send({ flash: 1, flashColor: emission.color });
+  }, [emission, send]);
+
+  // Keep the stage chord in sync while playing — re-trigger on stage jumps
+  const prevStageKey = useRef(stage.key);
+  useEffect(() => {
+    if (prevStageKey.current !== stage.key) {
+      prevStageKey.current = stage.key;
+      if (playing) AudioEngine.playMulti(stage.chord, 0.3);
+    }
+  }, [stage, playing]);
+
 
   const jumpYear = (delta: number) => setYear(y => Math.max(MIN_YEAR, Math.min(MAX_YEAR, y + delta)));
   const warpTo = (y: number) => setYear(Math.max(MIN_YEAR, Math.min(MAX_YEAR, y)));
@@ -160,6 +216,20 @@ export default function TimeTravelDial() {
       <View style={st.header}>
         <Text style={st.title}>◈ TIME TRAVEL DIAL</Text>
         <Text style={st.subtitle}>KRYSTAR LAST-ASCENSION CYCLE · 2008–3333 AD</Text>
+      </View>
+
+      {/* ── Temporal Resonator input strip — live cube emissions ── */}
+      <View style={[st.resStrip, lock && { borderColor: lock.color, backgroundColor: '#02060c' }]}>
+        {lock ? (
+          <>
+            <View style={[st.resDot, { backgroundColor: lock.color, shadowColor: lock.color, shadowOpacity: 0.9, shadowRadius: 5 }]} />
+            <Text style={[st.resSym, { color: lock.color }]}>{lock.sym}</Text>
+            <Text style={st.resMap}>{lock.hz.toFixed(2)} Hz → {hzToYear(lock.hz)} AD</Text>
+            <Text style={[st.resStage, { color: stage.color }]}>◈ S{stage.n} TEMPORAL LOCK</Text>
+          </>
+        ) : (
+          <Text style={st.resStandby}>◇ RESONATOR STANDBY · RUN MIRROR CUBE RESONATOR TO DRIVE DIAL</Text>
+        )}
       </View>
 
       {/* ── LCD-flip year display (BTTF style) ── */}
@@ -368,6 +438,25 @@ const st = StyleSheet.create({
     letterSpacing: 1.4,
     marginTop: 3,
   },
+  // ─── Temporal Resonator input strip ───
+  resStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#1a2028',
+    borderRadius: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginBottom: 8,
+    backgroundColor: '#050505',
+    minHeight: 28,
+  },
+  resDot: { width: 7, height: 7, borderRadius: 4 },
+  resSym: { fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
+  resMap: { color: '#c9d2dd', fontSize: 8, fontWeight: '800', letterSpacing: 0.8, flex: 1 },
+  resStage: { fontSize: 7, fontWeight: '900', letterSpacing: 1 },
+  resStandby: { color: '#3a5a7a', fontSize: 7, fontWeight: '800', letterSpacing: 1.2, textAlign: 'center', flex: 1 },
   // ─── LCD DIGITS ───
   lcdWrap: {
     flexDirection: 'row',

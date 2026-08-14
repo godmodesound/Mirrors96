@@ -201,6 +201,11 @@ else if(m.cmd==='scramble'){
   status.textContent='◈ SCRAMBLED · '+(m.origins||0)+'/6 ORIGINS';
 }
 else if(m.cmd==='face'){snapToFace(m.idx);}
+else if(m.cmd==='pulse'){
+  var sel=document.querySelector('.tile[data-face="'+m.face+'"][data-slot="'+m.slot+'"]');
+  if(sel){if(last)last.classList.remove('on');sel.classList.add('on');last=sel;
+    readout.textContent='⇄ '+m.sym+' · '+Number(m.hz).toFixed(2)+' Hz → TEMPORAL DIAL';}
+}
 else if(m.cmd==='clear'){if(last){last.classList.remove('on');last=null;}readout.textContent='';}
 }catch(e){}}
 document.addEventListener('message',function(e){handle(e.data);});
@@ -230,11 +235,26 @@ function restoreOrder(){
 window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({ready:true}));
 </script></body></html>`;
 
-interface Props {
-  onElement?: (e: Element, face: number) => void;
+// ═══ TEMPORAL RESONATOR — sequential emission driving the Time Travel Dial ═══
+export interface ResonatorEmission {
+  sym: string;
+  name: string;
+  hz: number;
+  color: string;
+  step: number;   // absolute step count since resonator start
+  face: number;
+  ts: number;
 }
 
-export default function ElementCube({ onElement }: Props) {
+interface Props {
+  onElement?: (e: Element, face: number) => void;
+  onEmit?: (emission: ResonatorEmission | null) => void; // null = resonator stopped
+}
+
+const RES_TONE_ID = 4300;
+const RES_STEP_MS = 1500;
+
+export default function ElementCube({ onElement, onEmit }: Props) {
   const webRef = useRef<WebView>(null);
   const iframeRef = useRef<any>(null);
   const [spinning, setSpinning] = useState(false);
@@ -329,6 +349,50 @@ export default function ElementCube({ onElement }: Props) {
   // Cleanup: stop cube chord on unmount
   useEffect(() => () => { AudioEngine.stopMulti(); }, []);
 
+  // ═══ TEMPORAL RESONATOR — sequentially emit each element of the current
+  //     face (step-sequencer). Every emission fires onEmit() → drives the
+  //     Time Travel Dial in real time as an in-sync frequency resonator. ═══
+  const [resonating, setResonating] = useState(false);
+  const [resStep, setResStep] = useState(0);
+  const stepRef = useRef(0);
+  const faceRef = useRef(face);
+  const resTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => { faceRef.current = face; }, [face]);
+
+  const emitStep = useCallback(() => {
+    const f = faceRef.current;
+    const idx = stepRef.current % 6;
+    const el = FACES[f].elems[idx];
+    AudioEngine.startTone(RES_TONE_ID, el.hz, 0.3, 'sine');
+    send({ cmd: 'pulse', face: f, slot: idx, sym: el.sym, hz: el.hz });
+    setResStep(idx);
+    onEmit && onEmit({ sym: el.sym, name: el.name, hz: el.hz, color: el.color, step: stepRef.current, face: f, ts: Date.now() });
+    stepRef.current += 1;
+  }, [send, onEmit]);
+
+  const toggleResonate = () => {
+    if (resonating) {
+      if (resTimer.current) clearInterval(resTimer.current);
+      resTimer.current = null;
+      AudioEngine.stopTone(RES_TONE_ID);
+      send({ cmd: 'clear' });
+      setResonating(false);
+      onEmit && onEmit(null);
+    } else {
+      stepRef.current = 0;
+      setResonating(true);
+      emitStep();
+      resTimer.current = setInterval(emitStep, RES_STEP_MS);
+    }
+  };
+
+  // Cleanup resonator on unmount
+  useEffect(() => () => {
+    if (resTimer.current) clearInterval(resTimer.current);
+    AudioEngine.stopTone(RES_TONE_ID);
+  }, []);
+
+
   return (
     <View style={st.wrap}>
       <View style={st.header}>
@@ -392,6 +456,37 @@ export default function ElementCube({ onElement }: Props) {
               </View>
             ))}
           </View>
+        </View>
+      </TouchableOpacity>
+
+      {/* ═══ TEMPORAL RESONATOR — sequential emission → Time Travel Dial ═══ */}
+      <TouchableOpacity
+        style={[st.resBtn, resonating && st.resBtnActive]}
+        onPress={toggleResonate}
+        activeOpacity={0.75}
+      >
+        <Text style={[st.resGlyph, resonating && st.resGlyphActive]}>⇄</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[st.resTitle, resonating && st.resTitleActive]}>
+            {resonating ? 'RESONATING → TIME TRAVEL DIAL' : 'TEMPORAL RESONATOR · EMIT SEQUENCE → DIAL'}
+          </Text>
+          <Text style={st.resSub}>
+            {resonating
+              ? `STEP ${resStep + 1}/6 · ${FACES[face].elems[resStep]?.sym} ${FACES[face].elems[resStep]?.hz.toFixed(1)} Hz → TEMPORAL COORDINATE`
+              : 'EACH ELEMENT Hz WARPS THE DIAL TO ITS YEAR · IN-SYNC'}
+          </Text>
+        </View>
+        <View style={st.resSteps}>
+          {FACES[face].elems.map((e, i) => (
+            <View
+              key={e.sym}
+              style={[
+                st.resStepDot,
+                { borderColor: e.color },
+                resonating && resStep === i && { backgroundColor: e.color, shadowColor: e.color, shadowOpacity: 0.9, shadowRadius: 5 },
+              ]}
+            />
+          ))}
         </View>
       </TouchableOpacity>
 
@@ -550,6 +645,58 @@ const st = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginTop: 8,
+  },
+  // ═══ TEMPORAL RESONATOR bar ═══
+  resBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#1a2a3a',
+    borderRadius: 4,
+    backgroundColor: '#02060c',
+    minHeight: 52,
+  },
+  resBtnActive: {
+    borderColor: '#7db7ff',
+    backgroundColor: 'rgba(125,183,255,0.10)',
+    shadowColor: '#7db7ff',
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+  },
+  resGlyph: {
+    color: '#3a5a7a',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  resGlyphActive: { color: '#7db7ff' },
+  resTitle: {
+    color: '#3a5a7a',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+  },
+  resTitleActive: { color: '#7db7ff' },
+  resSub: {
+    color: '#5a646f',
+    fontSize: 7,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginTop: 4,
+  },
+  resSteps: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  resStepDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    backgroundColor: '#000',
   },
   ctlBtn: {
     borderWidth: 1,

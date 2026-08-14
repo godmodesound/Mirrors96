@@ -13,7 +13,7 @@ import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
 import { AudioEngine } from '../src/AudioEngine';
 import { FrequencyMap } from '../src/FrequencyMap';
-import ElementCube from '../src/ElementCube';
+import ElementCube, { ResonatorEmission } from '../src/ElementCube';
 import TimeTravelDial from '../src/TimeTravelDial';
 
 const { width } = Dimensions.get('window');
@@ -112,6 +112,8 @@ export default function MoodsScreen() {
   const [activeMood, setActiveMood] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [section, setSection] = useState<'states' | 'brain'>('states');
+  // Live temporal-resonator feed: Mirror Cube emissions → Time Travel Dial
+  const [emission, setEmission] = useState<ResonatorEmission | null>(null);
   const insets = useSafeAreaInsets();
 
   // Audio persists across pages for universal sync (harmonic layering).
@@ -136,13 +138,14 @@ export default function MoodsScreen() {
           {/* ═══ ELEMENT CUBE — interactive 3D periodic-table cube.
                Each facet plays its Cosmic-Octave audible frequency
                (primary emission spectra transposed into 20-2000 Hz). ═══ */}
-          <ElementCube />
+          <ElementCube onEmit={setEmission} />
 
           {/* ═══ TIME TRAVEL DIAL — KRYSTAR LAST-Ascension cycle 2008-3333 AD.
                Back-to-the-Future style year dial simulates a jump across the
                5 Stages of Starfire; each stage renders its Wheels-Within-Wheels
-               sacred geometry and plays its resonant chord. ═══ */}
-          <TimeTravelDial />
+               sacred geometry and plays its resonant chord. Driven in realtime
+               by the Mirror Cube's Temporal Resonator emissions. ═══ */}
+          <TimeTravelDial emission={emission} />
 
           {/* Frequency Map Section */}
           <View style={styles.frequencyMapSection}>
