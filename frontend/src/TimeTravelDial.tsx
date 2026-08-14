@@ -61,9 +61,21 @@ const buildHtml = () => `<!DOCTYPE html><html><head>
 var cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=0,H=0,CX=0,CY=0,R=0;
 function resize(){W=window.innerWidth;H=window.innerHeight;cv.width=W;cv.height=H;CX=W/2;CY=H/2;R=Math.min(W,H)*0.42;}
 resize();window.addEventListener('resize',resize);
-var cfg={depth:1,color:'#7db7ff',year:2026,stageColor:'#7db7ff',spin:true};
+var cfg={depth:1,color:'#7db7ff',year:2026,stageColor:'#7db7ff',spin:true,stageStart:2008,stageEnd:2047,activeNode:-1,activeHz:0,progress:0};
 var flashT=0,flashColor='#7db7ff';
-function upd(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.depth!==undefined)cfg.depth=c.depth;if(c.color)cfg.color=c.color;if(c.year!==undefined)cfg.year=c.year;if(c.spin!==undefined)cfg.spin=c.spin;if(c.flash){flashT=performance.now();flashColor=c.flashColor||cfg.color;}}catch(e){}}
+// 12 sacred-point node frequencies — chromatic 432-based harmonic ring (~306-611 Hz)
+var NODE_HZ=[];for(var ni=0;ni<12;ni++)NODE_HZ.push(432*Math.pow(2,(ni-6)/12));
+var nodePos=[];      // live node screen coords for hit-testing
+var nodeGlow=[];for(var gi=0;gi<12;gi++)nodeGlow.push(0);
+function post(o){var j=JSON.stringify(o);if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(j);else if(window.parent)window.parent.postMessage(j,'*');}
+function nodeYear(i){return Math.round(cfg.stageStart+i*(cfg.stageEnd-cfg.stageStart)/11);}
+function upd(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.depth!==undefined)cfg.depth=c.depth;if(c.color)cfg.color=c.color;if(c.year!==undefined)cfg.year=c.year;if(c.spin!==undefined)cfg.spin=c.spin;if(c.stageStart!==undefined)cfg.stageStart=c.stageStart;if(c.stageEnd!==undefined)cfg.stageEnd=c.stageEnd;if(c.activeNode!==undefined)cfg.activeNode=c.activeNode;if(c.activeHz!==undefined)cfg.activeHz=c.activeHz;if(c.progress!==undefined)cfg.progress=c.progress;if(c.flash){flashT=performance.now();flashColor=c.flashColor||cfg.color;}}catch(e){}}
+// Tap detection — nearest sacred node within 30px activates it
+document.addEventListener('pointerdown',function(e){
+  var x=e.clientX,y=e.clientY,best=-1,bd=1e9;
+  for(var i=0;i<12;i++){if(!nodePos[i])continue;var dx=x-nodePos[i][0],dy=y-nodePos[i][1],d2=dx*dx+dy*dy;if(d2<bd){bd=d2;best=i;}}
+  if(best>=0&&bd<1600){post({src:'mirrortime',type:'node',idx:best,hz:NODE_HZ[best],year:nodeYear(best)});}
+});
 window.updateDial=upd;
 window.addEventListener('message',function(e){upd(e.data);});
 document.addEventListener('message',function(e){upd(e.data);});
@@ -96,11 +108,51 @@ var t0=performance.now();
 function frame(t){
   var dt=(t-t0)/1000;
   ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fillRect(0,0,W,H);
-  // shell rings — density scales with year (past = fewer, future = more)
-  var rot=cfg.spin?dt*0.06:0;
+  // shell rings — spin rate responds to the chosen year's position in-stage
+  var rot=cfg.spin?dt*(0.06+0.10*cfg.progress):0;
   // subtle center singularity — the "birth point / light-body zero"
   ctx.fillStyle=cfg.color;ctx.globalAlpha=0.9;ctx.beginPath();ctx.arc(CX,CY,2.2,0,6.2832);ctx.fill();ctx.globalAlpha=1;
   drawWheel(CX,CY,R,rot,cfg.depth,0.85);
+  // ═══ SACRED NODES — frequency-response activated points on the master wheel.
+  //     Each node sits at a 30° sacred-geometry intersection; brightness reacts
+  //     to the active frequency (gaussian resonance response), pulse rate is
+  //     proportional to the node's own harmonic Hz. Tap to warp MIRROR TIME. ═══
+  for(var n=0;n<12;n++){
+    var na=rot+n*Math.PI/6-Math.PI/2;
+    var nx=CX+Math.cos(na)*R, ny=CY+Math.sin(na)*R;
+    nodePos[n]=[nx,ny];
+    var target=0.28;
+    if(cfg.activeHz>0){var dfr=Math.abs(NODE_HZ[n]-cfg.activeHz);target=0.28+0.72*Math.exp(-(dfr*dfr)/(2*45*45));}
+    if(cfg.activeNode===n)target=1;
+    nodeGlow[n]+= (target-nodeGlow[n])*0.12; // eased frequency response
+    var g=nodeGlow[n];
+    var pulse=1+0.28*g*Math.sin(t/1000*(NODE_HZ[n]/72)*6.2832);
+    var nr=(4.5+3.5*g)*pulse;
+    ctx.save();
+    if(cfg.activeNode===n){
+      // center beam + halo for the chosen temporal node
+      ctx.strokeStyle=cfg.color;ctx.globalAlpha=0.55;ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.moveTo(CX,CY);ctx.lineTo(nx,ny);ctx.stroke();
+      ctx.globalAlpha=0.35;ctx.beginPath();ctx.arc(nx,ny,nr+6+3*Math.sin(t/300),0,6.2832);ctx.stroke();
+    }
+    ctx.fillStyle=cfg.color;ctx.globalAlpha=0.15+0.85*g;
+    ctx.beginPath();ctx.arc(nx,ny,nr,0,6.2832);ctx.fill();
+    ctx.strokeStyle=cfg.color;ctx.globalAlpha=0.4+0.6*g;ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(nx,ny,nr+2,0,6.2832);ctx.stroke();
+    // year label appears when node resonates or is chosen
+    if(g>0.6){
+      ctx.font='bold 8px monospace';ctx.textAlign='center';ctx.globalAlpha=Math.min(1,(g-0.6)*2.5);
+      var ly=ny+(ny<CY?-12:16);
+      ctx.fillText(String(nodeYear(n)),nx,ly);
+    }
+    ctx.restore();
+  }
+  // Year-progress arc — visual position of the chosen year within the stage
+  if(cfg.progress>0){
+    ctx.save();ctx.strokeStyle=cfg.color;ctx.lineWidth=2;ctx.globalAlpha=0.6;
+    ctx.beginPath();ctx.arc(CX,CY,R*1.1,-Math.PI/2,-Math.PI/2+cfg.progress*6.2832);ctx.stroke();
+    ctx.restore();
+  }
   // Temporal-jump flash — expanding resonance ring from cube emission
   var fe=(t-flashT);
   if(flashT&&fe<900){
@@ -162,10 +214,7 @@ export default function TimeTravelDial({ emission }: Props) {
     }
   }, []);
 
-  // Push year+stage into canvas whenever they change
-  useEffect(() => {
-    send({ year, color: stage.color, depth: stage.eckashaDepth, spin });
-  }, [year, stage, spin, send]);
+  // (Canvas cfg sync effect lives below — after node/lock state declarations)
 
   // ═══ TEMPORAL RESONATOR INPUT — every cube emission warps the dial
   //     to that element's temporal coordinate in real time, fires a
@@ -191,6 +240,52 @@ export default function TimeTravelDial({ emission }: Props) {
 
   const jumpYear = (delta: number) => setYear(y => Math.max(MIN_YEAR, Math.min(MAX_YEAR, y + delta)));
   const warpTo = (y: number) => setYear(Math.max(MIN_YEAR, Math.min(MAX_YEAR, y)));
+
+  // ═══ SACRED NODES — frequency-response activated points on the wheel.
+  //     Tapping a node in the canvas warps MIRROR TIME to that node's year,
+  //     plays its 432-harmonic tone, and shifts the visuals. ═══
+  const NODE_TONE_ID = 4310;
+  const [nodeSel, setNodeSel] = useState<{ idx: number; hz: number; year: number } | null>(null);
+  const nodeStopT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleNode = useCallback((d: { idx: number; hz: number; year: number }) => {
+    setNodeSel({ idx: d.idx, hz: d.hz, year: d.year });
+    setYear(Math.max(MIN_YEAR, Math.min(MAX_YEAR, d.year)));
+    AudioEngine.startTone(NODE_TONE_ID, d.hz, 0.32, 'sine');
+    if (nodeStopT.current) clearTimeout(nodeStopT.current);
+    nodeStopT.current = setTimeout(() => AudioEngine.stopTone(NODE_TONE_ID), 2600);
+  }, []);
+
+  // Web: node taps arrive via window messages from the iframe
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const h = (e: MessageEvent) => {
+      try {
+        const d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+        if (d && d.src === 'mirrortime' && d.type === 'node') handleNode(d);
+      } catch {}
+    };
+    window.addEventListener('message', h);
+    return () => window.removeEventListener('message', h);
+  }, [handleNode]);
+
+  // Push year+stage+node+frequency-response state into the canvas.
+  // progress = chosen year's position within the stage → drives arc + spin rate.
+  const progress = Math.min(1, Math.max(0, (year - stage.start) / Math.max(1, stage.end - stage.start)));
+  useEffect(() => {
+    send({
+      year, color: stage.color, depth: stage.eckashaDepth, spin,
+      stageStart: stage.start, stageEnd: stage.end, progress,
+      activeNode: nodeSel ? nodeSel.idx : -1,
+      activeHz: nodeSel ? nodeSel.hz : (lock ? lock.hz : 0),
+    });
+  }, [year, stage, spin, progress, nodeSel, lock, send]);
+
+  // Clear the chosen node when the stage jumps (node years remap per stage)
+  useEffect(() => {
+    setNodeSel(prev => (prev && stageForYear(prev.year).key !== stage.key ? null : prev));
+  }, [stage.key]);
+
+
   const togglePlay = () => {
     if (playing) { AudioEngine.stopMulti(); setPlaying(false); }
     else { AudioEngine.playMulti(stage.chord, 0.3); setPlaying(true); }
@@ -214,8 +309,8 @@ export default function TimeTravelDial({ emission }: Props) {
     <View style={st.wrap}>
       {/* ── Header ── */}
       <View style={st.header}>
-        <Text style={st.title}>◈ TIME TRAVEL DIAL</Text>
-        <Text style={st.subtitle}>KRYSTAR LAST-ASCENSION CYCLE · 2008–3333 AD</Text>
+        <Text style={st.title}>◈ MIRROR TIME</Text>
+        <Text style={st.subtitle}>TIME TRAVEL DIAL · KRYSTAR LAST-ASCENSION · 2008–3333 AD</Text>
       </View>
 
       {/* ── Temporal Resonator input strip — live cube emissions ── */}
@@ -255,7 +350,7 @@ export default function TimeTravelDial({ emission }: Props) {
             ref: iframeRef,
             srcDoc: html,
             style: { width: '100%', height: '100%', border: 'none', backgroundColor: '#000' },
-            onLoad: () => send({ year, color: stage.color, depth: stage.eckashaDepth, spin }),
+            onLoad: () => send({ year, color: stage.color, depth: stage.eckashaDepth, spin, stageStart: stage.start, stageEnd: stage.end, progress }),
           })
         ) : (
           <WebView
@@ -265,8 +360,29 @@ export default function TimeTravelDial({ emission }: Props) {
             javaScriptEnabled
             scrollEnabled={false}
             androidLayerType="hardware"
-            onLoadEnd={() => send({ year, color: stage.color, depth: stage.eckashaDepth, spin })}
+            onLoadEnd={() => send({ year, color: stage.color, depth: stage.eckashaDepth, spin, stageStart: stage.start, stageEnd: stage.end, progress })}
+            onMessage={(ev) => {
+              try {
+                const d = JSON.parse(ev.nativeEvent.data);
+                if (d && d.type === 'node') handleNode(d);
+              } catch {}
+            }}
           />
+        )}
+      </View>
+
+      {/* ── Sacred-node readout — active frequency-response node ── */}
+      <View style={[st.nodeStrip, nodeSel && { borderColor: stage.color, backgroundColor: '#04080c' }]}>
+        {nodeSel ? (
+          <>
+            <Text style={[st.nodeTag, { color: stage.color }]}>◉ NODE {nodeSel.idx + 1}/12</Text>
+            <Text style={st.nodeMap}>{nodeSel.hz.toFixed(2)} Hz · SACRED POINT → {nodeSel.year} AD</Text>
+            <TouchableOpacity style={st.nodeClear} onPress={() => setNodeSel(null)} activeOpacity={0.7}>
+              <Text style={st.nodeClearTxt}>✕</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <Text style={st.nodeHint}>◉ TAP A SACRED NODE ON THE WHEEL · YEAR WARP + TONE + VISUAL SHIFT</Text>
         )}
       </View>
 
@@ -521,6 +637,33 @@ const st = StyleSheet.create({
     overflow: 'hidden',
   },
   webview: { flex: 1, backgroundColor: '#000000' },
+  // ─── Sacred-node readout ───
+  nodeStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#1a2028',
+    borderRadius: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    marginTop: 6,
+    backgroundColor: '#050505',
+    minHeight: 26,
+  },
+  nodeTag: { fontSize: 8, fontWeight: '900', letterSpacing: 1 },
+  nodeMap: { color: '#c9d2dd', fontSize: 8, fontWeight: '800', letterSpacing: 0.8, flex: 1 },
+  nodeClear: {
+    minWidth: 24,
+    minHeight: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#2a3340',
+    borderRadius: 3,
+  },
+  nodeClearTxt: { color: '#7d8794', fontSize: 10, fontWeight: '900' },
+  nodeHint: { color: '#3a5a7a', fontSize: 7, fontWeight: '800', letterSpacing: 1.1, textAlign: 'center', flex: 1 },
   // ─── Stage descriptor ───
   stageCard: {
     marginTop: 8,
