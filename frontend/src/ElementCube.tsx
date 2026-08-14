@@ -161,6 +161,7 @@ html,body{margin:0;padding:0;background:#000;overflow:hidden;height:100%;color:#
 var cube=document.getElementById('cube'),readout=document.getElementById('readout'),status=document.getElementById('status');
 var rotX=-18,rotY=22,dragging=false,lx=0,ly=0,spin=false,spinRAF=null,tPrev=0;
 var lastTilesData=null;
+function post(o){var j=JSON.stringify(o);if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(j);else if(window.parent&&window.parent!==window)window.parent.postMessage(j,'*');}
 function apply(){cube.style.transform='rotateX('+rotX+'deg) rotateY('+rotY+'deg)';}
 apply();
 function loop(ts){if(!spin){spinRAF=null;return;}if(!tPrev)tPrev=ts;var dt=(ts-tPrev)/1000;tPrev=ts;rotY+=dt*24;apply();spinRAF=requestAnimationFrame(loop);}
@@ -186,8 +187,8 @@ document.addEventListener('click',function(ev){
   var hz=parseFloat(el.dataset.hz),sym=el.dataset.sym,name=el.dataset.name,face=parseInt(el.dataset.face);
   if(last)last.classList.remove('on');
   el.classList.add('on');last=el;
-  readout.textContent='◈ '+sym+' · '+name+' · '+hz.toFixed(2)+' Hz';
-  window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({type:'element',sym:sym,name:name,hz:hz,face:face}));
+  readout.textContent='◈ '+sym+' · '+name+' · '+hz.toFixed(2)+' Hz · A=432';
+  post({src:'mirrorcubes',type:'element',sym:sym,name:name,hz:hz,face:face});
 });
 // External control messages
 function handle(raw){try{var m=typeof raw==='string'?JSON.parse(raw):raw;if(m.cmd==='spin'){m.on?startSpin():stopSpin();}
@@ -287,12 +288,26 @@ export default function ElementCube({ onElement, onEmit }: Props) {
         if (el) {
           setSelected(el);
           setFace(data.face);
+          // Exact element frequency — engine tuning defaults to A=432 (pass-through)
           AudioEngine.startTone(currentToneId.current, el.hz, 0.35, 'sine');
           onElement && onElement(el, data.face);
         }
       }
     } catch {}
   }, [onElement]);
+
+  // Web: facet taps arrive via window messages from the iframe
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const h = (e: MessageEvent) => {
+      try {
+        const d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+        if (d && d.src === 'mirrorcubes' && d.type === 'element') onWebMessage(typeof e.data === 'string' ? e.data : JSON.stringify(e.data));
+      } catch {}
+    };
+    window.addEventListener('message', h);
+    return () => window.removeEventListener('message', h);
+  }, [onWebMessage]);
 
   useEffect(() => {
     // Auto-stop tone after 3s so it doesn't ring forever
@@ -397,7 +412,7 @@ export default function ElementCube({ onElement, onEmit }: Props) {
     <View style={st.wrap}>
       <View style={st.header}>
         <Text style={st.title}>◈ MIRROR CUBES</Text>
-        <Text style={st.subtitle}>36 BRAIN ELEMENTS · 6 CUBE CHORDS · COSMIC-OCTAVE Hz</Text>
+        <Text style={st.subtitle}>36 BRAIN ELEMENTS · 6 CUBE CHORDS · COSMIC-OCTAVE Hz · A=432 TUNING</Text>
       </View>
 
       <View style={st.stage}>
@@ -427,7 +442,7 @@ export default function ElementCube({ onElement, onEmit }: Props) {
             <View style={[st.readoutDot, { backgroundColor: selected.color }]} />
             <Text style={[st.readoutSym, { color: selected.color }]}>{selected.sym}</Text>
             <Text style={st.readoutName}>{selected.name}</Text>
-            <Text style={[st.readoutHz, { color: selected.color }]}>{selected.hz.toFixed(2)} Hz</Text>
+            <Text style={[st.readoutHz, { color: selected.color }]}>{selected.hz.toFixed(2)} Hz · A=432</Text>
             <Text style={st.readoutFace}>{FACES[face]?.title}</Text>
           </>
         ) : (
