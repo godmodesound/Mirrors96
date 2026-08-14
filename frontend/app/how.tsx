@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Linking, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
@@ -18,6 +18,7 @@ const C = {
 
 export default function HowScreen() {
   const insets = useSafeAreaInsets();
+  const [a11yOpen, setA11yOpen] = useState(false);
   return (
     <View style={styles.container}>
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
@@ -431,6 +432,77 @@ export default function HowScreen() {
             </View>
           </View>
 
+          {/* ══════ ACCESSIBILITY STATEMENT (compressed / expandable) ══════ */}
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={styles.a11yToggle}
+              onPress={() => setA11yOpen(o => !o)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.sectionTitle}>&gt; MIRRORS 96 ACCESSIBILITY STATEMENT</Text>
+              <Text style={styles.a11yChevron}>{a11yOpen ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+            {a11yOpen && (
+              <View style={styles.disclaimerBox}>
+                <Text style={styles.policyDate}>Last Updated: August 14, 2026</Text>
+                <Text style={styles.disclaimerText}>
+                  MIRRORS 96 is committed to making its digital experiences accessible and usable for as many people as possible, including people with disabilities.
+                </Text>
+
+                <Text style={styles.policyHeading}>OUR COMMITMENT</Text>
+                <Text style={styles.disclaimerText}>
+                  Accessibility is integrated into the MIRRORS 96 experience, not treated as an afterthought. As the platform evolves, we continuously evaluate and improve accessibility across interfaces, audio experiences, visualizations, controls, and content — informed by recognized practices including the Web Content Accessibility Guidelines (WCAG) and device-level accessibility capabilities.
+                </Text>
+
+                <Text style={styles.policyHeading}>ACCESSIBILITY FEATURES</Text>
+                <Text style={styles.disclaimerText}>
+                  Depending on device, OS, and app version, considerations may include:
+                </Text>
+                <Text style={styles.policyBullet}>- Screen-reader-compatible interface elements & clearly labeled controls</Text>
+                <Text style={styles.policyBullet}>- Logical navigation hierarchy, scalable text, sufficient visual contrast</Text>
+                <Text style={styles.policyBullet}>- Alternatives to color-only information & appropriate touch-target sizing</Text>
+                <Text style={styles.policyBullet}>- Reduced reliance on rapid animation; compatibility with device accessibility settings</Text>
+                <Text style={styles.policyBullet}>- User control over audio playback; visual information accompanying audio where practical</Text>
+                <Text style={styles.policyBullet}>- Audio/visual feedback designed to never be the sole channel for essential information</Text>
+                <Text style={styles.disclaimerText}>
+                  Because MIRRORS 96 incorporates sound, frequency-based audio, visual feedback, motion, and interactive experiences, certain features may inherently depend on particular sensory capabilities. We continue working to provide alternative methods of interaction where technically practical.
+                </Text>
+
+                <Text style={styles.policyHeading}>SENSORY CONSIDERATIONS</Text>
+                <Text style={styles.disclaimerText}>
+                  Some experiences may contain flashing or strobing visuals, animation, high-contrast imagery, repetitive patterns, spatial or binaural audio, frequency tones, or pulses. Users sensitive to flashing lights, motion, repetitive patterns, or particular sounds should review available controls and adjust device volume, display, motion, brightness, and accessibility settings before use. Where appropriate, MIRRORS 96 aims to provide meaningful control over sensory-intensive functionality.
+                </Text>
+
+                <Text style={styles.policyHeading}>CONTINUOUS IMPROVEMENT</Text>
+                <Text style={styles.disclaimerText}>
+                  Accessibility is an ongoing process. MIRRORS 96 will change as new features, technologies, OS capabilities, and accessibility standards become available. We welcome feedback from users who encounter an accessibility barrier.
+                </Text>
+
+                <Text style={styles.policyHeading}>ACCESSIBILITY FEEDBACK</Text>
+                <Text style={styles.disclaimerText}>
+                  If you experience difficulty accessing or using MIRRORS 96, please contact us and describe: the feature or screen you were attempting to access, the issue encountered, your device and OS, and any assistive technology in use. We will make reasonable efforts to investigate and identify practical improvements.
+                </Text>
+                <TouchableOpacity onPress={() => Linking.openURL('mailto:godmodesound@gmail.com?subject=Accessibility%20Feedback')}>
+                  <Text style={styles.policyContact}>Contact: godmodesound@gmail.com</Text>
+                </TouchableOpacity>
+
+                <Text style={styles.policyHeading}>THIRD-PARTY SERVICES</Text>
+                <Text style={styles.disclaimerText}>
+                  MIRRORS 96 may integrate with or link to third-party platforms and technologies. We cannot control the accessibility of independently operated services, though we aim to consider accessibility when selecting external technologies.
+                </Text>
+
+                <Text style={styles.policyHeading}>OUR DIRECTION</Text>
+                <Text style={styles.disclaimerText}>
+                  MIRRORS 96 is built on the principle that technology should expand access to creative and sensory experiences — increasingly perceivable, operable, understandable, and robust across a broad range of users, devices, and abilities.
+                </Text>
+
+                <Text style={styles.policyContact}>MIRRORS 96</Text>
+                <Text style={styles.policyContact}>The Future. Now.</Text>
+                <Text style={styles.policyContact}>Powered by GODMODE SOUND</Text>
+              </View>
+            )}
+          </View>
+
           <View style={{ height: 20 }} />
           <DisclaimerFooter />
 
@@ -554,4 +626,7 @@ const styles = StyleSheet.create({
   policyHeading: { color: '#993333', fontSize: 9, fontFamily: F, fontWeight: '700', marginTop: 10, marginBottom: 4, letterSpacing: 1 },
   policyBullet: { color: '#662222', fontSize: 8, fontFamily: F, lineHeight: 13, marginBottom: 4, paddingLeft: 8 },
   policyContact: { color: '#993333', fontSize: 8, fontFamily: F, lineHeight: 14 },
+  // Accessibility statement (compressed/expandable)
+  a11yToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
+  a11yChevron: { color: '#ff0a0a', fontSize: 10, fontFamily: F, marginBottom: 8 },
 });
