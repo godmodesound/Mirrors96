@@ -14,10 +14,11 @@ import { chakraForFreq, mapOrbitGeometry, detectBeat } from './OrbitGeometry';
 //                real harmonic stack of the base frequency.
 // ═══════════════════════════════════════════════════════════
 
-export const MEDIUMS = ['CYMASCOPE', 'LASER', 'MIRRORS', 'CODON', 'GENUS', 'E8', 'CHLADNI', 'WATER', 'SAND', 'CYMATICS', 'MERCURY', 'GOLD', 'FIRE'] as const;
+export const MEDIUMS = ['STARS', 'CYMASCOPE', 'LASER', 'MIRRORS', 'CODON', 'GENUS', 'E8', 'CHLADNI', 'WATER', 'SAND', 'CYMATICS', 'MERCURY', 'GOLD', 'FIRE'] as const;
 export type Medium = typeof MEDIUMS[number];
 
 const MEDIUM_COLORS: Record<Medium, string> = {
+  STARS: '#c86aff',
   CYMASCOPE: '#7fd4ff',
   LASER: '#ff2a5e',
   MIRRORS: '#e8ecf5',
@@ -69,6 +70,7 @@ resize();window.addEventListener('resize',resize);
 var cfg={freqs:[432],playing:false,medium:'CYMATICS',geometries:[],view:'SCOPE',orbs:[],resonating:false,baseFreq:432,pattern:'SEED',orbit:null,beat:0,layers:{darkFx:true,threeField:true,orbit:true,labels:true,waveRing:true}};
 var LIVE={wave:new Array(128).fill(128),peak:0,ts:0,peaks:[]};
 var PAL={
+  STARS:{main:'#e2b8ff',glow:'#c86aff',dim:'rgba(200,106,255,0.08)'},
   CYMASCOPE:{main:'#a8e2ff',glow:'#3ec6ff',dim:'rgba(127,212,255,0.08)'},
   LASER:{main:'#ff88b0',glow:'#ff0a5e',dim:'rgba(255,42,94,0.10)'},
   MIRRORS:{main:'#eef0f6',glow:'#b8bfd6',dim:'rgba(232,236,245,0.10)'},
@@ -742,7 +744,91 @@ function drawMirrors(t,env,R){
   ctx.restore();
 }
 
+// ═══ STARS — planet-frequency star cymatics (image ref: Sirius/Earth/Sun/
+// Moon/Mercury/Venus/Mars/Jupiter…). Every frequency tone sounding anywhere
+// in the app (live master-bus FFT peaks) renders its own star mandala:
+// spiky flame rim + petal wheel + n-pointed star + concentric rings + core.
+// Fold symmetry n and hue are deterministic functions of the frequency, so
+// each tone always produces the SAME recognizable star pattern. ═══
+var starAmp=[0,0,0,0];
+function starHue(f){var o=Math.log(Math.max(f,1)/32)/Math.LN2;return (((o%1)+1)%1)*360;}
+function drawStarMandala(cx,cy,R,f,a,t){
+  var n=5+Math.round(f)%8;                       // fold symmetry from Hz
+  var hue=Math.round(starHue(f));                // octave position → color wheel
+  var rot=t*0.00012*(1+(f%5)*0.3);
+  var main='hsla('+hue+',95%,72%,';
+  var glow='hsla('+hue+',100%,65%,0.9)';
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.shadowColor=glow;ctx.shadowBlur=10+a*14;
+  // 1 · outer flame-spike rim — wobbles with the live waveform
+  var spikes=n*4;
+  ctx.strokeStyle=main+(0.25+a*0.6).toFixed(3)+')';
+  ctx.lineWidth=1.1;
+  ctx.beginPath();
+  for(var i=0;i<=spikes;i++){
+    var th=rot+i*6.2832/spikes;
+    var wv=Math.abs(LIVE.wave[Math.floor(i/spikes*127)%128]-128)/128;
+    var len=R*(0.84+0.10*Math.sin(i*n)+wv*0.16*a+0.04*Math.sin(t*0.004+i));
+    var px=Math.cos(th)*len,py=Math.sin(th)*len;
+    i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+  }
+  ctx.closePath();ctx.stroke();
+  // 2 · petal wheel — n counter-rotating circles (flower ring)
+  ctx.strokeStyle=main+(0.30+a*0.55).toFixed(3)+')';
+  ctx.lineWidth=1.0;
+  for(var p2=0;p2<n;p2++){
+    var a2=-rot*1.6+p2*6.2832/n;
+    ctx.beginPath();ctx.arc(Math.cos(a2)*R*0.52,Math.sin(a2)*R*0.52,R*0.24,0,6.2832);ctx.stroke();
+  }
+  // 3 · n-pointed star polygon
+  ctx.strokeStyle=main+(0.45+a*0.5).toFixed(3)+')';
+  ctx.beginPath();
+  for(var s2=0;s2<=n*2;s2++){
+    var a3=rot*0.8+s2*Math.PI/n;
+    var rr=(s2%2===0)?R*0.44:R*0.19;
+    var sx=Math.cos(a3)*rr,sy=Math.sin(a3)*rr;
+    s2===0?ctx.moveTo(sx,sy):ctx.lineTo(sx,sy);
+  }
+  ctx.closePath();ctx.stroke();
+  // 4 · concentric breathing rings
+  ctx.lineWidth=0.8;
+  for(var r3=1;r3<=4;r3++){
+    ctx.strokeStyle=main+(0.10+a*0.28*(1-r3*0.15)).toFixed(3)+')';
+    ctx.beginPath();ctx.arc(0,0,R*(0.14+r3*0.17)*(1+0.02*Math.sin(t*0.003+r3)),0,6.2832);ctx.stroke();
+  }
+  // 5 · luminous core
+  var cg=ctx.createRadialGradient(0,0,0,0,0,Math.max(R*0.14,1));
+  cg.addColorStop(0,'hsla('+hue+',100%,92%,'+(0.5+a*0.5).toFixed(3)+')');
+  cg.addColorStop(1,'hsla('+hue+',100%,60%,0)');
+  ctx.fillStyle=cg;ctx.beginPath();ctx.arc(0,0,R*0.14,0,6.2832);ctx.fill();
+  // Hz label
+  ctx.shadowBlur=0;ctx.font='bold 8px monospace';ctx.textAlign='center';
+  ctx.fillStyle=main+(0.5+a*0.5).toFixed(3)+')';
+  ctx.fillText(f.toFixed(1)+' Hz',0,R+12);
+  ctx.restore();
+}
+function drawStars(t,env,R){
+  // Drivers: live FFT peaks of the master bus — every sounding tone app-wide
+  var drv=[];var freshP=(performance.now()-LIVE.ts)<500;
+  if(freshP&&LIVE.peaks&&LIVE.peaks.length){
+    for(var i=0;i<LIVE.peaks.length&&i<4;i++)drv.push({f:LIVE.peaks[i].hz,a:Math.min(1,LIVE.peaks[i].mag/190)});
+  } else {
+    for(var j=0;j<cfg.freqs.length&&j<4;j++)drv.push({f:cfg.freqs[j],a:cfg.playing?0.5:0.14});
+  }
+  // Temporal smoothing per slot — steady, non-flickering mandalas
+  for(var s=0;s<4;s++){var tgt=s<drv.length?drv[s].a:0;starAmp[s]=starAmp[s]*0.7+tgt*0.3;if(s<drv.length)drv[s].a=Math.min(1,starAmp[s]*(0.4+env*1.2)+0.08);}
+  if(!drv.length)drv.push({f:432,a:0.10});
+  var k=drv.length,lay;
+  if(k===1)lay=[[CX,CY,R*0.92]];
+  else if(k===2)lay=[[CX-R*0.52,CY,R*0.5],[CX+R*0.52,CY,R*0.5]];
+  else if(k===3)lay=[[CX,CY-R*0.46,R*0.44],[CX-R*0.52,CY+R*0.42,R*0.44],[CX+R*0.52,CY+R*0.42,R*0.44]];
+  else lay=[[CX-R*0.5,CY-R*0.46,R*0.42],[CX+R*0.5,CY-R*0.46,R*0.42],[CX-R*0.5,CY+R*0.46,R*0.42],[CX+R*0.5,CY+R*0.46,R*0.42]];
+  for(var m2=0;m2<k;m2++)drawStarMandala(lay[m2][0],lay[m2][1],lay[m2][2],drv[m2].f,drv[m2].a,t);
+}
+
 function drawScopeFace(t,envSmooth){
+  var isStars=cfg.medium==='STARS';
   var isCyma=cfg.medium==='CYMASCOPE';
   var isLaser=cfg.medium==='LASER';
   var isMirrors=cfg.medium==='MIRRORS';
@@ -750,7 +836,7 @@ function drawScopeFace(t,envSmooth){
   var isGenus=cfg.medium==='GENUS';
   var isE8=cfg.medium==='E8';
   // "One display at a time" — cyma-family mediums render exclusively (no polar grid, particles, FFT ring or stacked geometries)
-  var exclusive=isCyma||isLaser||isMirrors||isCodon||isGenus||isE8;
+  var exclusive=isStars||isCyma||isLaser||isMirrors||isCodon||isGenus||isE8;
   if(exclusive){ctx.fillStyle='#010409';ctx.fillRect(0,0,W,H);}
   else{ctx.fillStyle='rgba(0,0,0,0.22)';ctx.fillRect(0,0,W,H);}
   var p=PAL[cfg.medium]||PAL.CYMATICS;
@@ -764,7 +850,9 @@ function drawScopeFace(t,envSmooth){
   var R=R0*breathe;
   var med=cfg.medium;
   var fresh=(performance.now()-LIVE.ts)<400;
-  if(isCyma){
+  if(isStars){
+    drawStars(t,envSmooth,R);
+  } else if(isCyma){
     drawCymascope(t,envSmooth,R);
   } else if(isLaser){
     drawLaser(t,envSmooth,R);
@@ -1080,7 +1168,7 @@ interface Props {
 
 export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 }: Props) {
   const [view, setView] = useState<'SCOPE' | 'NODE'>('SCOPE');
-  const [medium, setMedium] = useState<Medium>('CYMASCOPE');
+  const [medium, setMedium] = useState<Medium>('STARS');
   const [geometries, setGeometries] = useState<Set<Geometry>>(new Set());
   const [autoOrbit, setAutoOrbit] = useState(true);
   const [orbCount, setOrbCount] = useState<number>(7);
