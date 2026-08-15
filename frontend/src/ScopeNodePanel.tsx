@@ -484,7 +484,7 @@ function drawFields(t,env,R){
   var sig=env>0.03;
   if(sig){if(!FLD.on)FLD.on=now;}else FLD.on=0;
   var held=FLD.on?now-FLD.on:0;
-  var freshPk=(now-LIVE.ts)<400&&LIVE.peaks&&LIVE.peaks.length>0;
+  var freshPk=(now-LIVE.ts)<700&&LIVE.peaks&&LIVE.peaks.length>0;
   var tp=sig?1:0;
   var tb=(sig&&freshPk&&held>900)?1:0;
   var tc=(tb&&(cfg.beat>0||held>2400))?1:0;
@@ -867,6 +867,7 @@ function drawStars(t,env,R){
 }
 
 function drawScopeFace(t,envSmooth){
+  var now2=performance.now();
   var isStars=cfg.medium==='STARS';
   var isCyma=cfg.medium==='CYMASCOPE';
   var isLaser=cfg.medium==='LASER';
@@ -888,7 +889,7 @@ function drawScopeFace(t,envSmooth){
   var breathe=1+(0.04+0.14*envSmooth)*Math.sin(t*0.003*(1+(f%5)));
   var R=R0*breathe;
   var med=cfg.medium;
-  var fresh=(performance.now()-LIVE.ts)<400;
+  var fresh=(performance.now()-LIVE.ts)<700;
   if(isStars){
     drawStars(t,envSmooth,R);
   } else if(isCyma){
@@ -1173,13 +1174,22 @@ function drawNodeFace(t,envSmooth){
 var flip=0; // 0 = SCOPE, 1 = NODE
 var envSmooth=0;
 function draw(t){
+try{
   var target=cfg.view==='NODE'?1:0;
   flip+=(target-flip)*0.14;
   if(Math.abs(target-flip)<0.002)flip=target;
-  var live=Math.min(1,(LIVE.peak||0)/110);
-  var fresh=(performance.now()-LIVE.ts)<400;
+  // ═══ ZERO-LATENCY ENVELOPE ═══
+  // Peak deviation from 128 rarely exceeds 45-60 for typical listening; a divisor
+  // of 55 gives the CymaScope a lively, musically-responsive envelope while still
+  // clamping at 1.0 for loud transients. The fresh window is widened to 700ms
+  // to survive brief RN bridge congestion without visually dropping to STBY. When
+  // audio is present the smoothing tracks fast (attack 0.55) and decays slow
+  // (release 0.14) — classic audio VU behavior for a clean, breathing feedback.
+  var live=Math.min(1,(LIVE.peak||0)/55);
+  var fresh=(performance.now()-LIVE.ts)<700;
   var env=fresh?live:(cfg.playing?0.35:0);
-  envSmooth=envSmooth*0.75+env*0.25;
+  var attack=env>envSmooth?0.55:0.14;
+  envSmooth=envSmooth*(1-attack)+env*attack;
   var sx=Math.cos(Math.PI*flip);
   var showNode=flip>0.5;
   var mag=Math.max(0.03,Math.abs(sx));
@@ -1197,6 +1207,7 @@ function draw(t){
     ctx.fillStyle='rgba(255,10,10,'+(0.25*(1-mag))+')';
     ctx.fillRect(CX-1,0,2,H);
   }
+}catch(e){/* never let a bad frame kill the realtime feedback loop */}
   requestAnimationFrame(draw);
 }
 requestAnimationFrame(draw);
@@ -1338,14 +1349,25 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
     }
   }, []);
 
+  const lastPushTs = useRef(0);
   const pushWave = useCallback((frame: ScopeFrame) => {
-    const payload = JSON.stringify({ __wave: true, wave: frame.wave, peak: frame.peak, peaks: frame.peaks || [] });
     if (Platform.OS === 'web') {
+      // Iframe on web: direct function call, negligible cost — push every frame
+      const payload = JSON.stringify({ __wave: true, wave: frame.wave, peak: frame.peak, peaks: frame.peaks || [] });
       try { iframeRef.current?.contentWindow?.pushWave?.(payload); } catch {}
-    } else {
-      const safe = payload.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-      webRef.current?.injectJavaScript(`window.pushWave&&window.pushWave('${safe}');true;`);
+      return;
     }
+    // Native: injectJavaScript is expensive; cap at ~30fps + trim payload so
+    // the RN bridge doesn't back up under sustained playback. Loud peaks
+    // (transients) always get through by piggybacking their high-peak frames.
+    const now = Date.now();
+    const isTransient = frame.peak > 40;
+    if (!isTransient && now - lastPushTs.current < 33) return;
+    lastPushTs.current = now;
+    const trimmedPeaks = (frame.peaks || []).slice(0, 4);
+    const payload = JSON.stringify({ __wave: true, wave: frame.wave, peak: frame.peak, peaks: trimmedPeaks });
+    const safe = payload.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    webRef.current?.injectJavaScript(`window.pushWave&&window.pushWave('${safe}');true;`);
   }, []);
 
   const fullConfig = useCallback(() => ({
@@ -1383,7 +1405,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
   }, [pushWave]);
 
   const color = view === 'NODE' ? '#ff0a0a' : MEDIUM_COLORS[medium];
-  const audioActive = livePeak > 3;
+  const audioActive = livePeak > 1.5;
   const measuredValid = audioActive && measuredHz > 5;
 
   const cycleMedium = () => {
@@ -1447,7 +1469,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
         <View style={st.statePill}>
           <View style={[st.stateDot, { backgroundColor: audioActive ? color : '#2a1010' }]} />
           <Text style={[st.stateTxt, { color: audioActive ? color : '#5a646f' }]}>
-            {audioActive ? `${Math.round((livePeak / 128) * 100)}%` : (playing || resonating ? 'ACT' : 'STBY')}
+            {audioActive ? `${Math.min(100, Math.round((livePeak / 55) * 100))}%` : (playing || resonating ? 'ACT' : 'STBY')}
           </Text>
         </View>
 
