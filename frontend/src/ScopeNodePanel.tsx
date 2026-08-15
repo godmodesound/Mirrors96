@@ -1222,8 +1222,10 @@ interface Props {
 export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 }: Props) {
   const [view, setView] = useState<'SCOPE' | 'NODE'>('SCOPE');
   const [medium, setMedium] = useState<Medium>('WATER');
-  const [geometries, setGeometries] = useState<Set<Geometry>>(new Set());
-  const [autoOrbit, setAutoOrbit] = useState(true);
+  const [geometries, setGeometries] = useState<Set<Geometry>>(new Set(['MERKABA']));
+  // Default GEO = MERKABA (brand identity). AUTO·orbit mode is opt-in so the
+  // scope always opens on the merkaba until the user cycles the ORB pill.
+  const [autoOrbit, setAutoOrbit] = useState(false);
   const [orbCount, setOrbCount] = useState<number>(7);
   const [resonating, setResonating] = useState(false);
   const [livePeak, setLivePeak] = useState(0);
