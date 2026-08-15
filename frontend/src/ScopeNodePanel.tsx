@@ -96,6 +96,41 @@ document.addEventListener('message',function(e){
   window.updateScope(d);
 });
 
+// ═══ INTERACTIVE TOUCH — tap/drag the scope to disturb the medium ═══
+// Every touch spawns an expanding capillary ripple; in WATER the ripple
+// front also splashes real particles along its ring (field disturbance).
+var RIPPLES=[];
+function addRipple(x,y){RIPPLES.push({x:x,y:y,t0:performance.now()});if(RIPPLES.length>7)RIPPLES.shift();}
+var touchDown=false,lastRip=0;
+document.addEventListener('pointerdown',function(e){touchDown=true;addRipple(e.clientX,e.clientY);},{passive:true});
+document.addEventListener('pointermove',function(e){if(!touchDown)return;var nw=performance.now();if(nw-lastRip>70){addRipple(e.clientX,e.clientY);lastRip=nw;}},{passive:true});
+document.addEventListener('pointerup',function(){touchDown=false;});
+document.addEventListener('pointercancel',function(){touchDown=false;});
+function rippleBoost(x,y,now){
+  var b=0;
+  for(var i=0;i<RIPPLES.length;i++){
+    var rp=RIPPLES[i];var age=(now-rp.t0)/1000;if(age>1.8)continue;
+    var ringR=age*R0*1.5;
+    var dx=x-rp.x,dy=y-rp.y;var d=Math.sqrt(dx*dx+dy*dy);
+    b+=Math.exp(-Math.pow((d-ringR)/(10+age*14),2))*(1-age/1.8);
+  }
+  return Math.min(1,b);
+}
+function drawRipples(p,now){
+  for(var i=RIPPLES.length-1;i>=0;i--){
+    var rp=RIPPLES[i];var age=(now-rp.t0)/1000;
+    if(age>1.8){RIPPLES.splice(i,1);continue;}
+    var k=age/1.8;
+    ctx.save();ctx.strokeStyle=p.main;ctx.shadowColor=p.glow;ctx.shadowBlur=10*(1-k);
+    ctx.globalAlpha=(1-k)*0.55;ctx.lineWidth=1.4*(1-k)+0.3;
+    ctx.beginPath();ctx.arc(rp.x,rp.y,age*R0*1.5,0,6.2832);ctx.stroke();
+    ctx.globalAlpha=(1-k)*0.30;
+    ctx.beginPath();ctx.arc(rp.x,rp.y,age*R0*0.9,0,6.2832);ctx.stroke();
+    ctx.restore();
+  }
+  ctx.globalAlpha=1;
+}
+
 // ═════════ SCOPE FACE (cymatic hybrid oscilloscope) ═════════
 function polarGrid(p){
   ctx.strokeStyle=p.dim;ctx.lineWidth=0.5;
@@ -388,6 +423,9 @@ function drawE8(R,rot,pal,env){
 }
 
 function drawJulia(R,rot,pal,env,freq){
+  // Clip to the circular scope — pure round cymatic field, never a square block
+  ctx.save();
+  ctx.beginPath();ctx.arc(CX,CY,R*0.9,0,6.2832);ctx.clip();
   var cols=90,rows=54;
   var maxIter=Math.min(48,16+Math.floor(env*40));
   var phase=rot*0.5;
@@ -422,6 +460,7 @@ function drawJulia(R,rot,pal,env,freq){
       ctx.fillRect(px,py,stepX+1,stepY+1);
     }
   }
+  ctx.restore(); // release circular clip
   ctx.save();
   ctx.strokeStyle=pal.main;ctx.lineWidth=1.2;ctx.globalAlpha=0.5+env*0.4;
   ctx.beginPath();ctx.arc(CX,CY,R*0.9,0,6.2832);ctx.stroke();
@@ -840,7 +879,7 @@ function drawScopeFace(t,envSmooth){
   if(exclusive){ctx.fillStyle='#010409';ctx.fillRect(0,0,W,H);}
   else{ctx.fillStyle='rgba(0,0,0,0.22)';ctx.fillRect(0,0,W,H);}
   var p=PAL[cfg.medium]||PAL.CYMATICS;
-  if(!exclusive)polarGrid(p);
+  // Pure cymatics — no instrument grid over the scope
   var audioActive=envSmooth>0.02;
   var f=(cfg.freqs&&cfg.freqs[0])||432;
   var n=2+Math.round(f%12);
@@ -875,7 +914,8 @@ function drawScopeFace(t,envSmooth){
     var hit=false,size=1.4,alpha=0;
     if(med==='CHLADNI'){hit=I<0.14;alpha=0.5+Math.random()*0.4;size=1.2;}
     else if(med==='SAND'){hit=I<0.20;alpha=0.35+Math.random()*0.35;size=1.0;}
-    else if(med==='WATER'){var w=Math.abs(Math.sin(m*Math.PI*r-(audioActive?t*0.004:0)));hit=w>0.9;alpha=0.30+0.4*w;size=1.6+envSmooth*2;}
+    else if(med==='WATER'){var w=Math.abs(Math.sin(m*Math.PI*r-(audioActive?t*0.004:0)));hit=w>0.9;alpha=0.30+0.4*w;size=1.6+envSmooth*2;
+      if(!hit&&RIPPLES.length){var px3=CX+Math.cos(th)*r*R,py3=CY+Math.sin(th)*r*R;var rb=rippleBoost(px3,py3,now2);if(rb>0.30&&Math.random()<rb){hit=true;alpha=0.35+0.55*rb;size=1.8+rb*2;}}}
     else if(med==='FIRE'){hit=I>0.55;alpha=0.35+0.5*I;size=1.5+I+envSmooth*2;}
     else if(med==='MERCURY'||med==='GOLD'){hit=I>0.62;alpha=0.35+0.55*I;size=1.8+I*1.2+envSmooth;}
     else {hit=I>0.58;alpha=0.30+0.55*I;size=1.3+I+envSmooth;}
@@ -967,6 +1007,8 @@ function drawScopeFace(t,envSmooth){
   ctx.globalAlpha=audioActive?0.95:0.5;ctx.save();ctx.shadowColor=p.glow;ctx.shadowBlur=14+envSmooth*20;
   ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(CX,CY,audioActive?(2.6+envSmooth*4):1.8,0,6.2832);ctx.fill();ctx.restore();
   ctx.globalAlpha=1;
+  // Interactive-touch ripples render on top of every medium
+  drawRipples(p,now2);
 }
 
 // ═════════ NODE FACE (harmonic-resonance orbs, T-800 HUD) ═════════
@@ -1168,7 +1210,7 @@ interface Props {
 
 export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 }: Props) {
   const [view, setView] = useState<'SCOPE' | 'NODE'>('SCOPE');
-  const [medium, setMedium] = useState<Medium>('STARS');
+  const [medium, setMedium] = useState<Medium>('WATER');
   const [geometries, setGeometries] = useState<Set<Geometry>>(new Set());
   const [autoOrbit, setAutoOrbit] = useState(true);
   const [orbCount, setOrbCount] = useState<number>(7);
@@ -1721,7 +1763,7 @@ const st = StyleSheet.create({
   },
   scope: {
     height: 300,
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: '#000',
