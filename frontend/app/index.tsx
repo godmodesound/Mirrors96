@@ -842,6 +842,16 @@ export default function TerminalScreen() {
             </View>
           </View>
 
+          {/* SCOPE ⟷ NODE — moved directly under LIBRARY. Still cymatics face.
+              Reflects live tones from CODES_LAB (frequencies + playing state). */}
+          <View style={styles.scopeUnderLibrary}>
+            <ScopeNodePanel
+              frequencies={layers.map(l => l.frequency)}
+              playing={isPlaying}
+              scalarBeatHz={scalarOn || (godMode && isPlaying) ? scalarHz : 0}
+            />
+          </View>
+
           {/* Tone Layers - Analog Style */}
           <View style={[styles.section, styles.t800Frame]}>
             <View style={styles.toneLayerHeaderRow}>
@@ -966,12 +976,7 @@ export default function TerminalScreen() {
               </View>
             )}
 
-            {/* SCOPE ⟷ NODE — one panel, two faces. SPIN flips the scope to the harmonic orb lattice. */}
-            <ScopeNodePanel
-              frequencies={layers.map(l => l.frequency)}
-              playing={isPlaying}
-              scalarBeatHz={scalarOn || (godMode && isPlaying) ? scalarHz : 0}
-            />
+            {/* SCOPE moved to hero section — directly under LIBRARY */}
 
             {/* ═══ LATTICE FRAMEWORK — infuses "The Lattice That Binds All Dimensions"
                  into the lab; maps carrier freq to its dimensional/energetic slot. ═══ */}
@@ -1771,6 +1776,10 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 2,
+  },
+  scopeUnderLibrary: {
+    marginTop: 18,
+    paddingHorizontal: 20,
   },
   section: { marginTop: 24, paddingHorizontal: 20 },
   footerLinks: {

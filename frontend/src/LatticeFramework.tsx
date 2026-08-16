@@ -297,12 +297,6 @@ export default function LatticeFramework({ baseFreq }: Props) {
           </Text>
         </>
       )}
-
-      {/* Quote — always visible, in cosmic red */}
-      <Text style={st.quote}>
-        {'“THE UNIVERSE IS NOT MADE OF THINGS. IT IS MADE OF RELATIONSHIPS, PATTERNS, AND VIBRATION.”'}
-      </Text>
-      <Text style={st.quoteSig}>— MIRRORS 96 · THE FUTURE. NOW.</Text>
     </View>
   );
 }

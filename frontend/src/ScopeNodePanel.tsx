@@ -886,8 +886,10 @@ function drawScopeFace(t,envSmooth){
   var n=2+Math.round(f%12);
   var m=3+Math.round((f/100)%9);
   var spin=audioActive?t*0.00045*(1+(f%7)*0.25)*(0.4+envSmooth*1.6):0;
-  var breathe=1+(0.04+0.14*envSmooth)*Math.sin(t*0.003*(1+(f%5)));
-  var R=R0*breathe;
+  // Static radius — the scope no longer breathes. The active signal is
+  // conveyed through in-medium motion (ripples, star bursts, waveform ring)
+  // instead of expanding/contracting the outer field.
+  var R=R0;
   var med=cfg.medium;
   var fresh=(performance.now()-LIVE.ts)<700;
   if(isStars){
