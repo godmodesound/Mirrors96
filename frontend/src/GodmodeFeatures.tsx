@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, TextInput, Platform, ScrollView } from 'react-native';
 
+import { skinStyles, SK, skinHtml } from './skins';
+
 // Conditionally import WebView only on native
 let WebView: any = null;
 if (Platform.OS !== 'web') {
@@ -25,7 +27,7 @@ function WebIframe({ html, uri, style, scrollEnabled = true }: { html?: string; 
           width: '100%',
           height: '100%',
           border: 'none',
-          backgroundColor: '#000',
+          backgroundColor: SK('#000'),
           ...(scrollEnabled ? {} : { overflow: 'hidden' }),
         } as any}
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; fullscreen"
@@ -54,7 +56,7 @@ const CrossPlatformWebView = forwardRef<any, any>(
       <WebView
         ref={ref}
         source={source}
-        style={[{ flex: 1, backgroundColor: '#000' }, style]}
+        style={[{ flex: 1, backgroundColor: SK('#000') }, style]}
         javaScriptEnabled={javaScriptEnabled !== false}
         scrollEnabled={scrollEnabled}
         bounces={bounces}
@@ -772,19 +774,19 @@ export const ParticleLab = forwardRef<any, ParticleLabProps>(
         {Platform.OS === 'web' ? (
           <iframe
             data-particle-lab="true"
-            srcDoc={PARTICLE_HTML}
+            srcDoc={skinHtml(PARTICLE_HTML)}
             style={{
               width: '100%',
               height: '100%',
               border: 'none',
-              backgroundColor: '#000',
+              backgroundColor: SK('#000'),
             } as any}
             allow="autoplay"
           />
         ) : WebView ? (
           <WebView
             ref={wvRef}
-            source={{ html: PARTICLE_HTML }}
+            source={{ html: skinHtml(PARTICLE_HTML) }}
             style={styles.webview}
             javaScriptEnabled={true}
             scrollEnabled={false}
@@ -825,13 +827,13 @@ export const ParticleLab = forwardRef<any, ParticleLabProps>(
 
       {currentMode === '13signal' || currentMode === '96signal' || currentMode.startsWith('cym') ? (
         <View style={styles.spectrumBar}>
-          <View style={[styles.spectrumSegment, { backgroundColor: '#1a0000' }]} />
-          <View style={[styles.spectrumSegment, { backgroundColor: '#3a0000' }]} />
-          <View style={[styles.spectrumSegment, { backgroundColor: '#6b0000' }]} />
-          <View style={[styles.spectrumSegment, { backgroundColor: '#8b0000' }]} />
-          <View style={[styles.spectrumSegment, { backgroundColor: '#ff0a0a' }]} />
-          <View style={[styles.spectrumSegment, { backgroundColor: '#8b0000' }]} />
-          <View style={[styles.spectrumSegment, { backgroundColor: '#3a0000' }]} />
+          <View style={[styles.spectrumSegment, { backgroundColor: SK('#1a0000') }]} />
+          <View style={[styles.spectrumSegment, { backgroundColor: SK('#3a0000') }]} />
+          <View style={[styles.spectrumSegment, { backgroundColor: SK('#6b0000') }]} />
+          <View style={[styles.spectrumSegment, { backgroundColor: SK('#8b0000') }]} />
+          <View style={[styles.spectrumSegment, { backgroundColor: SK('#ff0a0a') }]} />
+          <View style={[styles.spectrumSegment, { backgroundColor: SK('#8b0000') }]} />
+          <View style={[styles.spectrumSegment, { backgroundColor: SK('#3a0000') }]} />
         </View>
       ) : (
         <View style={styles.spectrumBar}>
@@ -885,7 +887,7 @@ export const ParticleLab = forwardRef<any, ParticleLabProps>(
             }}
           >
             <View style={[styles.sliderBtn, { left: `${chaosVal}%` }]} />
-            <View style={[styles.sliderFill, { width: `${chaosVal}%`, backgroundColor: '#ffffff40' }]} />
+            <View style={[styles.sliderFill, { width: `${chaosVal}%`, backgroundColor: SK('#ffffff40') }]} />
           </View>
         </View>
       </View>
@@ -1036,7 +1038,7 @@ export function GodmodeEarth({ height = 450 }: GodmodeEarthProps) {
         <TextInput
           style={styles.searchInput}
           placeholder="Search location..."
-          placeholderTextColor="#4a1515"
+          placeholderTextColor={SK('#4a1515')}
           value={searchText}
           onChangeText={setSearchText}
           onSubmitEditing={handleSearch}
@@ -1051,12 +1053,12 @@ export function GodmodeEarth({ height = 450 }: GodmodeEarthProps) {
         {Platform.OS === 'web' ? (
           <iframe
             data-earth="true"
-            srcDoc={EARTH_3D_HTML}
+            srcDoc={skinHtml(EARTH_3D_HTML)}
             style={{
               width: '100%',
               height: '100%',
               border: 'none',
-              backgroundColor: '#000',
+              backgroundColor: SK('#000'),
             } as any}
             allow="fullscreen; geolocation; webgl"
             allowFullScreen
@@ -1064,7 +1066,7 @@ export function GodmodeEarth({ height = 450 }: GodmodeEarthProps) {
         ) : WebView ? (
           <WebView
             ref={wvRef}
-            source={{ html: EARTH_3D_HTML }}
+            source={{ html: skinHtml(EARTH_3D_HTML) }}
             style={styles.webview}
             javaScriptEnabled={true}
             domStorageEnabled={true}
@@ -1090,7 +1092,7 @@ export function GodmodeEarth({ height = 450 }: GodmodeEarthProps) {
 // STYLES
 // ════════════════════════════════════════════════════════════
 
-const styles = StyleSheet.create({
+const styles = skinStyles({
   container: {},
   particleSub: {
     color: '#5a1a1a',

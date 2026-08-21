@@ -16,6 +16,8 @@ import Svg, {
 } from 'react-native-svg';
 import { AudioEngine } from './AudioEngine';
 
+import { skinStyles, SK } from './skins';
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const MAP_W = SCREEN_WIDTH - 32;
 const MAP_H = MAP_W * 1.02;
@@ -127,7 +129,7 @@ const MERKABA_CONNECTIONS = [
 // ═══════════════════════════════════════════════════════════════
 const METATRON_NODES: GeometryNode[] = (() => {
   const nodes: GeometryNode[] = [];
-  const centerNode: GeometryNode = { id: 'center', name: 'SOURCE', x: CX, y: CY, freq: 432, band: 'OM', color: '#FFFFFF' };
+  const centerNode: GeometryNode = { id: 'center', name: 'SOURCE', x: CX, y: CY, freq: 432, band: 'OM', color: SK('#FFFFFF') };
   nodes.push(centerNode);
   
   // Inner hexagon (6 nodes)
@@ -172,7 +174,7 @@ const METATRON_NODES: GeometryNode[] = (() => {
 const VE64_NODES: GeometryNode[] = (() => {
   const nodes: GeometryNode[] = [];
   // Center
-  nodes.push({ id: 've_center', name: 'ZERO POINT', x: CX, y: CY, freq: 432, band: 'BALANCE', color: '#FFFFFF' });
+  nodes.push({ id: 've_center', name: 'ZERO POINT', x: CX, y: CY, freq: 432, band: 'BALANCE', color: SK('#FFFFFF') });
   
   // 12 vertices of cuboctahedron
   const freqs = [174, 285, 396, 417, 432, 528, 639, 741, 852, 963, 1074, 1185];
@@ -232,19 +234,19 @@ const VE64_NODES: GeometryNode[] = (() => {
 const SRI_YANTRA_NODES: GeometryNode[] = (() => {
   const nodes: GeometryNode[] = [];
   // Bindu (center point)
-  nodes.push({ id: 'bindu', name: 'BINDU', x: CX, y: CY, freq: 432, band: 'SOURCE', color: '#FF0000' });
+  nodes.push({ id: 'bindu', name: 'BINDU', x: CX, y: CY, freq: 432, band: 'SOURCE', color: SK('#FF0000') });
   
   // Inner triangle points (upward - Shiva)
   const innerR = MAP_W * 0.12;
-  nodes.push({ id: 'shiva_1', name: 'SHIVA 1', x: CX, y: CY - innerR, freq: 963, band: 'CONSCIOUSNESS', color: '#4169E1' });
-  nodes.push({ id: 'shiva_2', name: 'SHIVA 2', x: CX - innerR * 0.866, y: CY + innerR * 0.5, freq: 852, band: 'CONSCIOUSNESS', color: '#4169E1' });
-  nodes.push({ id: 'shiva_3', name: 'SHIVA 3', x: CX + innerR * 0.866, y: CY + innerR * 0.5, freq: 741, band: 'CONSCIOUSNESS', color: '#4169E1' });
+  nodes.push({ id: 'shiva_1', name: 'SHIVA 1', x: CX, y: CY - innerR, freq: 963, band: 'CONSCIOUSNESS', color: SK('#4169E1') });
+  nodes.push({ id: 'shiva_2', name: 'SHIVA 2', x: CX - innerR * 0.866, y: CY + innerR * 0.5, freq: 852, band: 'CONSCIOUSNESS', color: SK('#4169E1') });
+  nodes.push({ id: 'shiva_3', name: 'SHIVA 3', x: CX + innerR * 0.866, y: CY + innerR * 0.5, freq: 741, band: 'CONSCIOUSNESS', color: SK('#4169E1') });
   
   // Middle triangle points (downward - Shakti)
   const midR = MAP_W * 0.22;
-  nodes.push({ id: 'shakti_1', name: 'SHAKTI 1', x: CX, y: CY + midR, freq: 639, band: 'ENERGY', color: '#DC143C' });
-  nodes.push({ id: 'shakti_2', name: 'SHAKTI 2', x: CX - midR * 0.866, y: CY - midR * 0.5, freq: 528, band: 'ENERGY', color: '#DC143C' });
-  nodes.push({ id: 'shakti_3', name: 'SHAKTI 3', x: CX + midR * 0.866, y: CY - midR * 0.5, freq: 417, band: 'ENERGY', color: '#DC143C' });
+  nodes.push({ id: 'shakti_1', name: 'SHAKTI 1', x: CX, y: CY + midR, freq: 639, band: 'ENERGY', color: SK('#DC143C') });
+  nodes.push({ id: 'shakti_2', name: 'SHAKTI 2', x: CX - midR * 0.866, y: CY - midR * 0.5, freq: 528, band: 'ENERGY', color: SK('#DC143C') });
+  nodes.push({ id: 'shakti_3', name: 'SHAKTI 3', x: CX + midR * 0.866, y: CY - midR * 0.5, freq: 417, band: 'ENERGY', color: SK('#DC143C') });
   
   // Outer points
   const outerR = MAP_W * 0.35;
@@ -270,9 +272,9 @@ const SRI_YANTRA_NODES: GeometryNode[] = (() => {
 const TORUS_NODES: GeometryNode[] = (() => {
   const nodes: GeometryNode[] = [];
   // Center axis
-  nodes.push({ id: 'torus_center', name: 'AXIS', x: CX, y: CY, freq: 432, band: 'CENTER', color: '#FFFFFF' });
-  nodes.push({ id: 'torus_top', name: 'INFLOW', x: CX, y: MAP_H * 0.1, freq: 963, band: 'RECEIVE', color: '#00CED1' });
-  nodes.push({ id: 'torus_bottom', name: 'OUTFLOW', x: CX, y: MAP_H * 0.9, freq: 174, band: 'EMIT', color: '#FF6B6B' });
+  nodes.push({ id: 'torus_center', name: 'AXIS', x: CX, y: CY, freq: 432, band: 'CENTER', color: SK('#FFFFFF') });
+  nodes.push({ id: 'torus_top', name: 'INFLOW', x: CX, y: MAP_H * 0.1, freq: 963, band: 'RECEIVE', color: SK('#00CED1') });
+  nodes.push({ id: 'torus_bottom', name: 'OUTFLOW', x: CX, y: MAP_H * 0.9, freq: 174, band: 'EMIT', color: SK('#FF6B6B') });
   
   // Outer ring (energy flow)
   const outerR = MAP_W * 0.4;
@@ -345,8 +347,8 @@ const ICOSA_NODES: GeometryNode[] = (() => {
   const names = ['NORTH', 'EAST', 'SOUTH', 'WEST', 'NE-UP', 'SE-UP', 'SW-UP', 'NW-UP', 'NE-DN', 'SE-DN', 'SW-DN', 'NW-DN'];
   
   // Top and bottom poles
-  nodes.push({ id: 'icosa_top', name: 'APEX', x: CX, y: MAP_H * 0.08, freq: 963, band: 'PEAK', color: '#00CED1' });
-  nodes.push({ id: 'icosa_bottom', name: 'NADIR', x: CX, y: MAP_H * 0.92, freq: 174, band: 'BASE', color: '#FF6B6B' });
+  nodes.push({ id: 'icosa_top', name: 'APEX', x: CX, y: MAP_H * 0.08, freq: 963, band: 'PEAK', color: SK('#00CED1') });
+  nodes.push({ id: 'icosa_bottom', name: 'NADIR', x: CX, y: MAP_H * 0.92, freq: 174, band: 'BASE', color: SK('#FF6B6B') });
   
   // Upper ring (5 vertices)
   const upperR = MAP_W * 0.35;
@@ -697,7 +699,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
               key={`sri-up-${i}`}
               points={`${CX},${CY - r} ${CX - r * 0.866},${CY + r * 0.5} ${CX + r * 0.866},${CY + r * 0.5}`}
               fill="none"
-              stroke="#4169E1"
+              stroke={SK('#4169E1')}
               strokeWidth={0.8}
               opacity={0.4 - i * 0.1}
             />
@@ -708,7 +710,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
               key={`sri-down-${i}`}
               points={`${CX},${CY + r} ${CX - r * 0.866},${CY - r * 0.5} ${CX + r * 0.866},${CY - r * 0.5}`}
               fill="none"
-              stroke="#DC143C"
+              stroke={SK('#DC143C')}
               strokeWidth={0.8}
               opacity={0.4 - i * 0.1}
             />
@@ -726,7 +728,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
               key={`torus-line-${i}`}
               d={`M ${CX} ${MAP_H * 0.1} Q ${CX + Math.cos(angle) * MAP_W * 0.5} ${CY} ${CX} ${MAP_H * 0.9}`}
               fill="none"
-              stroke="#00CED1"
+              stroke={SK('#00CED1')}
               strokeWidth={0.5}
               opacity={0.2}
             />
@@ -741,7 +743,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
             rx={MAP_W * 0.42}
             ry={MAP_H * 0.22}
             fill="none"
-            stroke="#00CED1"
+            stroke={SK('#00CED1')}
             strokeWidth={1}
             opacity={0.3}
           />
@@ -767,7 +769,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
                 y1={prevY}
                 x2={x}
                 y2={y}
-                stroke="#FFD700"
+                stroke={SK('#FFD700')}
                 strokeWidth={0.8}
                 opacity={0.4}
               />
@@ -792,7 +794,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
                 y1={MAP_H * 0.08}
                 x2={upperNode.x}
                 y2={upperNode.y}
-                stroke="#00CED1"
+                stroke={SK('#00CED1')}
                 strokeWidth={0.6}
                 opacity={0.3}
               />
@@ -810,7 +812,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
                 y1={MAP_H * 0.92}
                 x2={lowerNode.x}
                 y2={lowerNode.y}
-                stroke="#FF6B6B"
+                stroke={SK('#FF6B6B')}
                 strokeWidth={0.6}
                 opacity={0.3}
               />
@@ -829,7 +831,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
                 y1={curr.y}
                 x2={next.x}
                 y2={next.y}
-                stroke="#00CED1"
+                stroke={SK('#00CED1')}
                 strokeWidth={0.6}
                 opacity={0.25}
               />
@@ -848,7 +850,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
                 y1={curr.y}
                 x2={next.x}
                 y2={next.y}
-                stroke="#FF6B6B"
+                stroke={SK('#FF6B6B')}
                 strokeWidth={0.6}
                 opacity={0.25}
               />
@@ -868,7 +870,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
                 y1={upper.y}
                 x2={lower1.x}
                 y2={lower1.y}
-                stroke="#9370DB"
+                stroke={SK('#9370DB')}
                 strokeWidth={0.5}
                 opacity={0.2}
               />
@@ -882,7 +884,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
                 y1={upper.y}
                 x2={lower2.x}
                 y2={lower2.y}
-                stroke="#9370DB"
+                stroke={SK('#9370DB')}
                 strokeWidth={0.5}
                 opacity={0.2}
               />
@@ -951,9 +953,9 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
           <Defs>
             {/* Background gradient */}
             <RadialGradient id="map-bg" cx="50%" cy="50%" r="70%">
-              <Stop offset="0%" stopColor="#04120a" stopOpacity="1" />
-              <Stop offset="55%" stopColor="#020803" stopOpacity="1" />
-              <Stop offset="100%" stopColor="#000000" stopOpacity="1" />
+              <Stop offset="0%" stopColor={SK('#04120a')} stopOpacity="1" />
+              <Stop offset="55%" stopColor={SK('#020803')} stopOpacity="1" />
+              <Stop offset="100%" stopColor={SK('#000000')} stopOpacity="1" />
             </RadialGradient>
 
             {/* Node glows */}
@@ -967,9 +969,9 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
 
             {/* Center glow */}
             <RadialGradient id="center-glow" cx="50%" cy="50%" r="30%">
-              <Stop offset="0%" stopColor="#ffffff" stopOpacity={isPlaying ? '0.15' : '0.05'} />
-              <Stop offset="70%" stopColor="#ff0a0a" stopOpacity={isPlaying ? '0.08' : '0.02'} />
-              <Stop offset="100%" stopColor="#ff0a0a" stopOpacity="0" />
+              <Stop offset="0%" stopColor={SK('#ffffff')} stopOpacity={isPlaying ? '0.15' : '0.05'} />
+              <Stop offset="70%" stopColor={SK('#ff0a0a')} stopOpacity={isPlaying ? '0.08' : '0.02'} />
+              <Stop offset="100%" stopColor={SK('#ff0a0a')} stopOpacity="0" />
             </RadialGradient>
           </Defs>
 
@@ -982,7 +984,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
               key={`mx-${i}`}
               x={m.x}
               y={m.y}
-              fill={m.bright ? '#7dffa0' : '#00ff41'}
+              fill={m.bright ? SK('#7dffa0') : SK('#00ff41')}
               fontSize={m.bright ? 8 : 7}
               fontWeight="600"
               opacity={m.bright ? m.o + 0.18 : m.o}
@@ -993,20 +995,20 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
 
           {/* HUD tech frame */}
           <G>
-            <Rect x={3} y={3} width={MAP_W - 6} height={MAP_H - 6} rx={14} fill="none" stroke="#ff0a0a" strokeWidth={1} opacity={0.3} />
-            <Rect x={8} y={8} width={MAP_W - 16} height={MAP_H - 16} rx={10} fill="none" stroke="#00e5ff" strokeWidth={0.5} opacity={0.12} />
+            <Rect x={3} y={3} width={MAP_W - 6} height={MAP_H - 6} rx={14} fill="none" stroke={SK('#ff0a0a')} strokeWidth={1} opacity={0.3} />
+            <Rect x={8} y={8} width={MAP_W - 16} height={MAP_H - 16} rx={10} fill="none" stroke={SK('#00e5ff')} strokeWidth={0.5} opacity={0.12} />
             {/* Corner brackets */}
-            <Path d={`M 3 34 L 3 15 Q 3 3 15 3 L 34 3`} stroke="#ff2a2a" strokeWidth={2.5} fill="none" opacity={0.85} />
-            <Path d={`M ${MAP_W - 34} 3 L ${MAP_W - 15} 3 Q ${MAP_W - 3} 3 ${MAP_W - 3} 15 L ${MAP_W - 3} 34`} stroke="#ff2a2a" strokeWidth={2.5} fill="none" opacity={0.85} />
-            <Path d={`M 3 ${MAP_H - 34} L 3 ${MAP_H - 15} Q 3 ${MAP_H - 3} 15 ${MAP_H - 3} L 34 ${MAP_H - 3}`} stroke="#ff2a2a" strokeWidth={2.5} fill="none" opacity={0.85} />
-            <Path d={`M ${MAP_W - 34} ${MAP_H - 3} L ${MAP_W - 15} ${MAP_H - 3} Q ${MAP_W - 3} ${MAP_H - 3} ${MAP_W - 3} ${MAP_H - 15} L ${MAP_W - 3} ${MAP_H - 34}`} stroke="#ff2a2a" strokeWidth={2.5} fill="none" opacity={0.85} />
+            <Path d={`M 3 34 L 3 15 Q 3 3 15 3 L 34 3`} stroke={SK('#ff2a2a')} strokeWidth={2.5} fill="none" opacity={0.85} />
+            <Path d={`M ${MAP_W - 34} 3 L ${MAP_W - 15} 3 Q ${MAP_W - 3} 3 ${MAP_W - 3} 15 L ${MAP_W - 3} 34`} stroke={SK('#ff2a2a')} strokeWidth={2.5} fill="none" opacity={0.85} />
+            <Path d={`M 3 ${MAP_H - 34} L 3 ${MAP_H - 15} Q 3 ${MAP_H - 3} 15 ${MAP_H - 3} L 34 ${MAP_H - 3}`} stroke={SK('#ff2a2a')} strokeWidth={2.5} fill="none" opacity={0.85} />
+            <Path d={`M ${MAP_W - 34} ${MAP_H - 3} L ${MAP_W - 15} ${MAP_H - 3} Q ${MAP_W - 3} ${MAP_H - 3} ${MAP_W - 3} ${MAP_H - 15} L ${MAP_W - 3} ${MAP_H - 34}`} stroke={SK('#ff2a2a')} strokeWidth={2.5} fill="none" opacity={0.85} />
             {/* Cyan accent segments */}
-            <Line x1={44} y1={3} x2={84} y2={3} stroke="#00e5ff" strokeWidth={2} opacity={0.45} />
-            <Line x1={MAP_W - 84} y1={MAP_H - 3} x2={MAP_W - 44} y2={MAP_H - 3} stroke="#00e5ff" strokeWidth={2} opacity={0.45} />
+            <Line x1={44} y1={3} x2={84} y2={3} stroke={SK('#00e5ff')} strokeWidth={2} opacity={0.45} />
+            <Line x1={MAP_W - 84} y1={MAP_H - 3} x2={MAP_W - 44} y2={MAP_H - 3} stroke={SK('#00e5ff')} strokeWidth={2} opacity={0.45} />
             {/* Left edge tech segments */}
-            <Line x1={3} y1={MAP_H * 0.34} x2={3} y2={MAP_H * 0.44} stroke="#ff2a2a" strokeWidth={3} opacity={0.6} />
-            <Line x1={3} y1={MAP_H * 0.48} x2={3} y2={MAP_H * 0.54} stroke="#00e5ff" strokeWidth={2} opacity={0.35} />
-            <Line x1={MAP_W - 3} y1={MAP_H * 0.56} x2={MAP_W - 3} y2={MAP_H * 0.66} stroke="#ff2a2a" strokeWidth={3} opacity={0.6} />
+            <Line x1={3} y1={MAP_H * 0.34} x2={3} y2={MAP_H * 0.44} stroke={SK('#ff2a2a')} strokeWidth={3} opacity={0.6} />
+            <Line x1={3} y1={MAP_H * 0.48} x2={3} y2={MAP_H * 0.54} stroke={SK('#00e5ff')} strokeWidth={2} opacity={0.35} />
+            <Line x1={MAP_W - 3} y1={MAP_H * 0.56} x2={MAP_W - 3} y2={MAP_H * 0.66} stroke={SK('#ff2a2a')} strokeWidth={3} opacity={0.6} />
           </G>
 
           {/* Geometry-specific decorations */}
@@ -1025,7 +1027,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
                 y1={fromNode.y}
                 x2={toNode.x}
                 y2={toNode.y}
-                stroke={isActive ? '#ffffff' : '#ff0a0a'}
+                stroke={isActive ? SK('#ffffff') : SK('#ff0a0a')}
                 strokeWidth={isActive ? 1.5 : 0.8}
                 opacity={isActive ? 0.8 : 0.3}
               />
@@ -1063,7 +1065,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
                   cx={node.x}
                   cy={node.y}
                   r={nodeR}
-                  fill="#0a0a08"
+                  fill={SK('#0a0a08')}
                   stroke={node.color}
                   strokeWidth={1}
                   opacity={0.95}
@@ -1081,14 +1083,14 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
                   cx={node.x}
                   cy={node.y}
                   r={isActive ? 3.5 : 2.8}
-                  fill="#ffffff"
+                  fill={SK('#ffffff')}
                   opacity={isActive ? 1 : 0.9}
                 />
                 {/* Label */}
                 <SvgText
                   x={node.x}
                   y={node.y + nodeR + 17}
-                  fill={isActive ? '#ffffff' : node.color}
+                  fill={isActive ? SK('#ffffff') : node.color}
                   fontSize={8.5}
                   fontWeight="800"
                   textAnchor="middle"
@@ -1100,7 +1102,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
                 <SvgText
                   x={node.x}
                   y={node.y + nodeR + 28}
-                  fill="#cfd8d3"
+                  fill={SK('#cfd8d3')}
                   fontSize={7}
                   fontWeight="600"
                   textAnchor="middle"
@@ -1114,7 +1116,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
           })}
 
           {/* Axis labels */}
-          <SvgText x={14} y={MAP_H - 12} fill="#6ee7ff" fontSize={8} fontWeight="700" letterSpacing={2} opacity={0.65}>
+          <SvgText x={14} y={MAP_H - 12} fill={SK('#6ee7ff')} fontSize={8} fontWeight="700" letterSpacing={2} opacity={0.65}>
             {activeGeometry} - {currentNodes.length} NODES
           </SvgText>
         </Svg>
@@ -1139,10 +1141,10 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
                 key={band.name}
                 style={[
                   st.meterCell,
-                  { borderColor: band.color, backgroundColor: isActive ? band.color : '#040a05' },
+                  { borderColor: band.color, backgroundColor: isActive ? band.color : SK('#040a05') },
                 ]}
               >
-                <Text style={[st.meterSymbol, { color: isActive ? '#000' : band.color }]}>{band.name}</Text>
+                <Text style={[st.meterSymbol, { color: isActive ? SK('#000') : band.color }]}>{band.name}</Text>
               </View>
             );
           })}
@@ -1246,7 +1248,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
   );
 }
 
-const st = StyleSheet.create({
+const st = skinStyles({
   container: {
     backgroundColor: '#000',
     borderWidth: 1.5,

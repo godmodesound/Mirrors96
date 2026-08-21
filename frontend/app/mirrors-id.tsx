@@ -9,6 +9,8 @@ import { useAuth } from '../src/AuthContext';
 import GoogleSignInButton from '../src/GoogleSignInButton';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
 
+import { skinStyles, SK } from '../src/skins';
+
 export default function MirrorsIdScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -69,7 +71,7 @@ export default function MirrorsIdScreen() {
   if (isLoading) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <ActivityIndicator color="#ff0a0a" size="large" />
+        <ActivityIndicator color={SK('#ff0a0a')} size="large" />
       </View>
     );
   }
@@ -133,7 +135,7 @@ export default function MirrorsIdScreen() {
               </View>
               <View style={styles.contactRow}>
                 <Text style={styles.contactLabel}>Text Updates</Text>
-                <Text style={[styles.contactValue, { color: user.sms_opt_in ? '#00E676' : '#5a1a1a' }]}>
+                <Text style={[styles.contactValue, { color: user.sms_opt_in ? SK('#00E676') : SK('#5a1a1a') }]}>
                   {user.sms_opt_in ? 'Opted In' : 'Opted Out'}
                 </Text>
               </View>
@@ -155,7 +157,7 @@ export default function MirrorsIdScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="+1 (555) 000-0000"
-                  placeholderTextColor="#3a1010"
+                  placeholderTextColor={SK('#3a1010')}
                   value={editPhone}
                   onChangeText={setEditPhone}
                   keyboardType="phone-pad"
@@ -169,17 +171,17 @@ export default function MirrorsIdScreen() {
                 <Switch
                   value={editSmsOptIn}
                   onValueChange={setEditSmsOptIn}
-                  trackColor={{ false: '#2a0a0a', true: '#ff0a0a40' }}
-                  thumbColor={editSmsOptIn ? '#ff0a0a' : '#5a1a1a'}
+                  trackColor={{ false: SK('#2a0a0a'), true: SK('#ff0a0a40') }}
+                  thumbColor={editSmsOptIn ? SK('#ff0a0a') : SK('#5a1a1a')}
                 />
               </View>
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <TouchableOpacity
-                  style={[styles.editBtn, { flex: 1, backgroundColor: '#0a0505' }]}
+                  style={[styles.editBtn, { flex: 1, backgroundColor: SK('#0a0505') }]}
                   onPress={() => { setEditingPhone(false); setError(''); }}
                 >
-                  <Text style={[styles.editBtnText, { color: '#5a1a1a' }]}>CANCEL</Text>
+                  <Text style={[styles.editBtnText, { color: SK('#5a1a1a') }]}>CANCEL</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.submitBtn, { flex: 1 }]}
@@ -187,7 +189,7 @@ export default function MirrorsIdScreen() {
                   disabled={submitting}
                 >
                   {submitting ? (
-                    <ActivityIndicator color="#000" size="small" />
+                    <ActivityIndicator color={SK('#000')} size="small" />
                   ) : (
                     <Text style={styles.submitText}>SAVE</Text>
                   )}
@@ -216,15 +218,15 @@ export default function MirrorsIdScreen() {
             <View style={styles.dcDivider} />
             <View style={styles.dcMeta}>
               <View style={styles.dcMetaItem}>
-                <View style={[styles.dcMetaDot, { backgroundColor: '#ff0a0a' }]} />
+                <View style={[styles.dcMetaDot, { backgroundColor: SK('#ff0a0a') }]} />
                 <Text style={styles.dcMetaText}>GODMODE CHANNEL</Text>
               </View>
               <View style={styles.dcMetaItem}>
-                <View style={[styles.dcMetaDot, { backgroundColor: '#ff304080' }]} />
+                <View style={[styles.dcMetaDot, { backgroundColor: SK('#ff304080') }]} />
                 <Text style={styles.dcMetaText}>96 MIRRORS</Text>
               </View>
               <View style={styles.dcMetaItem}>
-                <View style={[styles.dcMetaDot, { backgroundColor: '#ff304060' }]} />
+                <View style={[styles.dcMetaDot, { backgroundColor: SK('#ff304060') }]} />
                 <Text style={styles.dcMetaText}>FREQ LAB</Text>
               </View>
             </View>
@@ -316,7 +318,7 @@ export default function MirrorsIdScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="Choose a username..."
-                  placeholderTextColor="#3a1010"
+                  placeholderTextColor={SK('#3a1010')}
                   value={username}
                   onChangeText={setUsername}
                   autoCapitalize="none"
@@ -330,7 +332,7 @@ export default function MirrorsIdScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="Your display name (optional)..."
-                  placeholderTextColor="#3a1010"
+                  placeholderTextColor={SK('#3a1010')}
                   value={displayName}
                   onChangeText={setDisplayName}
                   autoCapitalize="words"
@@ -344,7 +346,7 @@ export default function MirrorsIdScreen() {
             <TextInput
               style={styles.input}
               placeholder="Enter email..."
-              placeholderTextColor="#3a1010"
+              placeholderTextColor={SK('#3a1010')}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -357,7 +359,7 @@ export default function MirrorsIdScreen() {
             <TextInput
               style={styles.input}
               placeholder="Enter password..."
-              placeholderTextColor="#3a1010"
+              placeholderTextColor={SK('#3a1010')}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -374,7 +376,7 @@ export default function MirrorsIdScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="+1 (555) 000-0000"
-                  placeholderTextColor="#3a1010"
+                  placeholderTextColor={SK('#3a1010')}
                   value={phone}
                   onChangeText={setPhone}
                   keyboardType="phone-pad"
@@ -389,8 +391,8 @@ export default function MirrorsIdScreen() {
                 <Switch
                   value={smsOptIn}
                   onValueChange={setSmsOptIn}
-                  trackColor={{ false: '#2a0a0a', true: '#ff0a0a40' }}
-                  thumbColor={smsOptIn ? '#ff0a0a' : '#5a1a1a'}
+                  trackColor={{ false: SK('#2a0a0a'), true: SK('#ff0a0a40') }}
+                  thumbColor={smsOptIn ? SK('#ff0a0a') : SK('#5a1a1a')}
                 />
               </View>
             </>
@@ -404,7 +406,7 @@ export default function MirrorsIdScreen() {
             disabled={submitting}
           >
             {submitting ? (
-              <ActivityIndicator color="#000" size="small" />
+              <ActivityIndicator color={SK('#000')} size="small" />
             ) : (
               <Text style={styles.submitText}>
                 {mode === 'register' ? 'CREATE MIRRORS ID' : 'SIGN IN'}
@@ -442,7 +444,7 @@ export default function MirrorsIdScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = skinStyles({
   container: { flex: 1, backgroundColor: '#000' },
   scrollContent: { padding: 16 },
   title: {

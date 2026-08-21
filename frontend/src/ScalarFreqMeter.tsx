@@ -3,6 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-nativ
 import Svg, { Line, Circle, Path } from 'react-native-svg';
 import { AudioEngine } from './AudioEngine';
 
+import { skinStyles, SK } from './skins';
+
 // ═══════════════════════════════════════════════════════════
 // SCALAR FREQ METER — Nixie-era laboratory tuning instrument.
 // Glowing Nixie tube digits (tap to type exact), ±0.01 steps
@@ -123,22 +125,22 @@ export default function ScalarFreqMeter({ value, layerCount, onShift, onSet, isP
           {/* arc */}
           <Path
             d={`M ${pt(-55, RAD).x} ${pt(-55, RAD).y} A ${RAD} ${RAD} 0 0 1 ${pt(55, RAD).x} ${pt(55, RAD).y}`}
-            stroke="#c9a86a" strokeWidth={1.2} fill="none" opacity={0.7}
+            stroke={SK('#c9a86a')} strokeWidth={1.2} fill="none" opacity={0.7}
           />
           {/* ticks every 10 cents */}
           {[-50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50].map(c => {
             const a = centsToAngle(c);
             const o = pt(a, RAD); const n = pt(a, RAD - (c === 0 ? 10 : 6));
-            return <Line key={c} x1={o.x} y1={o.y} x2={n.x} y2={n.y} stroke={c === 0 ? '#ff9d45' : '#c9a86a'} strokeWidth={c === 0 ? 1.8 : 1} opacity={c === 0 ? 0.95 : 0.6} />;
+            return <Line key={c} x1={o.x} y1={o.y} x2={n.x} y2={n.y} stroke={c === 0 ? SK('#ff9d45') : SK('#c9a86a')} strokeWidth={c === 0 ? 1.8 : 1} opacity={c === 0 ? 0.95 : 0.6} />;
           })}
           {/* in-tune green zone */}
           <Path
             d={`M ${pt(-3.3, RAD - 2).x} ${pt(-3.3, RAD - 2).y} A ${RAD - 2} ${RAD - 2} 0 0 1 ${pt(3.3, RAD - 2).x} ${pt(3.3, RAD - 2).y}`}
-            stroke={inTune ? '#7dd87d' : '#3a4a3a'} strokeWidth={3} fill="none" opacity={inTune ? 0.95 : 0.5}
+            stroke={inTune ? SK('#7dd87d') : SK('#3a4a3a')} strokeWidth={3} fill="none" opacity={inTune ? 0.95 : 0.5}
           />
           {/* needle */}
-          <Line x1={PX} y1={PY} x2={tip.x} y2={tip.y} stroke={needle.active ? '#ff9d45' : '#6a5a40'} strokeWidth={2} />
-          <Circle cx={PX} cy={PY} r={4.5} fill="#1a140c" stroke="#c9a86a" strokeWidth={1.2} />
+          <Line x1={PX} y1={PY} x2={tip.x} y2={tip.y} stroke={needle.active ? SK('#ff9d45') : SK('#6a5a40')} strokeWidth={2} />
+          <Circle cx={PX} cy={PY} r={4.5} fill={SK('#1a140c')} stroke={SK('#c9a86a')} strokeWidth={1.2} />
         </Svg>
         <View style={st.gaugeLabels}>
           <Text style={st.gaugeLbl}>−50¢</Text>
@@ -199,7 +201,7 @@ export default function ScalarFreqMeter({ value, layerCount, onShift, onSet, isP
   );
 }
 
-const st = StyleSheet.create({
+const st = skinStyles({
   wrap: {
     backgroundColor: '#14100a',
     borderWidth: 1,

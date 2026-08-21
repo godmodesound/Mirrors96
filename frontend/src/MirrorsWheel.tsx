@@ -1,5 +1,7 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions, Animated, Easing, TouchableOpacity } from 'react-native';
+import { skinStyles, SK } from './skins';
+
 import Svg, {
   Circle as SvgCircle,
   Text as SvgText,
@@ -278,7 +280,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
   }, []);
 
   const activePos = allPositions.find(p => p.key.id === activeKey);
-  const activeColor = activePos?.key.color || '#ff0a0a';
+  const activeColor = activePos?.key.color || SK('#ff0a0a');
 
   // ═══════════════════════════════════════════════════════════════
   // MIRRORS 96 WHEEL VIEW (Dark Infrared Design - DEFAULT)
@@ -293,18 +295,18 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
       <Svg width={MAP_W} height={MAP_H} viewBox={`0 0 ${MAP_W} ${MAP_H}`}>
         <Defs>
           <RadialGradient id="m96-bg" cx="50%" cy="50%" r="55%">
-            <Stop offset="0%" stopColor="#0a0000" stopOpacity="1" />
-            <Stop offset="100%" stopColor="#000000" stopOpacity="1" />
+            <Stop offset="0%" stopColor={SK('#0a0000')} stopOpacity="1" />
+            <Stop offset="100%" stopColor={SK('#000000')} stopOpacity="1" />
           </RadialGradient>
           <RadialGradient id="m96-center" cx="50%" cy="50%" r="50%">
-            <Stop offset="0%" stopColor="#1a0808" stopOpacity="1" />
-            <Stop offset="70%" stopColor="#0a0000" stopOpacity="1" />
-            <Stop offset="100%" stopColor="#050000" stopOpacity="1" />
+            <Stop offset="0%" stopColor={SK('#1a0808')} stopOpacity="1" />
+            <Stop offset="70%" stopColor={SK('#0a0000')} stopOpacity="1" />
+            <Stop offset="100%" stopColor={SK('#050000')} stopOpacity="1" />
           </RadialGradient>
           <LinearGradient id="m96-ring" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor="#ff0a0a" stopOpacity="0.3" />
-            <Stop offset="50%" stopColor="#ffffff" stopOpacity="0.1" />
-            <Stop offset="100%" stopColor="#ff0a0a" stopOpacity="0.3" />
+            <Stop offset="0%" stopColor={SK('#ff0a0a')} stopOpacity="0.3" />
+            <Stop offset="50%" stopColor={SK('#ffffff')} stopOpacity="0.1" />
+            <Stop offset="100%" stopColor={SK('#ff0a0a')} stopOpacity="0.3" />
           </LinearGradient>
         </Defs>
 
@@ -312,8 +314,8 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
         <Rect x="0" y="0" width={MAP_W} height={MAP_H} fill="url(#m96-bg)" />
 
         {/* Outer decorative ring */}
-        <SvgCircle cx={CX} cy={CY} r={outerRadius + 4} fill="none" stroke="#ff0a0a" strokeWidth={2} opacity={0.3} />
-        <SvgCircle cx={CX} cy={CY} r={outerRadius + 8} fill="none" stroke="#ff0a0a" strokeWidth={1} opacity={0.15} />
+        <SvgCircle cx={CX} cy={CY} r={outerRadius + 4} fill="none" stroke={SK('#ff0a0a')} strokeWidth={2} opacity={0.3} />
+        <SvgCircle cx={CX} cy={CY} r={outerRadius + 8} fill="none" stroke={SK('#ff0a0a')} strokeWidth={1} opacity={0.15} />
 
         {/* Outer ring segments (B - Major keys) — 12 at 12 o'clock, 6 at 6 o'clock */}
         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => {
@@ -344,7 +346,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
               <SvgText
                 x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR + 8)}
                 y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR + 8)}
-                fill={isActive ? '#ffffff' : chakra.bright}
+                fill={isActive ? SK('#ffffff') : chakra.bright}
                 fontSize={12}
                 fontWeight="900"
                 textAnchor="middle"
@@ -356,7 +358,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
               <SvgText
                 x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR - 10)}
                 y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR - 10)}
-                fill={isActive ? '#ffffff' : '#888888'}
+                fill={isActive ? SK('#ffffff') : SK('#888888')}
                 fontSize={7}
                 fontWeight="600"
                 textAnchor="middle"
@@ -367,7 +369,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
               <SvgText
                 x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR - 18)}
                 y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR - 18)}
-                fill={isActive ? '#ffffff' : '#666666'}
+                fill={isActive ? SK('#ffffff') : SK('#666666')}
                 fontSize={6}
                 textAnchor="middle"
                 alignmentBaseline="middle"
@@ -416,7 +418,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
               <SvgText
                 x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR + 5)}
                 y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR + 5)}
-                fill={isActive ? '#ffffff' : chakra.bright}
+                fill={isActive ? SK('#ffffff') : chakra.bright}
                 fontSize={10}
                 fontWeight="900"
                 textAnchor="middle"
@@ -428,7 +430,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
               <SvgText
                 x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR - 10)}
                 y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR - 10)}
-                fill={isActive ? '#ffffff' : '#666666'}
+                fill={isActive ? SK('#ffffff') : SK('#666666')}
                 fontSize={6}
                 textAnchor="middle"
                 alignmentBaseline="middle"
@@ -438,7 +440,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
               <SvgText
                 x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR - 17)}
                 y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR - 17)}
-                fill={isActive ? '#ffffff' : '#555555'}
+                fill={isActive ? SK('#ffffff') : SK('#555555')}
                 fontSize={5}
                 textAnchor="middle"
                 alignmentBaseline="middle"
@@ -460,19 +462,19 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
         })}
 
         {/* Center circle with MIRRORS 96 branding */}
-        <SvgCircle cx={CX} cy={CY} r={innerRadius} fill="url(#m96-center)" stroke="#ff0a0a" strokeWidth={2} />
-        <SvgCircle cx={CX} cy={CY} r={innerRadius - 4} fill="none" stroke="#ff0a0a" strokeWidth={0.5} opacity={0.5} />
+        <SvgCircle cx={CX} cy={CY} r={innerRadius} fill="url(#m96-center)" stroke={SK('#ff0a0a')} strokeWidth={2} />
+        <SvgCircle cx={CX} cy={CY} r={innerRadius - 4} fill="none" stroke={SK('#ff0a0a')} strokeWidth={0.5} opacity={0.5} />
         
         {/* Center text - MIRRORS */}
-        <SvgText x={CX} y={CY - 18} fill="#ff0a0a" fontSize={14} fontWeight="900" textAnchor="middle" letterSpacing={3}>
+        <SvgText x={CX} y={CY - 18} fill={SK('#ff0a0a')} fontSize={14} fontWeight="900" textAnchor="middle" letterSpacing={3}>
           MIRRORS
         </SvgText>
         {/* Center text - 96 */}
-        <SvgText x={CX} y={CY + 8} fill="#ff0a0a" fontSize={28} fontWeight="900" textAnchor="middle">
+        <SvgText x={CX} y={CY + 8} fill={SK('#ff0a0a')} fontSize={28} fontWeight="900" textAnchor="middle">
           96
         </SvgText>
         {/* Center text - WHEEL */}
-        <SvgText x={CX} y={CY + 26} fill="#ff0a0a" fontSize={8} fontWeight="700" textAnchor="middle" letterSpacing={4}>
+        <SvgText x={CX} y={CY + 26} fill={SK('#ff0a0a')} fontSize={8} fontWeight="700" textAnchor="middle" letterSpacing={4}>
           ═ WHEEL ═
         </SvgText>
 
@@ -486,7 +488,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
               y1={CY + Math.sin(angle) * innerRadius}
               x2={CX + Math.cos(angle) * outerRadius}
               y2={CY + Math.sin(angle) * outerRadius}
-              stroke="#ff0a0a"
+              stroke={SK('#ff0a0a')}
               strokeWidth={1}
               opacity={0.4}
             />
@@ -494,8 +496,8 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
         })}
 
         {/* Corner labels */}
-        <SvgText x={6} y={MAP_H - 6} fill="#ff0a0a" fontSize={5} opacity={0.3} letterSpacing={1}>96 MIRRORS</SvgText>
-        <SvgText x={MAP_W - 6} y={MAP_H - 6} fill="#ff0a0a" fontSize={5} opacity={0.3} letterSpacing={1} textAnchor="end">432Hz</SvgText>
+        <SvgText x={6} y={MAP_H - 6} fill={SK('#ff0a0a')} fontSize={5} opacity={0.3} letterSpacing={1}>96 MIRRORS</SvgText>
+        <SvgText x={MAP_W - 6} y={MAP_H - 6} fill={SK('#ff0a0a')} fontSize={5} opacity={0.3} letterSpacing={1} textAnchor="end">432Hz</SvgText>
       </Svg>
     );
   };
@@ -508,33 +510,33 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
       <Svg width={MAP_W} height={MAP_H} viewBox={`0 0 ${MAP_W} ${MAP_H}`}>
         <Defs>
           <RadialGradient id="bg-grad" cx="50%" cy="50%" r="70%">
-            <Stop offset="0%" stopColor="#0a0000" stopOpacity="1" />
-            <Stop offset="100%" stopColor="#000000" stopOpacity="1" />
+            <Stop offset="0%" stopColor={SK('#0a0000')} stopOpacity="1" />
+            <Stop offset="100%" stopColor={SK('#000000')} stopOpacity="1" />
           </RadialGradient>
           <RadialGradient id="center-glow" cx="50%" cy="50%" r="20%">
-            <Stop offset="0%" stopColor="#ffffff" stopOpacity={isEmitting ? '1' : '0.8'} />
-            <Stop offset="30%" stopColor="#ff6060" stopOpacity={isEmitting ? '0.6' : '0.3'} />
-            <Stop offset="60%" stopColor="#ff0a0a" stopOpacity={isEmitting ? '0.3' : '0.1'} />
-            <Stop offset="100%" stopColor="#ff0a0a" stopOpacity="0" />
+            <Stop offset="0%" stopColor={SK('#ffffff')} stopOpacity={isEmitting ? '1' : '0.8'} />
+            <Stop offset="30%" stopColor={SK('#ff6060')} stopOpacity={isEmitting ? '0.6' : '0.3'} />
+            <Stop offset="60%" stopColor={SK('#ff0a0a')} stopOpacity={isEmitting ? '0.3' : '0.1'} />
+            <Stop offset="100%" stopColor={SK('#ff0a0a')} stopOpacity="0" />
           </RadialGradient>
           <RadialGradient id="attractor-glow" cx="50%" cy="50%" r="60%">
-            <Stop offset="0%" stopColor="#ff0a0a" stopOpacity="0" />
-            <Stop offset="40%" stopColor="#ff0a0a" stopOpacity={isEmitting ? '0.15' : '0.05'} />
-            <Stop offset="100%" stopColor="#ff0000" stopOpacity="0" />
+            <Stop offset="0%" stopColor={SK('#ff0a0a')} stopOpacity="0" />
+            <Stop offset="40%" stopColor={SK('#ff0a0a')} stopOpacity={isEmitting ? '0.15' : '0.05'} />
+            <Stop offset="100%" stopColor={SK('#ff0000')} stopOpacity="0" />
           </RadialGradient>
           <LinearGradient id="h-beam" x1="0%" y1="50%" x2="100%" y2="50%">
-            <Stop offset="0%" stopColor="#ff0a0a" stopOpacity="0" />
-            <Stop offset="40%" stopColor="#ffffff" stopOpacity={isEmitting ? '0.4' : '0.2'} />
-            <Stop offset="50%" stopColor="#ffffff" stopOpacity={isEmitting ? '0.8' : '0.4'} />
-            <Stop offset="60%" stopColor="#ffffff" stopOpacity={isEmitting ? '0.4' : '0.2'} />
-            <Stop offset="100%" stopColor="#ff0a0a" stopOpacity="0" />
+            <Stop offset="0%" stopColor={SK('#ff0a0a')} stopOpacity="0" />
+            <Stop offset="40%" stopColor={SK('#ffffff')} stopOpacity={isEmitting ? '0.4' : '0.2'} />
+            <Stop offset="50%" stopColor={SK('#ffffff')} stopOpacity={isEmitting ? '0.8' : '0.4'} />
+            <Stop offset="60%" stopColor={SK('#ffffff')} stopOpacity={isEmitting ? '0.4' : '0.2'} />
+            <Stop offset="100%" stopColor={SK('#ff0a0a')} stopOpacity="0" />
           </LinearGradient>
           <LinearGradient id="v-beam" x1="50%" y1="0%" x2="50%" y2="100%">
-            <Stop offset="0%" stopColor="#ff0a0a" stopOpacity="0" />
-            <Stop offset="40%" stopColor="#ffffff" stopOpacity={isEmitting ? '0.3' : '0.15'} />
-            <Stop offset="50%" stopColor="#ffffff" stopOpacity={isEmitting ? '0.6' : '0.3'} />
-            <Stop offset="60%" stopColor="#ffffff" stopOpacity={isEmitting ? '0.3' : '0.15'} />
-            <Stop offset="100%" stopColor="#ff0a0a" stopOpacity="0" />
+            <Stop offset="0%" stopColor={SK('#ff0a0a')} stopOpacity="0" />
+            <Stop offset="40%" stopColor={SK('#ffffff')} stopOpacity={isEmitting ? '0.3' : '0.15'} />
+            <Stop offset="50%" stopColor={SK('#ffffff')} stopOpacity={isEmitting ? '0.6' : '0.3'} />
+            <Stop offset="60%" stopColor={SK('#ffffff')} stopOpacity={isEmitting ? '0.3' : '0.15'} />
+            <Stop offset="100%" stopColor={SK('#ff0a0a')} stopOpacity="0" />
           </LinearGradient>
           {allPositions.map((p, i) => (
             <RadialGradient key={`ng-${i}`} id={`ng-${i}`} cx="50%" cy="50%" r="50%">
@@ -549,16 +551,16 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
         <Ellipse cx={CX} cy={CY} rx={MAP_W * 0.48} ry={MAP_H * 0.35} fill="url(#attractor-glow)" />
 
         {attractorPaths.map((path, i) => (
-          <Path key={`attractor-${i}`} d={path} fill="none" stroke="#ff0a0a" strokeWidth={i < 3 ? 0.3 : 0.5 + (i - 3) * 0.1} opacity={0.08 + i * 0.03} />
+          <Path key={`attractor-${i}`} d={path} fill="none" stroke={SK('#ff0a0a')} strokeWidth={i < 3 ? 0.3 : 0.5 + (i - 3) * 0.1} opacity={0.08 + i * 0.03} />
         ))}
         {infinityPaths.map((path, i) => (
-          <Path key={`infinity-${i}`} d={path} fill="none" stroke="#ff0a0a" strokeWidth={0.8 + i * 0.15} opacity={isEmitting ? 0.25 + i * 0.05 : 0.1 + i * 0.03} />
+          <Path key={`infinity-${i}`} d={path} fill="none" stroke={SK('#ff0a0a')} strokeWidth={0.8 + i * 0.15} opacity={isEmitting ? 0.25 + i * 0.05 : 0.1 + i * 0.03} />
         ))}
         {lobeSpirals.map((path, i) => (
           <G key={`lobe-group-${i}`}>
-            <Path d={path} fill="none" stroke="#ff0a0a" strokeWidth={4} opacity={isEmitting ? 0.15 : 0.05} strokeLinecap="round" />
-            <Path d={path} fill="none" stroke="#ff2020" strokeWidth={2} opacity={isEmitting ? 0.3 : 0.12} strokeLinecap="round" />
-            <Path d={path} fill="none" stroke="#ff4040" strokeWidth={1} opacity={isEmitting ? 0.5 : 0.2} strokeLinecap="round" />
+            <Path d={path} fill="none" stroke={SK('#ff0a0a')} strokeWidth={4} opacity={isEmitting ? 0.15 : 0.05} strokeLinecap="round" />
+            <Path d={path} fill="none" stroke={SK('#ff2020')} strokeWidth={2} opacity={isEmitting ? 0.3 : 0.12} strokeLinecap="round" />
+            <Path d={path} fill="none" stroke={SK('#ff4040')} strokeWidth={1} opacity={isEmitting ? 0.5 : 0.2} strokeLinecap="round" />
           </G>
         ))}
         {[0, 1, 2, 3].map((lobeIdx) => {
@@ -571,17 +573,17 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           ];
           const c = centers[lobeIdx];
           return [0.15, 0.1, 0.06].map((r, ri) => (
-            <SvgCircle key={`lobe-circle-${lobeIdx}-${ri}`} cx={c.x} cy={c.y} r={MAP_W * r} fill="none" stroke="#ff0a0a" strokeWidth={0.5} opacity={isEmitting ? 0.2 - ri * 0.05 : 0.08 - ri * 0.02} />
+            <SvgCircle key={`lobe-circle-${lobeIdx}-${ri}`} cx={c.x} cy={c.y} r={MAP_W * r} fill="none" stroke={SK('#ff0a0a')} strokeWidth={0.5} opacity={isEmitting ? 0.2 - ri * 0.05 : 0.08 - ri * 0.02} />
           ));
         })}
         <Rect x={0} y={CY - 2} width={MAP_W} height={4} fill="url(#h-beam)" />
         <Rect x={CX - 2} y={0} width={4} height={MAP_H} fill="url(#v-beam)" />
         {[0, 45, 90, 135].map((angle) => (
-          <Line key={`ray-${angle}`} x1={CX - Math.cos(angle * Math.PI / 180) * MAP_W * 0.5} y1={CY - Math.sin(angle * Math.PI / 180) * MAP_H * 0.4} x2={CX + Math.cos(angle * Math.PI / 180) * MAP_W * 0.5} y2={CY + Math.sin(angle * Math.PI / 180) * MAP_H * 0.4} stroke="#ff0a0a" strokeWidth={0.5} opacity={isEmitting ? 0.15 : 0.05} />
+          <Line key={`ray-${angle}`} x1={CX - Math.cos(angle * Math.PI / 180) * MAP_W * 0.5} y1={CY - Math.sin(angle * Math.PI / 180) * MAP_H * 0.4} x2={CX + Math.cos(angle * Math.PI / 180) * MAP_W * 0.5} y2={CY + Math.sin(angle * Math.PI / 180) * MAP_H * 0.4} stroke={SK('#ff0a0a')} strokeWidth={0.5} opacity={isEmitting ? 0.15 : 0.05} />
         ))}
         <SvgCircle cx={CX} cy={CY} r={MAP_W * 0.12} fill="url(#center-glow)" />
-        <SvgCircle cx={CX} cy={CY} r={isEmitting ? 8 : 5} fill="#ffffff" opacity={isEmitting ? 1 : 0.9} />
-        <SvgCircle cx={CX} cy={CY} r={isEmitting ? 4 : 2} fill="#ffffff" />
+        <SvgCircle cx={CX} cy={CY} r={isEmitting ? 8 : 5} fill={SK('#ffffff')} opacity={isEmitting ? 1 : 0.9} />
+        <SvgCircle cx={CX} cy={CY} r={isEmitting ? 4 : 2} fill={SK('#ffffff')} />
 
         {activeKey && activePos && (
           <Line x1={activePos.x} y1={activePos.y} x2={CX} y2={CY} stroke={activeColor} strokeWidth={1.5} opacity={0.5} strokeDasharray="4,4" />
@@ -602,11 +604,11 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           return (
             <G key={`o-${i}`} onPress={() => onKeyPress(p.key)}>
               <SvgCircle cx={p.x} cy={p.y} r={isActive ? nodeR * 2.5 : isPrimary ? nodeR * 1.8 : nodeR * 1.5} fill={`url(#ng-${i})`} opacity={isActive ? 1 : isPrimary ? 0.7 : 0.3} />
-              <SvgCircle cx={p.x} cy={p.y} r={nodeR} fill="#050000" stroke={p.key.color} strokeWidth={isActive ? 2 : isPrimary ? 1.2 : 0.8} />
+              <SvgCircle cx={p.x} cy={p.y} r={nodeR} fill={SK('#050000')} stroke={p.key.color} strokeWidth={isActive ? 2 : isPrimary ? 1.2 : 0.8} />
               <SvgCircle cx={p.x} cy={p.y} r={nodeR * 0.5} fill={p.key.color} opacity={isActive ? 1 : isPrimary ? 0.7 : 0.4} />
-              <SvgCircle cx={p.x} cy={p.y} r={isActive ? 3 : 1.5} fill="#ffffff" opacity={isActive ? 1 : 0.4} />
-              <SvgText x={p.x} y={p.y - nodeR - 4} fill={isActive ? '#ffffff' : p.key.color} fontSize={isActive ? 7 : 6} fontWeight="800" textAnchor="middle" opacity={isActive ? 1 : 0.8}>{p.key.id}</SvgText>
-              <SvgText x={p.x} y={p.y + 3} fill="#ffffff" fontSize={isActive ? 7 : 5} fontWeight="800" textAnchor="middle" opacity={isActive ? 1 : 0.7}>{p.key.note}</SvgText>
+              <SvgCircle cx={p.x} cy={p.y} r={isActive ? 3 : 1.5} fill={SK('#ffffff')} opacity={isActive ? 1 : 0.4} />
+              <SvgText x={p.x} y={p.y - nodeR - 4} fill={isActive ? SK('#ffffff') : p.key.color} fontSize={isActive ? 7 : 6} fontWeight="800" textAnchor="middle" opacity={isActive ? 1 : 0.8}>{p.key.id}</SvgText>
+              <SvgText x={p.x} y={p.y + 3} fill={SK('#ffffff')} fontSize={isActive ? 7 : 5} fontWeight="800" textAnchor="middle" opacity={isActive ? 1 : 0.7}>{p.key.note}</SvgText>
             </G>
           );
         })}
@@ -619,16 +621,16 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           return (
             <G key={`i-${idx}`} onPress={() => onKeyPress(p.key)}>
               <SvgCircle cx={p.x} cy={p.y} r={isActive ? nodeR * 2.2 : nodeR * 1.4} fill={`url(#ng-${i})`} opacity={isActive ? 1 : isPrimary ? 0.6 : 0.25} />
-              <SvgCircle cx={p.x} cy={p.y} r={nodeR} fill="#050000" stroke={p.key.color} strokeWidth={isActive ? 1.8 : isPrimary ? 1 : 0.6} />
+              <SvgCircle cx={p.x} cy={p.y} r={nodeR} fill={SK('#050000')} stroke={p.key.color} strokeWidth={isActive ? 1.8 : isPrimary ? 1 : 0.6} />
               <SvgCircle cx={p.x} cy={p.y} r={nodeR * 0.45} fill={p.key.color} opacity={isActive ? 1 : 0.4} />
-              <SvgCircle cx={p.x} cy={p.y} r={isActive ? 2 : 1} fill="#ffffff" opacity={isActive ? 1 : 0.3} />
-              <SvgText x={p.x} y={p.y - nodeR - 3} fill={isActive ? '#ffffff' : p.key.color} fontSize={isActive ? 6 : 5} fontWeight="800" textAnchor="middle" opacity={isActive ? 1 : 0.7}>{p.key.id}</SvgText>
-              <SvgText x={p.x} y={p.y + 2.5} fill="#ffffff" fontSize={isActive ? 6 : 4.5} fontWeight="800" textAnchor="middle" opacity={isActive ? 1 : 0.6}>{p.key.note}</SvgText>
+              <SvgCircle cx={p.x} cy={p.y} r={isActive ? 2 : 1} fill={SK('#ffffff')} opacity={isActive ? 1 : 0.3} />
+              <SvgText x={p.x} y={p.y - nodeR - 3} fill={isActive ? SK('#ffffff') : p.key.color} fontSize={isActive ? 6 : 5} fontWeight="800" textAnchor="middle" opacity={isActive ? 1 : 0.7}>{p.key.id}</SvgText>
+              <SvgText x={p.x} y={p.y + 2.5} fill={SK('#ffffff')} fontSize={isActive ? 6 : 4.5} fontWeight="800" textAnchor="middle" opacity={isActive ? 1 : 0.6}>{p.key.note}</SvgText>
             </G>
           );
         })}
-        <SvgText x={6} y={MAP_H - 6} fill="#ff0a0a" fontSize={5} opacity={0.15} letterSpacing={1}>96 MIRRORS</SvgText>
-        <SvgText x={MAP_W - 6} y={MAP_H - 6} fill="#ff0a0a" fontSize={5} opacity={0.15} letterSpacing={1} textAnchor="end">432Hz TUNED</SvgText>
+        <SvgText x={6} y={MAP_H - 6} fill={SK('#ff0a0a')} fontSize={5} opacity={0.15} letterSpacing={1}>96 MIRRORS</SvgText>
+        <SvgText x={MAP_W - 6} y={MAP_H - 6} fill={SK('#ff0a0a')} fontSize={5} opacity={0.15} letterSpacing={1} textAnchor="end">432Hz TUNED</SvgText>
       </Svg>
     );
   };
@@ -677,7 +679,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
   );
 }
 
-const st = StyleSheet.create({
+const st = skinStyles({
   container: {
     borderWidth: 1,
     borderColor: '#ff0a0a20',

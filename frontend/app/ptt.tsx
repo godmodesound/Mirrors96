@@ -19,6 +19,8 @@ import { useAuth } from '../src/AuthContext';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 
+import { skinStyles, SK } from '../src/skins';
+
 const API_URL =
   Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL ||
   process.env.EXPO_PUBLIC_BACKEND_URL ||
@@ -432,7 +434,7 @@ export default function PTTScreen() {
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>DIRECT CONNECT</Text>
             <View style={styles.headerStatus}>
-              <View style={[styles.statusLED, { backgroundColor: activeUsers > 0 ? '#ff0a0a' : '#3a1010' }]} />
+              <View style={[styles.statusLED, { backgroundColor: activeUsers > 0 ? SK('#ff0a0a') : SK('#3a1010') }]} />
               <Text style={styles.headerChannel}>{channelName}</Text>
               <Text style={styles.headerOnline}>{activeUsers} ACTIVE</Text>
             </View>
@@ -502,7 +504,7 @@ export default function PTTScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={styles.msgTop}>
-                    <View style={[styles.msgDot, { backgroundColor: isPlaying ? '#ff0a0a' : isMine ? '#ff3040' : '#3a1010' }]} />
+                    <View style={[styles.msgDot, { backgroundColor: isPlaying ? SK('#ff0a0a') : isMine ? SK('#ff3040') : SK('#3a1010') }]} />
                     <Text style={[styles.msgName, isMine && styles.msgNameMine]}>{msg.sender_name}</Text>
                     <Text style={styles.msgTime}>{formatTimestamp(msg.created_at)}</Text>
                   </View>
@@ -518,7 +520,7 @@ export default function PTTScreen() {
                             styles.waveBar,
                             {
                               height: 3 + Math.sin(i * 0.7) * 8 + Math.random() * 4,
-                              backgroundColor: isPlaying ? '#ff0a0a' : isMine ? '#ff304060' : '#3a101060',
+                              backgroundColor: isPlaying ? SK('#ff0a0a') : isMine ? SK('#ff304060') : SK('#3a101060'),
                             },
                           ]}
                         />
@@ -551,7 +553,7 @@ export default function PTTScreen() {
           )}
           {isTransmitting && (
             <View style={styles.recBar}>
-              <ActivityIndicator size="small" color="#ff0a0a" />
+              <ActivityIndicator size="small" color={SK('#ff0a0a')} />
               <Text style={styles.recText}>SENDING...</Text>
             </View>
           )}
@@ -604,7 +606,7 @@ export default function PTTScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = skinStyles({
   container: { flex: 1, backgroundColor: '#000' },
   safeArea: { flex: 1 },
 

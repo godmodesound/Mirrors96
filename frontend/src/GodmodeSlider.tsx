@@ -1,6 +1,8 @@
 import React, { useRef, useCallback, useState } from 'react';
 import { View, StyleSheet, PanResponder, Dimensions, Text } from 'react-native';
 
+import { skinStyles, SK } from './skins';
+
 interface GodmodeSliderProps {
   value: number;
   minimumValue: number;
@@ -96,7 +98,7 @@ export default function GodmodeSlider({
             styles.thumb,
             {
               left: fillWidth,
-              backgroundColor: dragging ? '#ffffff' : thumbTintColor,
+              backgroundColor: dragging ? SK('#ffffff') : thumbTintColor,
               transform: [{ translateX: -8 }, { scale: dragging ? 1.3 : 1 }],
             },
           ]}
@@ -119,7 +121,7 @@ export default function GodmodeSlider({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = skinStyles({
   container: {
     height: 40,
     justifyContent: 'center',

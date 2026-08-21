@@ -13,6 +13,7 @@ import {
   TextInput,
   FlatList,
   PanResponder,
+  Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -33,6 +34,8 @@ import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
 import ScopeNodePanel from '../src/ScopeNodePanel';
 import LatticeFramework from '../src/LatticeFramework';
 import SendCodesModal from '../src/SendCodesModal';
+
+import { skinStyles, SK, useSkin } from '../src/skins';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const API_URL =
@@ -140,24 +143,24 @@ const AnalogDial = ({
     <View style={dialStyles.container} {...(onChange ? pan.panHandlers : {})}>
       <Svg width={size} height={size}>
         {/* Outer chrome ring */}
-        <SvgCircle cx={cx} cy={cy} r={radius} stroke="#9aa4b2" strokeWidth={sweeping ? 2 : 1.5} fill="none" opacity={sweeping ? 0.95 : 0.6} />
+        <SvgCircle cx={cx} cy={cy} r={radius} stroke={SK('#9aa4b2')} strokeWidth={sweeping ? 2 : 1.5} fill="none" opacity={sweeping ? 0.95 : 0.6} />
         {/* Middle ring */}
-        <SvgCircle cx={cx} cy={cy} r={radius - 5} stroke="#5a646f" strokeWidth={0.5} fill="none" opacity={0.5} />
+        <SvgCircle cx={cx} cy={cy} r={radius - 5} stroke={SK('#5a646f')} strokeWidth={0.5} fill="none" opacity={0.5} />
         {/* Inner ring */}
-        <SvgCircle cx={cx} cy={cy} r={innerRadius} stroke="#ff0a0a" strokeWidth={1} fill="#0b0e12" opacity={0.8} />
+        <SvgCircle cx={cx} cy={cy} r={innerRadius} stroke={SK('#ff0a0a')} strokeWidth={1} fill={SK('#0b0e12')} opacity={0.8} />
         {/* Glow circle */}
-        <SvgCircle cx={cx} cy={cy} r={sweeping ? 6 : 4} fill="#ff0a0a" opacity={sweeping ? 0.9 : 0.6} />
+        <SvgCircle cx={cx} cy={cy} r={sweeping ? 6 : 4} fill={SK('#ff0a0a')} opacity={sweeping ? 0.9 : 0.6} />
         {/* Needle */}
-        <Line x1={cx} y1={cy} x2={nx} y2={ny} stroke={sweeping ? '#ffb0b0' : '#ff6060'} strokeWidth={sweeping ? 2.5 : 2} strokeLinecap="round" />
+        <Line x1={cx} y1={cy} x2={nx} y2={ny} stroke={sweeping ? SK('#ffb0b0') : SK('#ff6060')} strokeWidth={sweeping ? 2.5 : 2} strokeLinecap="round" />
         {/* Needle tip */}
-        <SvgCircle cx={nx} cy={ny} r={sweeping ? 4 : 3} fill={sweeping ? '#ffffff' : '#ff8080'} />
+        <SvgCircle cx={nx} cy={ny} r={sweeping ? 4 : 3} fill={sweeping ? SK('#ffffff') : SK('#ff8080')} />
       </Svg>
       <Text style={[dialStyles.label, sweeping && dialStyles.labelActive]}>{sweeping ? 'SWEEP' : 'ANALOG'}</Text>
     </View>
   );
 };
 
-const dialStyles = StyleSheet.create({
+const dialStyles = skinStyles({
   container: { alignItems: 'center' },
   label: {
     color: '#5a1a1a',
@@ -192,6 +195,9 @@ export default function TerminalScreen() {
   const [archiveViewMode, setArchiveViewMode] = useState<'codex' | 'a-z' | 'lab'>('a-z');
   const [selectedCodex, setSelectedCodex] = useState<string | null>(null);
   const [sendCodesModalVisible, setSendCodesModalVisible] = useState(false);
+  const { setPickerOpen } = useSkin();
+  const logoTaps = useRef(0);
+  const logoTapTs = useRef(0);
 
   // ═══ LOAD FREQUENCIES FROM ARCHIVE (via route params) ═══
   useEffect(() => {
@@ -823,12 +829,28 @@ export default function TerminalScreen() {
 
           {/* ══════ HERO ══════ */}
           <View style={styles.heroSection}>
-            {/* Single Clean Hero Image */}
-            <Image
-              source={{ uri: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/aw1xtg9j_Screenshot%202026-08-02%20at%2012.36.59%E2%80%AFAM.png' }}
-              style={styles.heroImage}
-              resizeMode="contain"
-            />
+            {/* Single Clean Hero Image — long-press (or 3 quick taps) = hidden SKIN selector */}
+            <Pressable
+              style={styles.heroLogoPress}
+              delayLongPress={500}
+              onLongPress={() => setPickerOpen(true)}
+              onPress={() => {
+                const now = Date.now();
+                logoTaps.current = now - logoTapTs.current < 1200 ? logoTaps.current + 1 : 1;
+                logoTapTs.current = now;
+                if (logoTaps.current >= 3) {
+                  logoTaps.current = 0;
+                  setPickerOpen(true);
+                }
+              }}
+              testID="hero-logo"
+            >
+              <Image
+                source={{ uri: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/aw1xtg9j_Screenshot%202026-08-02%20at%2012.36.59%E2%80%AFAM.png' }}
+                style={styles.heroImage}
+                resizeMode="contain"
+              />
+            </Pressable>
             
             {/* Text Content Below Image */}
             <View style={styles.heroContent}>
@@ -998,17 +1020,17 @@ export default function TerminalScreen() {
                   <View style={styles.xyzAxes}>
                     <View style={styles.xyzAxis}>
                       <Text style={styles.xyzAxisLabel}>X</Text>
-                      <View style={styles.xyzTrack}><View style={[styles.xyzFill, { width: `${xPct * 100}%`, backgroundColor: '#ff0a0a' }]} /></View>
+                      <View style={styles.xyzTrack}><View style={[styles.xyzFill, { width: `${xPct * 100}%`, backgroundColor: SK('#ff0a0a') }]} /></View>
                       <Text style={styles.xyzAxisVal}>{Math.round(xPct * 100)}</Text>
                     </View>
                     <View style={styles.xyzAxis}>
                       <Text style={styles.xyzAxisLabel}>Y</Text>
-                      <View style={styles.xyzTrack}><View style={[styles.xyzFill, { width: `${yPct * 100}%`, backgroundColor: '#ffd75e' }]} /></View>
+                      <View style={styles.xyzTrack}><View style={[styles.xyzFill, { width: `${yPct * 100}%`, backgroundColor: SK('#ffd75e') }]} /></View>
                       <Text style={styles.xyzAxisVal}>{Math.round(yPct * 100)}</Text>
                     </View>
                     <View style={styles.xyzAxis}>
                       <Text style={styles.xyzAxisLabel}>Z</Text>
-                      <View style={styles.xyzTrack}><View style={[styles.xyzFill, { width: `${zPct * 100}%`, backgroundColor: '#5fc9ff' }]} /></View>
+                      <View style={styles.xyzTrack}><View style={[styles.xyzFill, { width: `${zPct * 100}%`, backgroundColor: SK('#5fc9ff') }]} /></View>
                       <Text style={styles.xyzAxisVal}>{index + 1}/{layers.length}</Text>
                     </View>
                   </View>
@@ -1037,9 +1059,9 @@ export default function TerminalScreen() {
                       maximumValue={26000}
                       value={layer.frequency}
                       onValueChange={(val) => updateLayerFrequency(layer.id, Math.round(val * 10) / 10)}
-                      minimumTrackTintColor="#ff0a0a"
-                      maximumTrackTintColor="#333333"
-                      thumbTintColor="#ff6060"
+                      minimumTrackTintColor={SK('#ff0a0a')}
+                      maximumTrackTintColor={SK('#333333')}
+                      thumbTintColor={SK('#ff6060')}
                     />
                     <AudioMeterScale />
                     {/* Band Labels */}
@@ -1065,9 +1087,9 @@ export default function TerminalScreen() {
                         maximumValue={1}
                         value={layer.gain}
                         onValueChange={(val) => updateLayerGain(layer.id, val)}
-                        minimumTrackTintColor="#ff3040"
-                        maximumTrackTintColor="#333333"
-                        thumbTintColor="#ff6060"
+                        minimumTrackTintColor={SK('#ff3040')}
+                        maximumTrackTintColor={SK('#333333')}
+                        thumbTintColor={SK('#ff6060')}
                       />
                     </View>
                   </View>
@@ -1289,14 +1311,14 @@ export default function TerminalScreen() {
 
                     {/* Center: key number + note */}
                     <View style={[styles.pianoKeyCenter, { backgroundColor: pk.color + (isActive ? '40' : '15') }]}>
-                      <Text style={[styles.pianoKeyNum, { color: isActive ? '#fff' : pk.color }]}>
+                      <Text style={[styles.pianoKeyNum, { color: isActive ? SK('#fff') : pk.color }]}>
                         {pianoMode === '13' ? pk.key : pk.major} · {pk.note}
                       </Text>
                     </View>
 
                     {/* Right: freq */}
                     <View style={styles.pianoKeyRight}>
-                      <Text style={[styles.pianoFreq, { color: isActive ? pk.color : '#5a1a1a' }]}>{pk.freq} Hz</Text>
+                      <Text style={[styles.pianoFreq, { color: isActive ? pk.color : SK('#5a1a1a') }]}>{pk.freq} Hz</Text>
                     </View>
 
                     {/* Far right: major scale number (8-chakra mode) */}
@@ -1429,7 +1451,7 @@ export default function TerminalScreen() {
               <TextInput
                 style={archiveStyles.searchInput}
                 placeholder="Search conditions, frequencies..."
-                placeholderTextColor="#5a1a1a"
+                placeholderTextColor={SK('#5a1a1a')}
                 value={archiveSearch}
                 onChangeText={setArchiveSearch}
               />
@@ -1643,11 +1665,12 @@ export default function TerminalScreen() {
         layers={layers}
         loadedArchiveName={loadedArchiveName}
       />
+
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = skinStyles({
   container: { flex: 1, backgroundColor: '#000000' },
   safeArea: { flex: 1 },
   scrollView: { flex: 1, paddingHorizontal: 0 },
@@ -1715,6 +1738,9 @@ const styles = StyleSheet.create({
   heroImage: {
     width: '100%',
     height: 200,
+  },
+  heroLogoPress: {
+    width: '100%',
   },
   heroContent: { 
     alignItems: 'center',
@@ -2529,7 +2555,7 @@ const styles = StyleSheet.create({
 });
 
 // ═══════ PARTICLE LAB MUSIC PLAYER STYLES ═══════
-const plStyles = StyleSheet.create({
+const plStyles = skinStyles({
   musicControls: {
     flexDirection: 'row',
     gap: 8,
@@ -2652,7 +2678,7 @@ const plStyles = StyleSheet.create({
 });
 
 // ═══════ SOUND LAB STYLES ═══════
-const slabStyles = StyleSheet.create({
+const slabStyles = skinStyles({
   container: {
     marginTop: 8,
     marginHorizontal: 16,
@@ -2864,7 +2890,7 @@ const slabStyles = StyleSheet.create({
 });
 
 // ═══════ CODES ARCHIVE MODAL STYLES ═══════
-const archiveStyles = StyleSheet.create({
+const archiveStyles = skinStyles({
   modalContainer: {
     flex: 1,
     backgroundColor: '#000000',

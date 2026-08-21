@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { WebView } from 'react-native-webview';
 import { AudioEngine } from './AudioEngine';
 
+import { skinStyles, SK, skinHtml } from './skins';
+
 // ═══════════════════════════════════════════════════════════════
 // MIRROR CUBES — 3D faceted periodic-table cube for the BRAIN tab
 //
@@ -419,13 +421,13 @@ export default function ElementCube({ onElement, onEmit }: Props) {
         {Platform.OS === 'web' ? (
           React.createElement('iframe', {
             ref: iframeRef,
-            srcDoc: html,
-            style: { width: '100%', height: '100%', border: 'none', backgroundColor: '#000' },
+            srcDoc: skinHtml(html),
+            style: { width: '100%', height: '100%', border: 'none', backgroundColor: SK('#000') },
           })
         ) : (
           <WebView
             ref={webRef}
-            source={{ html }}
+            source={{ html: skinHtml(html) }}
             style={st.webview}
             javaScriptEnabled
             scrollEnabled={false}
@@ -544,7 +546,7 @@ export default function ElementCube({ onElement, onEmit }: Props) {
   );
 }
 
-const st = StyleSheet.create({
+const st = skinStyles({
   wrap: {
     borderWidth: 1,
     borderColor: '#0a2a0a',

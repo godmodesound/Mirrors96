@@ -15,6 +15,8 @@ import GodmodeSlider from './GodmodeSlider';
 import { FullSpectrumMeter, AudioMeterScale } from './SpectrumMeters';
 import CymaticScope from './CymaticScope';
 
+import { skinStyles, SK } from './skins';
+
 // ═══════════════════════════════════
 // SHARED CODES LAB COMPONENT
 // Syncs frequency state across screens
@@ -99,8 +101,8 @@ const AnalogDial = ({
   return (
     <View style={dialStyles.dialContainer} {...(onChange ? pan.panHandlers : {})}>
       <Svg width={size} height={size}>
-        <Circle cx={center} cy={center} r={radius} fill="none" stroke={sweeping ? '#ff0a0a' : '#1a0808'} strokeWidth={2} />
-        <Circle cx={center} cy={center} r={radius - 4} fill="#050303" />
+        <Circle cx={center} cy={center} r={radius} fill="none" stroke={sweeping ? SK('#ff0a0a') : SK('#1a0808')} strokeWidth={2} />
+        <Circle cx={center} cy={center} r={radius - 4} fill={SK('#050303')} />
         {[-135, -90, -45, 0, 45, 90, 135].map((tickAngle, i) => {
           const tickRad = (tickAngle * Math.PI) / 180;
           const inner = radius - 8;
@@ -112,7 +114,7 @@ const AnalogDial = ({
               y1={center - inner * Math.cos(tickRad)}
               x2={center + outer * Math.sin(tickRad)}
               y2={center - outer * Math.cos(tickRad)}
-              stroke={sweeping ? '#ff4040' : '#3a1010'}
+              stroke={sweeping ? SK('#ff4040') : SK('#3a1010')}
               strokeWidth={1}
             />
           );
@@ -122,18 +124,18 @@ const AnalogDial = ({
           y1={center}
           x2={needleX}
           y2={needleY}
-          stroke={sweeping ? '#ffb0b0' : '#ff0a0a'}
+          stroke={sweeping ? SK('#ffb0b0') : SK('#ff0a0a')}
           strokeWidth={sweeping ? 2.5 : 2}
           strokeLinecap="round"
         />
-        <Circle cx={center} cy={center} r={sweeping ? 4 : 3} fill={sweeping ? '#ffffff' : '#ff0a0a'} />
+        <Circle cx={center} cy={center} r={sweeping ? 4 : 3} fill={sweeping ? SK('#ffffff') : SK('#ff0a0a')} />
       </Svg>
       <Text style={[dialStyles.dialLabel, sweeping && dialStyles.dialLabelActive]}>{sweeping ? 'SWEEP' : 'ANALOG'}</Text>
     </View>
   );
 };
 
-const dialStyles = StyleSheet.create({
+const dialStyles = skinStyles({
   dialContainer: { alignItems: 'center' },
   dialLabel: { color: '#3a1010', fontSize: 7, marginTop: 2, letterSpacing: 2 },
   dialLabelActive: { color: '#ff8080' },
@@ -352,9 +354,9 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
                 maximumValue={26000}
                 value={layer.frequency}
                 onValueChange={(val) => updateLayerFrequency(layer.id, val)}
-                minimumTrackTintColor="#ff0a0a"
-                maximumTrackTintColor="#333333"
-                thumbTintColor="#ff6060"
+                minimumTrackTintColor={SK('#ff0a0a')}
+                maximumTrackTintColor={SK('#333333')}
+                thumbTintColor={SK('#ff6060')}
               />
               <AudioMeterScale />
               <View style={styles.bandRow}>
@@ -376,9 +378,9 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
                     maximumValue={1}
                     value={layer.gain}
                     onValueChange={(val) => updateLayerGain(layer.id, val)}
-                    minimumTrackTintColor="#ff3040"
-                    maximumTrackTintColor="#333333"
-                    thumbTintColor="#ff6060"
+                    minimumTrackTintColor={SK('#ff3040')}
+                    maximumTrackTintColor={SK('#333333')}
+                    thumbTintColor={SK('#ff6060')}
                   />
                 </View>
               )}
@@ -455,7 +457,7 @@ export const loadFrequencyToLab = async (frequencies: number[], name: string) =>
   } catch {}
 };
 
-const styles = StyleSheet.create({
+const styles = skinStyles({
   container: {
     backgroundColor: '#050202',
     borderWidth: 1,

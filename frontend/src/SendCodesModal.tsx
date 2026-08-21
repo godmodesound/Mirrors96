@@ -13,6 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 
+import { skinStyles, SK } from './skins';
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface FrequencyLayer {
@@ -131,7 +133,7 @@ export default function SendCodesModal({ visible, onClose, layers, loadedArchive
               disabled={isSharing}
             >
               {isSharing ? (
-                <ActivityIndicator color="#000" size="small" />
+                <ActivityIndicator color={SK('#000')} size="small" />
               ) : (
                 <Text style={styles.shareBtnText}>▶ TRANSMIT</Text>
               )}
@@ -148,7 +150,7 @@ export default function SendCodesModal({ visible, onClose, layers, loadedArchive
   );
 }
 
-const styles = StyleSheet.create({
+const styles = skinStyles({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.95)',

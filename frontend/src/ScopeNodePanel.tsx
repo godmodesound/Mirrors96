@@ -4,6 +4,8 @@ import { WebView } from 'react-native-webview';
 import { AudioEngine, ScopeFrame } from './AudioEngine';
 import { chakraForFreq, mapOrbitGeometry, detectBeat } from './OrbitGeometry';
 
+import { skinStyles, SK, skinHtml } from './skins';
+
 // ═══════════════════════════════════════════════════════════
 // SCOPE // NODE — combined T-800 visualizer panel
 // One canvas, two faces. Tap SPIN to flip the scope over and
@@ -1257,6 +1259,8 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
   const baseFreq = frequencies[0] || 432;
 
   // ═══ ORBIT GEOMETRY — exact Tone + Orbit pair for the current preset/codes ═══
+  // Canvas markup re-colored for the active skin (tree remounts on skin change)
+  const skinnedHtml = useMemo(() => skinHtml(PANEL_HTML), []);
   const orbitInfo = useMemo(() => mapOrbitGeometry(baseFreq), [baseFreq]);
   const beatHz = useMemo(() => detectBeat(frequencies, scalarBeatHz), [frequencies, scalarBeatHz]);
 
@@ -1408,7 +1412,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
     return unsub;
   }, [pushWave]);
 
-  const color = view === 'NODE' ? '#ff0a0a' : MEDIUM_COLORS[medium];
+  const color = view === 'NODE' ? SK('#ff0a0a') : SK(MEDIUM_COLORS[medium]);
   const audioActive = livePeak > 1.5;
   const measuredValid = audioActive && measuredHz > 5;
 
@@ -1433,7 +1437,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
   return (
     <View style={st.wrap}>
       {/* ── T-800 header: SPIN toggle + readout ── */}
-      <View style={[st.headerBar, { borderColor: view === 'NODE' ? '#ff0a0a' : `${color}70` }]}>
+      <View style={[st.headerBar, { borderColor: view === 'NODE' ? SK('#ff0a0a') : `${color}70` }]}>
         {/* SPIN toggle switch */}
         <View style={st.spinSwitch}>
           <TouchableOpacity
@@ -1471,8 +1475,8 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
         </View>
 
         <View style={st.statePill}>
-          <View style={[st.stateDot, { backgroundColor: audioActive ? color : '#2a1010' }]} />
-          <Text style={[st.stateTxt, { color: audioActive ? color : '#5a646f' }]}>
+          <View style={[st.stateDot, { backgroundColor: audioActive ? color : SK('#2a1010') }]} />
+          <Text style={[st.stateTxt, { color: audioActive ? color : SK('#5a646f') }]}>
             {audioActive ? `${Math.min(100, Math.round((livePeak / 55) * 100))}%` : (playing || resonating ? 'ACT' : 'STBY')}
           </Text>
         </View>
@@ -1493,11 +1497,11 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
         <View style={st.faceRow}>
           <TouchableOpacity
             onPress={() => setAutoOrbit(o => !o)}
-            style={[st.cycler, { borderColor: autoOrbit ? orbitInfo.color : '#2a3340' }]}
+            style={[st.cycler, { borderColor: autoOrbit ? orbitInfo.color : SK('#2a3340') }]}
             activeOpacity={0.7}
           >
             <Text style={st.cyclerLabel}>ORB</Text>
-            <Text style={[st.cyclerVal, { color: autoOrbit ? orbitInfo.color : '#7d8794' }]} numberOfLines={1}>
+            <Text style={[st.cyclerVal, { color: autoOrbit ? orbitInfo.color : SK('#7d8794') }]} numberOfLines={1}>
               {autoOrbit ? `${orbitInfo.symbol} ${orbitInfo.planet}` : 'MANUAL'}
             </Text>
           </TouchableOpacity>
@@ -1507,11 +1511,11 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setGeoPickerOpen(o => !o)}
-            style={[st.cycler, { borderColor: geometries.size ? '#ff0a0a' : '#2a3340' }]}
+            style={[st.cycler, { borderColor: geometries.size ? SK('#ff0a0a') : SK('#2a3340') }]}
             activeOpacity={0.7}
           >
             <Text style={st.cyclerLabel}>GEO</Text>
-            <Text style={[st.cyclerVal, { color: geometries.size ? '#ff0a0a' : '#7d8794' }]}>
+            <Text style={[st.cyclerVal, { color: geometries.size ? SK('#ff0a0a') : SK('#7d8794') }]}>
               {autoOrbit ? `AUTO·${geoSummary}` : geoSummary}
             </Text>
           </TouchableOpacity>
@@ -1600,18 +1604,18 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
       )}
 
       {/* ── Shared flip canvas ── */}
-      <View style={[st.scope, { borderColor: view === 'NODE' ? '#3a4450' : `${color}40` }]}>
+      <View style={[st.scope, { borderColor: view === 'NODE' ? SK('#3a4450') : `${color}40` }]}>
         {Platform.OS === 'web' ? (
           React.createElement('iframe', {
             ref: iframeRef,
-            srcDoc: PANEL_HTML,
-            style: { width: '100%', height: '100%', border: 'none', backgroundColor: '#000' },
+            srcDoc: skinnedHtml,
+            style: { width: '100%', height: '100%', border: 'none', backgroundColor: SK('#000') },
             onLoad: () => pushConfig(fullConfig()),
           })
         ) : (
           <WebView
             ref={webRef}
-            source={{ html: PANEL_HTML }}
+            source={{ html: skinnedHtml }}
             style={st.webview}
             javaScriptEnabled
             scrollEnabled={false}
@@ -1624,7 +1628,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
   );
 }
 
-const st = StyleSheet.create({
+const st = skinStyles({
   wrap: { marginBottom: 16 },
   headerBar: {
     flexDirection: 'row',

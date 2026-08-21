@@ -12,6 +12,8 @@ import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
 import CodesLabShared, { loadFrequencyToLab } from '../src/CodesLabShared';
 
+import { skinStyles, SK } from '../src/skins';
+
 // ═══ EVIDENCE-BASED UX PRIMITIVES ═══
 // Doherty <400ms: fire haptic + visual pulse on any user tap.
 // Fitts's Law: primary tap target ≥ 48pt height.
@@ -360,7 +362,7 @@ export default function LibraryScreen() {
           <TextInput
             style={s.searchInput}
             placeholder="Search conditions, frequencies..."
-            placeholderTextColor="#3a1010"
+            placeholderTextColor={SK('#3a1010')}
             value={searchQuery}
             onChangeText={(t) => { setSearchQuery(t); tick(); }}
             returnKeyType="search"
@@ -589,7 +591,7 @@ export default function LibraryScreen() {
 // STYLES — VATICAN ARCHIVE AESTHETIC
 // ═══════════════════════════════════════════════
 
-const s = StyleSheet.create({
+const s = skinStyles({
   container: { flex: 1, backgroundColor: '#000' },
   safeArea: { flex: 1 },
 

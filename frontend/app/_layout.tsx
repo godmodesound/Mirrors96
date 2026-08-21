@@ -9,9 +9,21 @@ import { AuthProvider } from '../src/AuthContext';
 import { GoogleAuthProvider } from '../src/GoogleAuthContext';
 import MobiusTabBar from '../src/MobiusTabBar';
 
+import { skinStyles, SK, SkinProvider, useSkin } from '../src/skins';
+import SkinPicker from '../src/skins/SkinPicker';
+
 // No floating button — PTT is seamlessly integrated in Mirrors ID section
 
 export default function Layout() {
+  return (
+    <SkinProvider>
+      <RootLayout />
+    </SkinProvider>
+  );
+}
+
+function RootLayout() {
+  const { skin, epoch } = useSkin();
   const [fontsLoaded] = useFonts({
     'TerminatorRealNFI': require('../assets/fonts/TerminatorRealNFI.ttf'),
   });
@@ -19,8 +31,8 @@ export default function Layout() {
   if (!fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#000000" />
-        <ActivityIndicator size="large" color="#ff0a0a" />
+        <StatusBar barStyle="light-content" backgroundColor={SK('#000000')} />
+        <ActivityIndicator size="large" color={SK('#ff0a0a')} />
       </View>
     );
   }
@@ -29,8 +41,9 @@ export default function Layout() {
     <GoogleAuthProvider>
     <AuthProvider>
     <AudioBridgeProvider>
-      <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#000000" />
+      {/* `epoch` remounts the screen tree so every sheet repaints with the new skin */}
+      <View style={styles.container} key={`skin-${epoch}`}>
+        <StatusBar barStyle={skin.light ? 'dark-content' : 'light-content'} backgroundColor={SK('#000000')} />
         <Tabs
           tabBar={(props) => <MobiusTabBar {...props} />}
           screenOptions={{
@@ -130,13 +143,16 @@ export default function Layout() {
           />
         </Tabs>
       </View>
+      {/* Hidden skin selector — lives outside the keyed tree so it stays open
+          while the app repaints behind it. */}
+      <SkinPicker />
     </AudioBridgeProvider>
     </AuthProvider>
     </GoogleAuthProvider>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = skinStyles({
   loadingContainer: {
     flex: 1,
     backgroundColor: '#000000',

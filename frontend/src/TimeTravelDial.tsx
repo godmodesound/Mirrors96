@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { WebView } from 'react-native-webview';
 import { AudioEngine } from './AudioEngine';
 
+import { skinStyles, SK, skinHtml } from './skins';
+
 // ═══════════════════════════════════════════════════════════════
 // TIME TRAVEL DIAL — MIRROR CUBES // BRAIN
 //
@@ -314,7 +316,7 @@ export default function TimeTravelDial({ emission }: Props) {
       </View>
 
       {/* ── Temporal Resonator input strip — live cube emissions ── */}
-      <View style={[st.resStrip, lock && { borderColor: lock.color, backgroundColor: '#02060c' }]}>
+      <View style={[st.resStrip, lock && { borderColor: lock.color, backgroundColor: SK('#02060c') }]}>
         {lock ? (
           <>
             <View style={[st.resDot, { backgroundColor: lock.color, shadowColor: lock.color, shadowOpacity: 0.9, shadowRadius: 5 }]} />
@@ -348,14 +350,14 @@ export default function TimeTravelDial({ emission }: Props) {
         {Platform.OS === 'web' ? (
           React.createElement('iframe', {
             ref: iframeRef,
-            srcDoc: html,
-            style: { width: '100%', height: '100%', border: 'none', backgroundColor: '#000' },
+            srcDoc: skinHtml(html),
+            style: { width: '100%', height: '100%', border: 'none', backgroundColor: SK('#000') },
             onLoad: () => send({ year, color: stage.color, depth: stage.eckashaDepth, spin, stageStart: stage.start, stageEnd: stage.end, progress }),
           })
         ) : (
           <WebView
             ref={webRef}
-            source={{ html }}
+            source={{ html: skinHtml(html) }}
             style={st.webview}
             javaScriptEnabled
             scrollEnabled={false}
@@ -372,7 +374,7 @@ export default function TimeTravelDial({ emission }: Props) {
       </View>
 
       {/* ── Sacred-node readout — active frequency-response node ── */}
-      <View style={[st.nodeStrip, nodeSel && { borderColor: stage.color, backgroundColor: '#04080c' }]}>
+      <View style={[st.nodeStrip, nodeSel && { borderColor: stage.color, backgroundColor: SK('#04080c') }]}>
         {nodeSel ? (
           <>
             <Text style={[st.nodeTag, { color: stage.color }]}>◉ NODE {nodeSel.idx + 1}/12</Text>
@@ -401,7 +403,7 @@ export default function TimeTravelDial({ emission }: Props) {
             onPress={togglePlay}
             activeOpacity={0.75}
           >
-            <Text style={[st.playGlyph, playing && { color: '#000' }]}>{playing ? '◼' : '▶'}</Text>
+            <Text style={[st.playGlyph, playing && { color: SK('#000') }]}>{playing ? '◼' : '▶'}</Text>
           </TouchableOpacity>
         </View>
         <Text style={[st.stageGeometry, { color: stage.color }]}>◈ {stage.geometry}</Text>
@@ -523,7 +525,7 @@ export default function TimeTravelDial({ emission }: Props) {
           onPress={() => setSpin(s => !s)}
           activeOpacity={0.75}
         >
-          <Text style={[st.spinTxt, spin && { color: '#000' }]}>{spin ? '◈ SPIN ON' : '◇ SPIN OFF'}</Text>
+          <Text style={[st.spinTxt, spin && { color: SK('#000') }]}>{spin ? '◈ SPIN ON' : '◇ SPIN OFF'}</Text>
         </TouchableOpacity>
         <Text style={st.hint}>◈ 6 TIME VECTORS = 1 TIME CONTINUUM</Text>
       </View>
@@ -531,7 +533,7 @@ export default function TimeTravelDial({ emission }: Props) {
   );
 }
 
-const st = StyleSheet.create({
+const st = skinStyles({
   wrap: {
     borderWidth: 1,
     borderColor: '#0a2a0a',

@@ -9,6 +9,8 @@ import { Audio } from 'expo-av';
 import Constants from 'expo-constants';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
 
+import { skinStyles, SK } from '../src/skins';
+
 const API_URL =
   Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL ||
   process.env.EXPO_PUBLIC_BACKEND_URL || '';
@@ -230,8 +232,8 @@ export default function StoreScreen() {
                   {album.cover_url ? (
                     <Image source={{ uri: album.cover_url }} style={styles.albumCover} resizeMode="cover" />
                   ) : (
-                    <View style={[styles.albumCover, { backgroundColor: '#1a0808', justifyContent: 'center', alignItems: 'center' }]}>
-                      <Text style={{ color: '#ff0a0a', fontSize: 8 }}>{album.name}</Text>
+                    <View style={[styles.albumCover, { backgroundColor: SK('#1a0808'), justifyContent: 'center', alignItems: 'center' }]}>
+                      <Text style={{ color: SK('#ff0a0a'), fontSize: 8 }}>{album.name}</Text>
                     </View>
                   )}
                 </View>
@@ -318,7 +320,7 @@ export default function StoreScreen() {
         <TextInput
           style={styles.emailInput}
           placeholder="EMAIL ADDRESS"
-          placeholderTextColor="#5a1a1a"
+          placeholderTextColor={SK('#5a1a1a')}
           value={libraryEmail}
           onChangeText={setLibraryEmail}
           keyboardType="email-address"
@@ -326,7 +328,7 @@ export default function StoreScreen() {
         />
         <TouchableOpacity style={styles.vaultSearchBtn} onPress={fetchLibrary}>
           {libraryLoading ? (
-            <ActivityIndicator color="#ff0a0a" size="small" />
+            <ActivityIndicator color={SK('#ff0a0a')} size="small" />
           ) : (
             <Text style={styles.vaultSearchText}>ACCESS</Text>
           )}
@@ -386,7 +388,7 @@ export default function StoreScreen() {
           <TextInput
             style={styles.emailInput}
             placeholder="ADMIN PASSWORD"
-            placeholderTextColor="#5a1a1a"
+            placeholderTextColor={SK('#5a1a1a')}
             value={adminPass}
             onChangeText={setAdminPass}
             secureTextEntry
@@ -431,7 +433,7 @@ export default function StoreScreen() {
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color="#ff0a0a" />
+        <ActivityIndicator size="large" color={SK('#ff0a0a')} />
       </View>
     );
   }
@@ -451,7 +453,7 @@ export default function StoreScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = skinStyles({
   container: { flex: 1, backgroundColor: '#000' },
   safeArea: { flex: 1 },
   loadingContainer: { justifyContent: 'center', alignItems: 'center' },

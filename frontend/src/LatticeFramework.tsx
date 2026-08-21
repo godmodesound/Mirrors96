@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 
+import { skinStyles, SK } from './skins';
+
 // ══════════════════════════════════════════════════════════════
 // LATTICE FRAMEWORK — "The Lattice That Binds All Dimensions"
 //
@@ -141,13 +143,13 @@ export default function LatticeFramework({ baseFreq }: Props) {
         <View style={st.eqBlock}>
           <Text style={st.eqPsi}>Ψ</Text>
           <Text style={st.eqEq}>=</Text>
-          <Text style={[st.eqTerm, { color: '#7fd4ff' }]}>I</Text>
+          <Text style={[st.eqTerm, { color: SK('#7fd4ff') }]}>I</Text>
           <Text style={st.eqDot}>·</Text>
-          <Text style={[st.eqTerm, { color: '#ff2a5e' }]}>E</Text>
+          <Text style={[st.eqTerm, { color: SK('#ff2a5e') }]}>E</Text>
           <Text style={st.eqDot}>×</Text>
-          <Text style={[st.eqTerm, { color: '#5aff8a' }]}>G</Text>
+          <Text style={[st.eqTerm, { color: SK('#5aff8a') }]}>G</Text>
           <Text style={st.eqDot}>×</Text>
-          <Text style={[st.eqTerm, { color: '#c56aff' }]}>S</Text>
+          <Text style={[st.eqTerm, { color: SK('#c56aff') }]}>S</Text>
         </View>
         <Text style={st.chev}>{open ? '▾' : '▸'}</Text>
       </TouchableOpacity>
@@ -167,9 +169,9 @@ export default function LatticeFramework({ baseFreq }: Props) {
           <Text style={[st.focusPillLbl, { color: focus.ENRG.color }]}>ENRG</Text>
           <Text style={[st.focusPillVal, { color: focus.ENRG.color }]}>{focus.ENRG.name.split(' ')[0]}</Text>
         </View>
-        <View style={[st.focusPill, { borderColor: '#e8c87d' }]}>
-          <Text style={[st.focusPillLbl, { color: '#e8c87d' }]}>GEO</Text>
-          <Text style={[st.focusPillVal, { color: '#e8c87d' }]}>{focus.GEO.name.split(' ')[0]}</Text>
+        <View style={[st.focusPill, { borderColor: SK('#e8c87d') }]}>
+          <Text style={[st.focusPillLbl, { color: SK('#e8c87d') }]}>GEO</Text>
+          <Text style={[st.focusPillVal, { color: SK('#e8c87d') }]}>{focus.GEO.name.split(' ')[0]}</Text>
         </View>
         <View style={[st.focusPill, { borderColor: focus.FRC.color }]}>
           <Text style={[st.focusPillLbl, { color: focus.FRC.color }]}>FRC</Text>
@@ -247,7 +249,7 @@ export default function LatticeFramework({ baseFreq }: Props) {
                 return (
                   <View key={row.key} style={[st.row, active && st.rowActive]}>
                     <Text style={st.rowKey}>{row.key}</Text>
-                    <Text style={[st.rowName, active && { color: '#e8c87d' }]}>{row.name}</Text>
+                    <Text style={[st.rowName, active && { color: SK('#e8c87d') }]}>{row.name}</Text>
                     <Text style={st.rowRole}>{row.role}</Text>
                   </View>
                 );
@@ -301,7 +303,7 @@ export default function LatticeFramework({ baseFreq }: Props) {
   );
 }
 
-const st = StyleSheet.create({
+const st = skinStyles({
   wrap: {
     borderWidth: 1,
     borderColor: '#2a1010',

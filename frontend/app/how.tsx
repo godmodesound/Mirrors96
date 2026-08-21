@@ -5,6 +5,8 @@ import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import DisclaimerFooter from '../src/DisclaimerFooter';
 import NinetySixGuide from '../src/NinetySixGuide';
 
+import { skinStyles, SK } from '../src/skins';
+
 // Chakra Colors
 const C = {
   root: '#E53935',      // Red
@@ -127,10 +129,10 @@ export default function HowScreen() {
                 Cymatics is the study of visible sound — how frequencies create geometric patterns in matter. When sound vibrates through water, sand, or cells, it creates specific shapes.
               </Text>
               <View style={styles.comparisonRow}>
-                <View style={[styles.comparisonCell, { borderColor: '#5a1a1a' }]}>
+                <View style={[styles.comparisonCell, { borderColor: SK('#5a1a1a') }]}>
                   <Text style={styles.compBadIcon}>X</Text>
-                  <Text style={[styles.compTitle, { color: '#993333' }]}>DISHARMONIC</Text>
-                  <Text style={[styles.compDesc, { color: '#662222' }]}>Chaotic, irregular patterns — illness, pain, emotional distress</Text>
+                  <Text style={[styles.compTitle, { color: SK('#993333') }]}>DISHARMONIC</Text>
+                  <Text style={[styles.compDesc, { color: SK('#662222') }]}>Chaotic, irregular patterns — illness, pain, emotional distress</Text>
                 </View>
                 <View style={[styles.comparisonCell, { borderColor: C.heart }]}>
                   <Text style={[styles.compGoodIcon, { color: C.heart }]}>+</Text>
@@ -250,15 +252,15 @@ export default function HowScreen() {
                 For thousands of years, humans have known that sound shapes experience. MIRRORS is a return to intentional listening.
               </Text>
               <View style={styles.benefitsRow}>
-                <View style={[styles.benefitCell, { borderColor: '#5a1a1a' }]}>
+                <View style={[styles.benefitCell, { borderColor: SK('#5a1a1a') }]}>
                   <Text style={styles.benefitBadIcon}>X</Text>
-                  <Text style={[styles.benefitLabel, { color: '#993333' }]}>NO SIDE EFFECTS</Text>
-                  <Text style={[styles.benefitDesc, { color: '#662222' }]}>Unlike drugs that poison your system</Text>
+                  <Text style={[styles.benefitLabel, { color: SK('#993333') }]}>NO SIDE EFFECTS</Text>
+                  <Text style={[styles.benefitDesc, { color: SK('#662222') }]}>Unlike drugs that poison your system</Text>
                 </View>
-                <View style={[styles.benefitCell, { borderColor: '#5a1a1a' }]}>
+                <View style={[styles.benefitCell, { borderColor: SK('#5a1a1a') }]}>
                   <Text style={styles.benefitBadIcon}>X</Text>
-                  <Text style={[styles.benefitLabel, { color: '#993333' }]}>NO SURGERY</Text>
-                  <Text style={[styles.benefitDesc, { color: '#662222' }]}>No cutting into your body</Text>
+                  <Text style={[styles.benefitLabel, { color: SK('#993333') }]}>NO SURGERY</Text>
+                  <Text style={[styles.benefitDesc, { color: SK('#662222') }]}>No cutting into your body</Text>
                 </View>
                 <View style={[styles.benefitCell, { borderColor: C.heart + '40' }]}>
                   <Text style={[styles.benefitGoodIcon, { color: C.heart }]}>+</Text>
@@ -516,7 +518,7 @@ export default function HowScreen() {
 
 const F = 'TerminatorRealNFI';
 
-const styles = StyleSheet.create({
+const styles = skinStyles({
   container: { flex: 1, backgroundColor: '#000000' },
   safeArea: { flex: 1 },
   scrollView: { flex: 1, paddingHorizontal: 16 },

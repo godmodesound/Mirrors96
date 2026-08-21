@@ -15,6 +15,8 @@ import { WebView } from 'react-native-webview';
 import { AudioEngine } from '../src/AudioEngine';
 import ScopeNodePanel from '../src/ScopeNodePanel';
 
+import { skinStyles, SK, skinHtml } from '../src/skins';
+
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CANVAS_SIZE = Math.min(SCREEN_WIDTH - 32, 360);
 
@@ -670,11 +672,11 @@ export default function BinauralScreen() {
   };
 
   const getBrainwaveState = () => {
-    if (beatFreq <= 4) return { name: 'DELTA', color: '#0088ff' };
-    if (beatFreq <= 8) return { name: 'THETA', color: '#6644ff' };
-    if (beatFreq <= 13) return { name: 'ALPHA', color: '#00ffaa' };
-    if (beatFreq <= 30) return { name: 'BETA', color: '#ffaa00' };
-    return { name: 'GAMMA', color: '#ff4400' };
+    if (beatFreq <= 4) return { name: 'DELTA', color: SK('#0088ff') };
+    if (beatFreq <= 8) return { name: 'THETA', color: SK('#6644ff') };
+    if (beatFreq <= 13) return { name: 'ALPHA', color: SK('#00ffaa') };
+    if (beatFreq <= 30) return { name: 'BETA', color: SK('#ffaa00') };
+    return { name: 'GAMMA', color: SK('#ff4400') };
   };
 
   const brainwave = getBrainwaveState();
@@ -702,20 +704,20 @@ export default function BinauralScreen() {
           <View style={[styles.canvasContainer, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}>
             {Platform.OS === 'web' ? (
               <iframe
-                srcDoc={HEAD_MODEL_HTML}
+                srcDoc={skinHtml(HEAD_MODEL_HTML)}
                 style={{
                   width: CANVAS_SIZE,
                   height: CANVAS_SIZE,
                   border: 'none',
-                  backgroundColor: '#000',
+                  backgroundColor: SK('#000'),
                   borderRadius: 8,
                 }}
               />
             ) : (
               <WebView
                 ref={webViewRef}
-                source={{ html: HEAD_MODEL_HTML }}
-                style={{ width: CANVAS_SIZE, height: CANVAS_SIZE, backgroundColor: '#000' }}
+                source={{ html: skinHtml(HEAD_MODEL_HTML) }}
+                style={{ width: CANVAS_SIZE, height: CANVAS_SIZE, backgroundColor: SK('#000') }}
                 scrollEnabled={false}
                 bounces={false}
                 onMessage={handleWebViewMessage}
@@ -805,7 +807,7 @@ export default function BinauralScreen() {
                 <Text style={styles.sliderBtnText}>−</Text>
               </TouchableOpacity>
               <View style={styles.sliderBarWrap}>
-                <View style={[styles.sliderBarFill, { width: `${((beatFreq - 0.5) / 39.5) * 100}%`, backgroundColor: '#ff3040' }]} />
+                <View style={[styles.sliderBarFill, { width: `${((beatFreq - 0.5) / 39.5) * 100}%`, backgroundColor: SK('#ff3040') }]} />
               </View>
               <TouchableOpacity
                 style={styles.sliderPlus}
@@ -827,7 +829,7 @@ export default function BinauralScreen() {
                 <Text style={styles.sliderBtnText}>−</Text>
               </TouchableOpacity>
               <View style={styles.sliderBarWrap}>
-                <View style={[styles.sliderBarFill, { width: `${((duration - 1) / 59) * 100}%`, backgroundColor: '#880505' }]} />
+                <View style={[styles.sliderBarFill, { width: `${((duration - 1) / 59) * 100}%`, backgroundColor: SK('#880505') }]} />
               </View>
               <TouchableOpacity
                 style={styles.sliderPlus}
@@ -898,7 +900,7 @@ export default function BinauralScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = skinStyles({
   container: { flex: 1, backgroundColor: '#000' },
   safeArea: { flex: 1 },
   scrollView: { flex: 1, paddingHorizontal: 16 },

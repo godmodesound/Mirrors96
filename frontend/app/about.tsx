@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import DisclaimerFooter from '../src/DisclaimerFooter';
 
+import { skinStyles } from '../src/skins';
+
 const F = 'TerminatorRealNFI';
 
 export default function AboutScreen() {
@@ -81,7 +83,7 @@ export default function AboutScreen() {
   );
 }
 
-const st = StyleSheet.create({
+const st = skinStyles({
   container: { flex: 1, backgroundColor: '#000' },
   scroll: { flex: 1, paddingHorizontal: 20 },
   backBtn: { paddingVertical: 12 },

@@ -16,6 +16,8 @@ import { FrequencyMap } from '../src/FrequencyMap';
 import ElementCube, { ResonatorEmission } from '../src/ElementCube';
 import TimeTravelDial from '../src/TimeTravelDial';
 
+import { skinStyles } from '../src/skins';
+
 const { width } = Dimensions.get('window');
 
 interface MoodState {
@@ -165,7 +167,7 @@ export default function MoodsScreen() {
 
 const cardWidth = (width - 48) / 2;
 
-const styles = StyleSheet.create({
+const styles = skinStyles({
   container: { flex: 1, backgroundColor: '#000000' },
   safeArea: { flex: 1 },
   scrollView: { flex: 1, paddingHorizontal: 16 },

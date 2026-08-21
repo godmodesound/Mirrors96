@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { WebView } from 'react-native-webview';
 import { AudioEngine, ScopeFrame } from './AudioEngine';
 
+import { skinStyles, SK, skinHtml } from './skins';
+
 // ═══════════════════════════════════════════════════════════
 // CYMATIC HYBRID OSCILLOSCOPE — audio-reactive master-bus visualizer
 // 2 axes:
@@ -484,20 +486,20 @@ export default function CymaticScope({ frequencies, playing }: Props) {
           )}
         </View>
         <TouchableOpacity onPress={cycleMedium} style={[st.cycler, { borderColor: color }]} activeOpacity={0.7}>
-          <Text style={[st.cyclerLabel, { color: '#5a5a5a' }]}>MED</Text>
+          <Text style={[st.cyclerLabel, { color: SK('#5a5a5a') }]}>MED</Text>
           <Text style={[st.cyclerVal, { color }]}>{medium}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setGeoPickerOpen(o => !o)}
-          style={[st.cycler, { borderColor: geometries.size ? '#ff0a0a' : '#3a1a1a' }]}
+          style={[st.cycler, { borderColor: geometries.size ? SK('#ff0a0a') : SK('#3a1a1a') }]}
           activeOpacity={0.7}
         >
-          <Text style={[st.cyclerLabel, { color: '#5a5a5a' }]}>GEO</Text>
-          <Text style={[st.cyclerVal, { color: geometries.size ? '#ff0a0a' : '#8a4a4a' }]}>{geoSummary}</Text>
+          <Text style={[st.cyclerLabel, { color: SK('#5a5a5a') }]}>GEO</Text>
+          <Text style={[st.cyclerVal, { color: geometries.size ? SK('#ff0a0a') : SK('#8a4a4a') }]}>{geoSummary}</Text>
         </TouchableOpacity>
         <View style={st.statePill}>
-          <View style={[st.stateDot, { backgroundColor: audioActive ? color : '#3a1010' }]} />
-          <Text style={[st.stateTxt, { color: audioActive ? color : '#5a5a5a' }]}>
+          <View style={[st.stateDot, { backgroundColor: audioActive ? color : SK('#3a1010') }]} />
+          <Text style={[st.stateTxt, { color: audioActive ? color : SK('#5a5a5a') }]}>
             {audioActive ? `${Math.round((livePeak / 128) * 100)}%` : (playing ? 'ACT' : 'STBY')}
           </Text>
         </View>
@@ -521,14 +523,14 @@ export default function CymaticScope({ frequencies, playing }: Props) {
         {Platform.OS === 'web' ? (
           React.createElement('iframe', {
             ref: iframeRef,
-            srcDoc: SCOPE_HTML,
-            style: { width: '100%', height: '100%', border: 'none', backgroundColor: '#000' },
+            srcDoc: skinHtml(SCOPE_HTML),
+            style: { width: '100%', height: '100%', border: 'none', backgroundColor: SK('#000') },
             onLoad: () => pushConfig({ freqs: frequencies, playing, medium, geometries: Array.from(geometries) }),
           })
         ) : (
           <WebView
             ref={webRef}
-            source={{ html: SCOPE_HTML }}
+            source={{ html: skinHtml(SCOPE_HTML) }}
             style={st.webview}
             javaScriptEnabled
             scrollEnabled={false}
@@ -541,7 +543,7 @@ export default function CymaticScope({ frequencies, playing }: Props) {
   );
 }
 
-const st = StyleSheet.create({
+const st = skinStyles({
   wrap: { marginBottom: 16 },
   headerBar: {
     flexDirection: 'row',

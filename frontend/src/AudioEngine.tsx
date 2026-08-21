@@ -2,6 +2,8 @@ import React, { useRef, useCallback, useEffect, useState } from 'react';
 import { Platform, View, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 
+import { skinStyles, SK } from './skins';
+
 // HTML content for the hidden WebView that runs Web Audio API
 const AUDIO_BRIDGE_HTML = `
 <!DOCTYPE html>
@@ -1309,7 +1311,7 @@ export const AudioBridgeProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#000000' }}>
+    <View style={{ flex: 1, backgroundColor: SK('#000000') }}>
       <View style={styles.hiddenWebViewContainer}>
         <WebView
           ref={wvRef}
@@ -1327,7 +1329,7 @@ export const AudioBridgeProvider: React.FC<{ children: React.ReactNode }> = ({ c
   );
 };
 
-const styles = StyleSheet.create({
+const styles = skinStyles({
   hiddenWebViewContainer: {
     position: 'absolute',
     top: -1,

@@ -2,6 +2,8 @@ import React from 'react';
 import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { skinStyles, SK } from './skins';
+
 // 7 chakras mapped to tabs — cymatic sacred geometry icons + traditional colors
 const TABS = [
   { icon: '◆', label: 'HOME', color: '#E0301E' },
@@ -44,7 +46,7 @@ export default function MobiusTabBar({ state, descriptors, navigation }: Props) 
               <Text
                 style={[
                   styles.icon,
-                  { color: active ? '#ff0a0a' : tab.color },
+                  { color: active ? SK('#ff0a0a') : SK(tab.color) },
                 ]}
               >
                 {tab.icon}
@@ -52,7 +54,7 @@ export default function MobiusTabBar({ state, descriptors, navigation }: Props) 
               <Text
                 style={[
                   styles.label,
-                  { color: active ? '#ff0a0a' : tab.color, opacity: active ? 1 : 0.6 },
+                  { color: active ? SK('#ff0a0a') : SK(tab.color), opacity: active ? 1 : 0.6 },
                 ]}
               >
                 {tab.label}
@@ -66,7 +68,7 @@ export default function MobiusTabBar({ state, descriptors, navigation }: Props) 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = skinStyles({
   bar: {
     backgroundColor: '#000000',
   },

@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
+import { skinStyles } from './skins';
+
 // ═══════════════════════════════════════════════════════════
 // FULL ELECTROMAGNETIC SPECTRUM METER (log10 scale, 10^0 → 10^21 Hz)
 // Display meter for the entire spectrum — audio window is the only
@@ -69,7 +71,7 @@ export const AudioMeterScale = () => (
   </View>
 );
 
-const st = StyleSheet.create({
+const st = skinStyles({
   wrap: { marginBottom: 8 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 },
   title: { color: '#ff0a0a', fontSize: 7, fontWeight: '900', letterSpacing: 2 },

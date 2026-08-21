@@ -2,11 +2,13 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { useGoogleAuth } from './GoogleAuthContext';
 
+import { skinStyles, SK } from './skins';
+
 export default function GoogleSignInButton({ mirrorsId }: { mirrorsId?: string }) {
   const { googleUser, googleLoading, signInWithGoogle, signOutGoogle } = useGoogleAuth();
 
   if (googleLoading) {
-    return <ActivityIndicator color="#ff0a0a" size="small" style={{ marginVertical: 12 }} />;
+    return <ActivityIndicator color={SK('#ff0a0a')} size="small" style={{ marginVertical: 12 }} />;
   }
 
   if (googleUser) {
@@ -41,7 +43,7 @@ export default function GoogleSignInButton({ mirrorsId }: { mirrorsId?: string }
   );
 }
 
-const st = StyleSheet.create({
+const st = skinStyles({
   btn: {
     flexDirection: 'row',
     alignItems: 'center',

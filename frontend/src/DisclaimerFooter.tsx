@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
+import { skinStyles } from './skins';
+
 export default function DisclaimerFooter() {
   return (
     <View style={st.wrap}>
@@ -12,7 +14,7 @@ export default function DisclaimerFooter() {
   );
 }
 
-const st = StyleSheet.create({
+const st = skinStyles({
   wrap: {
     paddingHorizontal: 20,
     paddingTop: 24,

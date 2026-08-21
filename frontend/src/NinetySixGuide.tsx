@@ -7,6 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetch as expoFetch } from 'expo/fetch';
 
+import { skinStyles, SK } from './skins';
+
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const SESSION_KEY = '@ninety_six_session';
 
@@ -173,7 +175,7 @@ export default function NinetySixGuide({ variant = 'fab' }: { variant?: 'fab' | 
               value={input}
               onChangeText={setInput}
               placeholder="Ask 96 anything…"
-              placeholderTextColor="#5a1a1a"
+              placeholderTextColor={SK('#5a1a1a')}
               multiline
               maxLength={800}
             />
@@ -182,7 +184,7 @@ export default function NinetySixGuide({ variant = 'fab' }: { variant?: 'fab' | 
               onPress={send}
               disabled={!input.trim() || streaming}
             >
-              {streaming ? <ActivityIndicator color="#000" size="small" /> : <Text style={st.sendText}>▶</Text>}
+              {streaming ? <ActivityIndicator color={SK('#000')} size="small" /> : <Text style={st.sendText}>▶</Text>}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -191,7 +193,7 @@ export default function NinetySixGuide({ variant = 'fab' }: { variant?: 'fab' | 
   );
 }
 
-const st = StyleSheet.create({
+const st = skinStyles({
   fab: {
     position: 'absolute',
     right: 16,

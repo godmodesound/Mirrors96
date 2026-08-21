@@ -2,6 +2,8 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, PanResponder, Animated } from 'react-native';
 import { AudioEngine } from './AudioEngine';
 
+import { skinStyles, SK } from './skins';
+
 // ═══════════════════════════════════════════════════════════
 // GM-96 SCALAR RESONATOR — Teenage Engineering-style panel.
 // Merged into CODES LAB. Frequency Sweep has been removed;
@@ -73,7 +75,7 @@ const TEKey = ({ label, active, onPress, color = '#ff0a0a', wide = false }: {
     onPress={onPress}
     activeOpacity={0.8}
   >
-    <Text style={[st.keyText, active && { color: '#000' }]}>{label}</Text>
+    <Text style={[st.keyText, active && { color: SK('#000') }]}>{label}</Text>
   </TouchableOpacity>
 );
 
@@ -134,20 +136,20 @@ function ScalarResonator() {
         </Text>
         <Animated.View
           style={[st.led, {
-            backgroundColor: led.interpolate({ inputRange: [0, 1], outputRange: ['#2a0a0a', '#ff0a0a'] }),
+            backgroundColor: led.interpolate({ inputRange: [0, 1], outputRange: [SK('#2a0a0a'), SK('#ff0a0a')] }),
           }]}
         />
       </View>
 
       <View style={st.knobRow}>
         <Knob label="CARRIER" value={carrier} min={20} max={2000} onChange={setCarrier} log />
-        <Knob label="PULSE" value={pulse} min={0.1} max={40} onChange={setPulse} accent="#ffd75e" />
-        <Knob label="FIELD" value={intensity} min={0} max={1} onChange={setIntensity} unit="" accent="#5fc9ff" />
+        <Knob label="PULSE" value={pulse} min={0.1} max={40} onChange={setPulse} accent={SK('#ffd75e')} />
+        <Knob label="FIELD" value={intensity} min={0} max={1} onChange={setIntensity} unit="" accent={SK('#5fc9ff')} />
       </View>
 
       <View style={st.keyRow}>
-        <TEKey label="7.83" active={Math.abs(pulse - 7.8) < 0.15} onPress={() => setPulse(7.8)} color="#ffd75e" />
-        <TEKey label="432" active={Math.abs(carrier - 432) < 0.5} onPress={() => setCarrier(432)} color="#5fc9ff" />
+        <TEKey label="7.83" active={Math.abs(pulse - 7.8) < 0.15} onPress={() => setPulse(7.8)} color={SK('#ffd75e')} />
+        <TEKey label="432" active={Math.abs(carrier - 432) < 0.5} onPress={() => setCarrier(432)} color={SK('#5fc9ff')} />
         <TEKey label={engaged ? '■ COLLAPSE' : '◈ ENGAGE'} active={engaged} onPress={engaged ? disengage : engage} wide />
       </View>
     </View>
@@ -164,7 +166,7 @@ export default function TEModules() {
 }
 
 // ═══════════════ TE STYLES ═══════════════
-const st = StyleSheet.create({
+const st = skinStyles({
   // Flush into CODES LAB flow — no separate box/border
   panel: {
     backgroundColor: 'transparent',

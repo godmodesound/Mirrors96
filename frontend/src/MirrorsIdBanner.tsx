@@ -2,6 +2,8 @@ import React from 'react';
 import { TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 
+import { skinStyles } from './skins';
+
 export default function MirrorsIdBanner() {
   const router = useRouter();
   return (
@@ -19,7 +21,7 @@ export default function MirrorsIdBanner() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = skinStyles({
   bannerWrap: {
     alignItems: 'center',
     paddingVertical: 6,

@@ -19,6 +19,8 @@ import { Audio } from 'expo-av';
 import Constants from 'expo-constants';
 import { ALBUMS, Album, Track } from '../src/AlbumData';
 
+import { skinStyles, SK } from '../src/skins';
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const API_URL =
   Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL ||
@@ -30,8 +32,8 @@ const AlbumCover = ({ uri, style }: { uri: string; style: any }) => {
 
   if (error) {
     return (
-      <View style={[style, { backgroundColor: '#1a0808', justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: '#ff0a0a', fontSize: 20 }}>◈</Text>
+      <View style={[style, { backgroundColor: SK('#1a0808'), justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: SK('#ff0a0a'), fontSize: 20 }}>◈</Text>
       </View>
     );
   }
@@ -189,8 +191,8 @@ export default function SoundScreen() {
 
           {/* Full Access Badge */}
           <View style={styles.previewBadge}>
-            <View style={[styles.previewDot, { backgroundColor: '#00ff00' }]} />
-            <Text style={[styles.previewBadgeText, { color: '#00ff00' }]}>FULL ACCESS · FREE STREAMING</Text>
+            <View style={[styles.previewDot, { backgroundColor: SK('#00ff00') }]} />
+            <Text style={[styles.previewBadgeText, { color: SK('#00ff00') }]}>FULL ACCESS · FREE STREAMING</Text>
           </View>
 
           {/* Quick Select */}
@@ -325,7 +327,7 @@ export default function SoundScreen() {
                       <Text style={styles.trackDuration}>{formatDuration(track.duration)}</Text>
                       <View style={styles.trackPlayBtn}>
                         {isLoading && isActive ? (
-                          <ActivityIndicator size="small" color="#ff0a0a" />
+                          <ActivityIndicator size="small" color={SK('#ff0a0a')} />
                         ) : (
                           <Text style={[styles.trackPlayIcon, isActive && styles.trackPlayIconActive]}>
                             {isActive ? '\u25a0' : '\u25b6'}
@@ -369,7 +371,7 @@ export default function SoundScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = skinStyles({
   container: { flex: 1, backgroundColor: '#000000' },
   safeArea: { flex: 1 },
   scrollView: { flex: 1, paddingHorizontal: 16 },

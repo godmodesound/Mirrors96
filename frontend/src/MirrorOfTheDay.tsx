@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform } from 'r
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FREQUENCY_ARCHIVE } from './FrequencyArchiveData';
 
+import { skinStyles, SK } from './skins';
+
 const STREAK_KEY = '@mirrors_streak';
 const LAST_LISTEN_KEY = '@mirrors_last_listen';
 const EMAIL_KEY = '@mirrors_email_captured';
@@ -129,7 +131,7 @@ export default function MirrorOfTheDay({ onLoadFrequency }: Props) {
           <TextInput
             style={st.emailInput}
             placeholder="Get tomorrow's mirror"
-            placeholderTextColor="#ffffff33"
+            placeholderTextColor={SK('#ffffff33')}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -148,7 +150,7 @@ export default function MirrorOfTheDay({ onLoadFrequency }: Props) {
   );
 }
 
-const st = StyleSheet.create({
+const st = skinStyles({
   card: {
     marginHorizontal: 8,
     marginTop: 14,

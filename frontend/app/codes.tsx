@@ -12,6 +12,8 @@ import { useAuth } from '../src/AuthContext';
 import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 
+import { skinStyles, SK } from '../src/skins';
+
 const API_URL =
   Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL ||
   process.env.EXPO_PUBLIC_BACKEND_URL || '';
@@ -689,7 +691,7 @@ export default function CodesScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={styles.msgTop}>
-                    <View style={[styles.msgDot, { backgroundColor: isPlaying ? '#ff0a0a' : isMine ? '#ff3040' : '#3a1010' }]} />
+                    <View style={[styles.msgDot, { backgroundColor: isPlaying ? SK('#ff0a0a') : isMine ? SK('#ff3040') : SK('#3a1010') }]} />
                     <Text style={[styles.msgName, isMine && styles.msgNameMine]}>{msg.sender_name}</Text>
                     <Text style={styles.msgTime}>{formatTimestamp(msg.created_at)}</Text>
                     {msg.status === 'delivered' && <Text style={styles.msgDelivered}>✓</Text>}
@@ -704,7 +706,7 @@ export default function CodesScreen() {
                           key={i}
                           style={[styles.waveBar, {
                             height: 3 + Math.sin(i * 0.6) * 10 + Math.random() * 3,
-                            backgroundColor: isPlaying ? '#ff0a0a' : isMine ? '#ff304060' : '#3a101060',
+                            backgroundColor: isPlaying ? SK('#ff0a0a') : isMine ? SK('#ff304060') : SK('#3a101060'),
                           }]}
                         />
                       ))}
@@ -735,7 +737,7 @@ export default function CodesScreen() {
           )}
           {isTransmitting && (
             <View style={styles.recBar}>
-              <ActivityIndicator size="small" color="#ff0a0a" />
+              <ActivityIndicator size="small" color={SK('#ff0a0a')} />
               <Text style={styles.recText}>SENDING...</Text>
             </View>
           )}
@@ -799,7 +801,7 @@ export default function CodesScreen() {
                   <TextInput
                     style={styles.adminInput}
                     placeholder="USERNAME"
-                    placeholderTextColor="#3a1010"
+                    placeholderTextColor={SK('#3a1010')}
                     value={inviteUsername}
                     onChangeText={setInviteUsername}
                     autoCapitalize="none"
@@ -859,7 +861,7 @@ export default function CodesScreen() {
         <TextInput
           style={styles.createInput}
           placeholder="ENTER NAME"
-          placeholderTextColor="#3a1010"
+          placeholderTextColor={SK('#3a1010')}
           value={newChannelName}
           onChangeText={setNewChannelName}
           maxLength={32}
@@ -889,7 +891,7 @@ export default function CodesScreen() {
           disabled={adminLoading || !newChannelName.trim()}
         >
           {adminLoading ? (
-            <ActivityIndicator color="#000" size="small" />
+            <ActivityIndicator color={SK('#000')} size="small" />
           ) : (
             <Text style={styles.createSubmitText}>CREATE CHANNEL</Text>
           )}
@@ -929,7 +931,7 @@ export default function CodesScreen() {
 // ═══════════════════════════════════════════════
 // STYLES
 // ═══════════════════════════════════════════════
-const styles = StyleSheet.create({
+const styles = skinStyles({
   container: { flex: 1, backgroundColor: '#000' },
   safeArea: { flex: 1 },
 

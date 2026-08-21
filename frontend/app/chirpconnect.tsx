@@ -35,6 +35,8 @@ import { FREQUENCY_ARCHIVE } from '../src/FrequencyArchiveData';
 import { AudioEngine } from '../src/AudioEngine';
 import GoogleSignInButton from '../src/GoogleSignInButton';
 
+import { skinStyles, SK } from '../src/skins';
+
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // ═══════════════════════════════════════════════════════════
@@ -942,7 +944,7 @@ export default function ChirpConnect() {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#ff0a0a" />
+          <ActivityIndicator size="large" color={SK('#ff0a0a')} />
           <Text style={styles.loadingText}>{isRegistering ? 'GENERATING MIRRORS I.D...' : 'INITIALIZING...'}</Text>
         </View>
       </View>
@@ -1286,7 +1288,7 @@ export default function ChirpConnect() {
               value={editName}
               onChangeText={setEditName}
               placeholder="Display name"
-              placeholderTextColor="#5a1a1a"
+              placeholderTextColor={SK('#5a1a1a')}
               maxLength={24}
             />
             <Text style={styles.identityFieldLabel}>MIRRORS I.D. (4-10 LETTERS/NUMBERS)</Text>
@@ -1295,13 +1297,13 @@ export default function ChirpConnect() {
               value={editId}
               onChangeText={t => setEditId(t.toUpperCase())}
               placeholder="MIRRORS I.D."
-              placeholderTextColor="#5a1a1a"
+              placeholderTextColor={SK('#5a1a1a')}
               autoCapitalize="characters"
               maxLength={10}
             />
             <TouchableOpacity style={styles.identitySaveBtn} onPress={saveIdentity} disabled={isSavingIdentity}>
               {isSavingIdentity ? (
-                <ActivityIndicator color="#000" size="small" />
+                <ActivityIndicator color={SK('#000')} size="small" />
               ) : (
                 <Text style={styles.identitySaveText}>SAVE IDENTITY</Text>
               )}
@@ -1425,7 +1427,7 @@ export default function ChirpConnect() {
             <View style={styles.previewButtons}>
               <TouchableOpacity style={styles.previewSendBtn} onPress={sendChirp} disabled={isSending}>
                 {isSending ? (
-                  <ActivityIndicator size="small" color="#000" />
+                  <ActivityIndicator size="small" color={SK('#000')} />
                 ) : (
                   <Text style={styles.previewSendBtnText}>SEND MIRROR</Text>
                 )}
@@ -1446,7 +1448,7 @@ export default function ChirpConnect() {
             <TextInput
               style={styles.addContactInput}
               placeholder="Enter MIRRORS I.D."
-              placeholderTextColor="#5a1a1a"
+              placeholderTextColor={SK('#5a1a1a')}
               value={newContactId}
               onChangeText={setNewContactId}
               autoCapitalize="characters"
@@ -1454,7 +1456,7 @@ export default function ChirpConnect() {
             />
             <TouchableOpacity style={styles.addContactLookupBtn} onPress={lookupContact} disabled={isLookingUp}>
               {isLookingUp ? (
-                <ActivityIndicator size="small" color="#ff0a0a" />
+                <ActivityIndicator size="small" color={SK('#ff0a0a')} />
               ) : (
                 <Text style={styles.addContactLookupText}>LOOKUP</Text>
               )}
@@ -1502,7 +1504,7 @@ export default function ChirpConnect() {
               <TextInput
                 style={styles.freqSearchInput}
                 placeholder="Search frequencies..."
-                placeholderTextColor="#5a1a1a"
+                placeholderTextColor={SK('#5a1a1a')}
                 value={codesSearchQuery}
                 onChangeText={setCodesSearchQuery}
               />
@@ -1582,7 +1584,7 @@ export default function ChirpConnect() {
 // ═══════════════════════════════════════════════════════════════
 // STYLES
 // ═══════════════════════════════════════════════════════════════
-const styles = StyleSheet.create({
+const styles = skinStyles({
   container: { flex: 1, backgroundColor: '#000' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { color: '#ff0a0a', marginTop: 16, fontSize: 12, letterSpacing: 2 },
