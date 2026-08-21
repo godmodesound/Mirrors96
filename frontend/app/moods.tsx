@@ -15,6 +15,7 @@ import { AudioEngine } from '../src/AudioEngine';
 import { FrequencyMap } from '../src/FrequencyMap';
 import ElementCube, { ResonatorEmission } from '../src/ElementCube';
 import TimeTravelDial from '../src/TimeTravelDial';
+import ChakraBodyMap from '../src/ChakraBodyMap';
 
 import { skinStyles } from '../src/skins';
 
@@ -136,6 +137,11 @@ export default function MoodsScreen() {
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
         <MirrorsIdBanner />
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
+
+          {/* ═══ 13 CHAKRA BODY MAP — interactive version of the 13-key
+               chromatic scale ⟷ 13 body-centre chart (A=432). ═══ */}
+          <View style={{ height: 12 }} />
+          <ChakraBodyMap />
 
           {/* ═══ ELEMENT CUBE — interactive 3D periodic-table cube.
                Each facet plays its Cosmic-Octave audible frequency
