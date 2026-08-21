@@ -9,7 +9,6 @@ export interface Skin {
   id: string;
   index: string;      // 01..13
   name: string;
-  hero: string;       // Marvel reference
   pantone: string;    // Pantone reference of the accent
   accent: string;     // primary accent (replaces infrared)
   accent2: string;    // secondary accent (replaces greens/blues)
@@ -17,19 +16,19 @@ export interface Skin {
 }
 
 export const SKINS: Skin[] = [
-  { id: 'symbiote', index: '01', name: 'SYMBIOTE',   hero: 'VENOM',           pantone: 'PANTONE 11-0601 Bright White', accent: '#F2F0EB', accent2: '#6E5CA6', light: false },
-  { id: 't800',     index: '02', name: 'T-800',      hero: 'IRON MAN MK I',   pantone: 'PANTONE 199 C',                accent: '#E4002B', accent2: '#A2AAAD', light: false },
-  { id: 't1000',    index: '03', name: 'T-1000',     hero: 'SILVER SURFER',   pantone: 'PANTONE 544 C',                accent: '#A7C6DA', accent2: '#5B7F95', light: false },
-  { id: 'doom',     index: '04', name: 'DOOM',       hero: 'DOCTOR DOOM',     pantone: 'PANTONE 348 C',                accent: '#00843D', accent2: '#FF6A13', light: false },
-  { id: 'winter',   index: '05', name: 'WINTER',     hero: 'WINTER SOLDIER',  pantone: 'PANTONE 2925 C',               accent: '#009CDE', accent2: '#4B7A96', light: true  },
-  { id: 'ny96',     index: '06', name: 'NEW YORK 96', hero: 'SPIDER-MAN',     pantone: 'PANTONE 116 C',                accent: '#FFCD00', accent2: '#0057B8', light: false },
-  { id: 'chakra',   index: '07', name: 'CHAKRA',     hero: 'DOCTOR STRANGE',  pantone: 'PANTONE 266 C',                accent: '#753BBD', accent2: '#FFA300', light: false },
-  { id: 'y1950',    index: '08', name: '1950',       hero: 'CAPTAIN AMERICA', pantone: 'PANTONE 186 C',                accent: '#C8102E', accent2: '#003087', light: true  },
-  { id: 'y1960',    index: '09', name: '1960',       hero: 'X-MEN',           pantone: 'PANTONE 219 C',                accent: '#E10098', accent2: '#FFDD00', light: false },
-  { id: 'y1970',    index: '10', name: '1970',       hero: 'LUKE CAGE',       pantone: 'PANTONE 1385 C',               accent: '#C05131', accent2: '#84BD00', light: false },
-  { id: 'y1980',    index: '11', name: '1980',       hero: 'IRON MAN',        pantone: 'PANTONE 232 C',                accent: '#E0218A', accent2: '#00B5E2', light: false },
-  { id: 'y96',      index: '12', name: '96',         hero: 'MIRRORS',         pantone: 'PANTONE 179 C (INFRARED)',     accent: '#FF0A0A', accent2: '#FF0A0A', light: false },
-  { id: 'y2000',    index: '13', name: '2000',       hero: 'HULK',            pantone: 'PANTONE 375 C',                accent: '#97D700', accent2: '#A7B1B7', light: false },
+  { id: 'symbiote', index: '01', name: 'SYMBIOTE',           pantone: 'PANTONE 11-0601 Bright White', accent: '#F2F0EB', accent2: '#6E5CA6', light: false },
+  { id: 't800',     index: '02', name: 'T-800',   pantone: 'PANTONE 199 C',                accent: '#E4002B', accent2: '#A2AAAD', light: false },
+  { id: 't1000',    index: '03', name: 'T-1000',   pantone: 'PANTONE 544 C',                accent: '#A7C6DA', accent2: '#5B7F95', light: false },
+  { id: 'doom',     index: '04', name: 'DOOM',     pantone: 'PANTONE 348 C',                accent: '#00843D', accent2: '#FF6A13', light: false },
+  { id: 'winter',   index: '05', name: 'WINTER',  pantone: 'PANTONE 2925 C',               accent: '#009CDE', accent2: '#4B7A96', light: true  },
+  { id: 'ny96',     index: '06', name: 'NEW YORK 96',     pantone: 'PANTONE 116 C',                accent: '#FFCD00', accent2: '#0057B8', light: false },
+  { id: 'chakra',   index: '07', name: 'CHAKRA',  pantone: 'PANTONE 266 C',                accent: '#753BBD', accent2: '#FFA300', light: false },
+  { id: 'y1950',    index: '08', name: '1950', pantone: 'PANTONE 186 C',                accent: '#C8102E', accent2: '#003087', light: true  },
+  { id: 'y1960',    index: '09', name: '1960',           pantone: 'PANTONE 219 C',                accent: '#E10098', accent2: '#FFDD00', light: false },
+  { id: 'y1970',    index: '10', name: '1970',       pantone: 'PANTONE 1385 C',               accent: '#C05131', accent2: '#84BD00', light: false },
+  { id: 'y1980',    index: '11', name: '1980',        pantone: 'PANTONE 232 C',                accent: '#E0218A', accent2: '#00B5E2', light: false },
+  { id: 'y96',      index: '12', name: '96',         pantone: 'PANTONE 179 C (INFRARED)',     accent: '#FF0A0A', accent2: '#FF0A0A', light: false },
+  { id: 'y2000',    index: '13', name: '2000',            pantone: 'PANTONE 375 C',                accent: '#97D700', accent2: '#A7B1B7', light: false },
 ];
 
 export const DEFAULT_SKIN_ID = 'y96';

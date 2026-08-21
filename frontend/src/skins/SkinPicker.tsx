@@ -49,7 +49,6 @@ export default function SkinPicker({ visible, onClose }: Props) {
                   <View style={s.meta}>
                     <Text style={[s.name, on && s.txtOn]}>{sk.name}</Text>
                     <Text style={s.pantone}>{sk.pantone}</Text>
-                    <Text style={s.hero}>{sk.hero}</Text>
                   </View>
                   <Text style={[s.mark, on && s.txtOn]}>{on ? '●' : '○'}</Text>
                 </TouchableOpacity>
@@ -100,7 +99,6 @@ const s = skinStyles({
   meta: { flex: 1 },
   name: { color: '#ff3040', fontSize: 12, fontFamily: 'TerminatorRealNFI', letterSpacing: 1 },
   pantone: { color: '#5a1a1a', fontSize: 7, fontFamily: 'TerminatorRealNFI', marginTop: 3, letterSpacing: 0.5 },
-  hero: { color: '#3a1010', fontSize: 7, fontFamily: 'TerminatorRealNFI', marginTop: 2, letterSpacing: 1 },
   mark: { color: '#5a1a1a', fontSize: 12 },
   txtOn: { color: '#ff0a0a' },
   foot: { color: '#3a1010', fontSize: 7, fontFamily: 'TerminatorRealNFI', textAlign: 'center', marginTop: 4, marginBottom: 8, letterSpacing: 1 },
