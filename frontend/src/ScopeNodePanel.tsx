@@ -188,9 +188,16 @@ function drawVesica(R,rot,pal,env){
   circleAt(CX,CY,r*1.4);
 }
 function drawMerkaba(R,rot,pal,env){
-  ctx.strokeStyle=pal.glow;ctx.lineWidth=1.4;ctx.globalAlpha=0.6+env*0.4;
-  polygon(CX,CY,R*0.72,3,rot);
-  polygon(CX,CY,R*0.72,3,rot+Math.PI);
+  // THREE nested star tetrahedrons (each = 2 opposed triangles), phase-offset
+  var rads=[0.72,0.50,0.30], offs=[0,Math.PI/9,Math.PI/4.5];
+  for(var s=0;s<3;s++){
+    var rr=R*rads[s];
+    ctx.strokeStyle=pal.glow;
+    ctx.lineWidth=s===0?1.4:1.1;
+    ctx.globalAlpha=(0.6+env*0.4)*(s===0?1:(s===1?0.78:0.6));
+    polygon(CX,CY,rr,3,rot+offs[s]);
+    polygon(CX,CY,rr,3,rot+offs[s]+Math.PI);
+  }
   ctx.strokeStyle=pal.main;ctx.globalAlpha=0.3+env*0.4;
   circleAt(CX,CY,R*0.72);
   circleAt(CX,CY,R*0.32);
