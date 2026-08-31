@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
-import DisclaimerFooter from '../src/DisclaimerFooter';
 import { AudioEngine } from '../src/AudioEngine';
 import { FrequencyMap } from '../src/FrequencyMap';
 import ElementCube, { ResonatorEmission } from '../src/ElementCube';
@@ -164,7 +163,6 @@ export default function MoodsScreen() {
             />
           </View>
           <View style={{ height: 20 }} />
-          <DisclaimerFooter />
         </ScrollView>
       </View>
     </View>

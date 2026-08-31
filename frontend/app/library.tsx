@@ -9,7 +9,6 @@ import { useRouter } from 'expo-router';
 import { AudioEngine } from '../src/AudioEngine';
 import { FREQUENCY_ARCHIVE, FrequencyEntry } from '../src/FrequencyArchiveData';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
-import DisclaimerFooter from '../src/DisclaimerFooter';
 import CodesLabShared, { loadFrequencyToLab } from '../src/CodesLabShared';
 
 import { skinStyles, SK } from '../src/skins';
@@ -578,7 +577,6 @@ export default function LibraryScreen() {
                 </View>
               </View>
             )}
-            <DisclaimerFooter />
           </View>
         </View>
       </ScrollView>

@@ -28,7 +28,6 @@ import { Audio } from 'expo-av';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
-import DisclaimerFooter from '../src/DisclaimerFooter';
 import { FrequencyMap } from '../src/FrequencyMap';
 import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
 import ScopeNodePanel from '../src/ScopeNodePanel';
@@ -1386,7 +1385,6 @@ export default function TerminalScreen() {
               <TouchableOpacity onPress={() => router.push('/terms')}><Text style={styles.footerLinkText}>Terms</Text></TouchableOpacity>
             </View>
           </View>
-          <DisclaimerFooter />
 
           <View style={{ height: 20 }} />
         </ScrollView>

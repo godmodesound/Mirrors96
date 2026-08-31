@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import DisclaimerFooter from '../src/DisclaimerFooter';
 
 import { skinStyles } from '../src/skins';
 
@@ -75,7 +74,6 @@ export default function AboutScreen() {
           </View>
         </View>
 
-        <DisclaimerFooter />
 
         <Text style={st.copyright}>{'\u00A9'} {new Date().getFullYear()} GODMODE SOUND. All rights reserved.</Text>
       </ScrollView>

@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
-import DisclaimerFooter from '../src/DisclaimerFooter';
 import { Audio } from 'expo-av';
 import Constants from 'expo-constants';
 import { ALBUMS, Album, Track } from '../src/AlbumData';
@@ -364,7 +363,6 @@ export default function SoundScreen() {
             <Text style={styles.footerText}>SOUND • GODMODE SOUND • VINCE SINNOTT</Text>
           </View>
 
-          <DisclaimerFooter />
         </ScrollView>
       </View>
     </View>

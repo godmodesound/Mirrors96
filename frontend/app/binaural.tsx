@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
-import DisclaimerFooter from '../src/DisclaimerFooter';
 import { WebView } from 'react-native-webview';
 import { AudioEngine } from '../src/AudioEngine';
 import ScopeNodePanel from '../src/ScopeNodePanel';
@@ -893,7 +892,6 @@ export default function BinauralScreen() {
               visualizing the binaural beat convergence at the pineal center.
             </Text>
           </View>
-          <DisclaimerFooter />
         </ScrollView>
       </View>
     </View>

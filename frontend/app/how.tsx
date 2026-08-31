@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Linking, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
-import DisclaimerFooter from '../src/DisclaimerFooter';
 import NinetySixGuide from '../src/NinetySixGuide';
 
 import { skinStyles, SK } from '../src/skins';
@@ -506,7 +505,6 @@ export default function HowScreen() {
           </View>
 
           <View style={{ height: 20 }} />
-          <DisclaimerFooter />
 
           {/* last line of curiosity */}
           <NinetySixGuide variant="line" />

@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import DisclaimerFooter from '../src/DisclaimerFooter';
 
 import { skinStyles } from '../src/skins';
 
@@ -44,7 +43,6 @@ export default function PrivacyScreen() {
         <Text style={st.heading}>CONTACT</Text>
         <Text style={st.body}>For privacy inquiries: contact@godmodesound.com</Text>
 
-        <DisclaimerFooter />
       </ScrollView>
     </View>
   );
