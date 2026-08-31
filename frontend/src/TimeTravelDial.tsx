@@ -43,9 +43,15 @@ const STAGES: Stage[] = [
   { key: 's5', n: 5, name: 'REISHA KRYSTARA', start: 3233, end: 3333, geometry: 'STAAH-LEi-YAS (6-VEC)', glyph: '✦', color: '#c56aff', chord: [111, 963, 432],      narrative: 'Celestialing Vapor · Enter Adashi 1',   eckashaDepth: 5 },
 ];
 
-const MIN_YEAR = 1985; // Back-to-the-Future reference floor
+const MIN_YEAR = 1913; // timeline floor — first WARP marker year
 const MAX_YEAR = 3333;
 const DEFAULT_YEAR = 2026;
+
+// ── WARP markers — the exact timeline years the dial jumps to ──
+const WARP_YEARS = [
+  1913, 1933, 1946, 1950, 1960, 1977, 1984, 1990, 1996,
+  1997, 1999, 2000, 2004, 2008, 2013, 2019, 2020, 2026, 2029,
+];
 
 function stageForYear(y: number): Stage {
   // Snap to the nearest stage: within a range = that stage,
@@ -502,20 +508,28 @@ export default function TimeTravelDial({ emission }: Props) {
         </View>
       </View>
 
-      {/* ── Warp presets: jump to each KRYSTAR stage start ── */}
+      {/* ── Warp presets: exact timeline years ── */}
       <View style={st.warpRow}>
         <Text style={st.warpLbl}>WARP</Text>
-        {STAGES.map(s => (
-          <TouchableOpacity
-            key={s.key}
-            style={[st.warpChip, { borderColor: s.color + '80' }, stage.n === s.n && { backgroundColor: s.color + '20', borderColor: s.color }]}
-            onPress={() => warpTo(s.start)}
-            activeOpacity={0.7}
-          >
-            <Text style={[st.warpChipYr, { color: s.color }]}>{s.start}</Text>
-            <Text style={[st.warpChipLbl, { color: s.color, opacity: 0.7 }]}>S{s.n}</Text>
-          </TouchableOpacity>
-        ))}
+        {WARP_YEARS.map(y => {
+          const s = stageForYear(y);
+          const on = year === y;
+          return (
+            <TouchableOpacity
+              key={y}
+              testID={`warp-${y}`}
+              style={[
+                st.warpChip,
+                { borderColor: s.color + '70' },
+                on && { backgroundColor: s.color + '25', borderColor: s.color },
+              ]}
+              onPress={() => warpTo(y)}
+              activeOpacity={0.7}
+            >
+              <Text style={[st.warpChipYr, { color: s.color, opacity: on ? 1 : 0.85 }]}>{y}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* ── Spin toggle ── */}
@@ -735,6 +749,7 @@ const st = skinStyles({
   // ─── Warp presets ───
   warpRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 3,
     marginTop: 6,
@@ -747,16 +762,14 @@ const st = skinStyles({
     marginRight: 2,
   },
   warpChip: {
-    flex: 1,
     borderWidth: 1,
     borderRadius: 3,
     paddingVertical: 5,
-    paddingHorizontal: 4,
+    paddingHorizontal: 5,
     alignItems: 'center',
     backgroundColor: '#000',
   },
-  warpChipYr: { fontSize: 8, fontWeight: '900', letterSpacing: 0.5 },
-  warpChipLbl: { fontSize: 6, fontWeight: '800', letterSpacing: 0.8, marginTop: 1 },
+  warpChipYr: { fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
   // ─── Spin + hint ───
   spinRow: {
     flexDirection: 'row',
