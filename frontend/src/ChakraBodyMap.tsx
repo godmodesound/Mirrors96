@@ -6,10 +6,10 @@ import { skinStyles, SK } from './skins';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-// ═══ 13-KEY CHROMATIC SCALE ⟷ 13 CHAKRA BODY MAP (A=432 tuning) ═══
-// Colours are the exact named chakra colours of the 13-centre chart
-// (dual-colour centres render as two-tone nodes; galactic centres as
-// the full colour spectrum). Frequencies match the CODES_LAB piano.
+// ═══ 13-KEY CHROMATIC SCALE ⟷ 13 CHAKRA BODY MAP — UNIVERSAL TUNING 432 Hz ═══
+// Frequencies = THE MUSICAL SPIRAL (C 252 → C 504). Colours follow the
+// chakra light-spectrum of the chart: RED = ROOT → ORANGE → YELLOW →
+// GREEN (HEART) → BLUE → INDIGO → VIOLET, extended over 13 centres.
 export interface ChakraNode {
   key: number;
   note: string;
@@ -23,32 +23,32 @@ export interface ChakraNode {
 }
 
 export const CHAKRA_13: ChakraNode[] = [
-  { key: 13, note: 'C',  freq: 512,   name: 'GALACTIC FEMALE', colorName: 'ALL FEMALE COLOURS',
-    colors: ['#FF69B4', '#FFCC99', '#FF00FF', '#40E0D0', '#FFD700', '#FFFFFF'], cx: 44, cy: 7, black: false },
-  { key: 12, note: 'B',  freq: 486,   name: 'GALACTIC MALE',   colorName: 'ALL MALE COLOURS',
-    colors: ['#FF7F00', '#FFFF99', '#00D400', '#0047AB', '#8F00FF', '#C0C0C0'], cx: 76, cy: 7, black: false },
-  { key: 11, note: 'A#', freq: 456,   name: 'CROWN',           colorName: 'GOLD · SILVER',
-    colors: ['#FFD700', '#C0C0C0'], cx: 60, cy: 20, black: true },
-  { key: 10, note: 'A',  freq: 432,   name: 'PINEAL',          colorName: 'VIOLET · WHITE',
-    colors: ['#8F00FF', '#FFFFFF'], cx: 60, cy: 32, black: false },
-  { key: 9,  note: 'G#', freq: 406.4, name: 'PITUITARY',       colorName: 'LIGHT BLUE · TURQUOISE',
-    colors: ['#ADD8E6', '#40E0D0'], cx: 60, cy: 44, black: true },
-  { key: 8,  note: 'G',  freq: 384,   name: 'WELL OF DREAMS',  colorName: 'PINK',
-    colors: ['#FF69B4'], cx: 60, cy: 57, black: false },
-  { key: 7,  note: 'F#', freq: 362,   name: 'THROAT',          colorName: 'COBALT BLUE',
-    colors: ['#0047AB'], cx: 60, cy: 68, black: true },
-  { key: 6,  note: 'F',  freq: 341.3, name: 'THYMUS',          colorName: 'VIOLET · GOLD',
-    colors: ['#8A2BE2', '#FFD700'], cx: 60, cy: 84, black: false },
-  { key: 5,  note: 'E',  freq: 324,   name: 'HEART',           colorName: 'MAGENTA · INDIGO',
-    colors: ['#FF00FF', '#4B0082'], cx: 60, cy: 100, black: false },
-  { key: 4,  note: 'D#', freq: 304.4, name: 'DIAPHRAGM',       colorName: 'LIGHT YELLOW',
-    colors: ['#FFFF99'], cx: 60, cy: 118, black: true },
-  { key: 3,  note: 'D',  freq: 288,   name: 'SOLAR PLEXUS',    colorName: 'GREEN',
-    colors: ['#00D400'], cx: 60, cy: 136, black: false },
-  { key: 2,  note: 'C#', freq: 271.2, name: 'SACRAL',          colorName: 'PEACH',
-    colors: ['#FFCC99'], cx: 60, cy: 155, black: true },
-  { key: 1,  note: 'C',  freq: 256,   name: 'ROOT',            colorName: 'ORANGE',
-    colors: ['#FF7F00'], cx: 60, cy: 172, black: false },
+  { key: 13, note: 'C',  freq: 504, name: 'GALACTIC FEMALE', colorName: 'WHITE LIGHT',
+    colors: ['#FFFFFF', '#FF3DDC'], cx: 44, cy: 7, black: false },
+  { key: 12, note: 'B',  freq: 486, name: 'GALACTIC MALE',   colorName: 'MAGENTA',
+    colors: ['#FF3DDC'], cx: 76, cy: 7, black: false },
+  { key: 11, note: 'A#', freq: 459, name: 'CROWN',           colorName: 'VIOLET',
+    colors: ['#C040FF'], cx: 60, cy: 20, black: true },
+  { key: 10, note: 'A',  freq: 432, name: 'PINEAL',          colorName: 'PURPLE',
+    colors: ['#8F00FF'], cx: 60, cy: 32, black: false },
+  { key: 9,  note: 'G#', freq: 405, name: 'PITUITARY',       colorName: 'INDIGO',
+    colors: ['#6A3AFF'], cx: 60, cy: 44, black: true },
+  { key: 8,  note: 'G',  freq: 378, name: 'WELL OF DREAMS',  colorName: 'COBALT BLUE',
+    colors: ['#2F6BFF'], cx: 60, cy: 57, black: false },
+  { key: 7,  note: 'F#', freq: 360, name: 'THROAT',          colorName: 'BLUE',
+    colors: ['#1E90FF'], cx: 60, cy: 68, black: true },
+  { key: 6,  note: 'F',  freq: 342, name: 'THYMUS',          colorName: 'TURQUOISE',
+    colors: ['#40E0D0'], cx: 60, cy: 84, black: false },
+  { key: 5,  note: 'E',  freq: 324, name: 'HEART',           colorName: 'GREEN',
+    colors: ['#22E044'], cx: 60, cy: 100, black: false },
+  { key: 4,  note: 'D#', freq: 306, name: 'DIAPHRAGM',       colorName: 'YELLOW-GREEN',
+    colors: ['#A8FF2E'], cx: 60, cy: 118, black: true },
+  { key: 3,  note: 'D',  freq: 288, name: 'SOLAR PLEXUS',    colorName: 'YELLOW',
+    colors: ['#FFEE00'], cx: 60, cy: 136, black: false },
+  { key: 2,  note: 'C#', freq: 270, name: 'SACRAL',          colorName: 'ORANGE',
+    colors: ['#FF8A00'], cx: 60, cy: 155, black: true },
+  { key: 1,  note: 'C',  freq: 252, name: 'ROOT',            colorName: 'RED',
+    colors: ['#FF1A1A'], cx: 60, cy: 172, black: false },
 ];
 
 const BODY_W = 120;
@@ -95,7 +95,7 @@ export default function ChakraBodyMap() {
     <View style={st.wrap}>
       <View style={st.header}>
         <Text style={st.title}>◈ 13 CHAKRA BODY MAP</Text>
-        <Text style={st.subtitle}>13-KEY CHROMATIC SCALE · A=432 · TAP A KEY OR A NODE</Text>
+        <Text style={st.subtitle}>13-KEY CHROMATIC SCALE · UNIVERSAL TUNING 432 Hz · TAP A KEY OR A NODE</Text>
       </View>
 
       <View style={st.stage}>
@@ -109,13 +109,18 @@ export default function ChakraBodyMap() {
                 testID={`chakra-key-${n.key}`}
                 activeOpacity={0.8}
                 onPress={() => sound(n)}
-                style={[st.key, n.black ? st.keyBlack : st.keyWhite, on && st.keyOn]}
+                style={[
+                  st.key,
+                  n.black ? st.keyBlack : st.keyWhite,
+                  { borderColor: n.colors[0] },
+                  on && { backgroundColor: n.colors[0], borderColor: '#ffffff' },
+                ]}
               >
-                <Text style={[n.black ? st.keyTxtBlack : st.keyTxtWhite, on && st.keyTxtOn]}>
+                <Text style={[st.keyTxt, { color: on ? '#000000' : n.colors[0] }]}>
                   {n.key}.{n.note}
                 </Text>
-                <Text numberOfLines={1} style={[n.black ? st.keyHzBlack : st.keyHzWhite, on && st.keyTxtOn]}>
-                  {n.freq.toFixed(1)} Hz
+                <Text numberOfLines={1} style={[st.keyHz, { color: on ? '#000000' : n.colors[0] }]}>
+                  {n.freq} Hz
                 </Text>
               </TouchableOpacity>
             );
@@ -201,7 +206,7 @@ export default function ChakraBodyMap() {
             <Text style={st.readoutColor}>{sel.colorName}</Text>
           </View>
           <View style={st.readoutRight}>
-            <Text style={[st.readoutFreq, { color: sel.colors[0] }]}>{sel.freq.toFixed(1)}</Text>
+            <Text style={[st.readoutFreq, { color: sel.colors[0] }]}>{sel.freq}</Text>
             <Text style={st.readoutHz}>Hz</Text>
           </View>
           <TouchableOpacity onPress={stopAll} style={st.stopBtn} testID="chakra-stop">
@@ -236,14 +241,10 @@ const st = skinStyles({
     borderWidth: 1,
     minHeight: 26,
   },
-  keyWhite: { backgroundColor: '#e9e9e9', borderColor: '#8a8a8a' },
-  keyBlack: { backgroundColor: '#0a0a0a', borderColor: '#3a3a3a', marginRight: 8 },
-  keyOn: { borderColor: '#ff0a0a', borderWidth: 2 },
-  keyTxtWhite: { color: '#111111', fontSize: 10, fontWeight: '700', fontFamily: 'TerminatorRealNFI' },
-  keyTxtBlack: { color: '#f2f2f2', fontSize: 10, fontWeight: '700', fontFamily: 'TerminatorRealNFI' },
-  keyHzWhite: { color: '#555555', fontSize: 6.5, fontFamily: 'TerminatorRealNFI' },
-  keyHzBlack: { color: '#9a9a9a', fontSize: 6.5, fontFamily: 'TerminatorRealNFI' },
-  keyTxtOn: { color: '#ff0a0a' },
+  keyWhite: { backgroundColor: '#0a0505' },
+  keyBlack: { backgroundColor: '#000000', marginRight: 8 },
+  keyTxt: { fontSize: 10, fontWeight: '700', fontFamily: 'TerminatorRealNFI' },
+  keyHz: { fontSize: 6.5, fontFamily: 'TerminatorRealNFI' },
 
   bodyWrap: { flex: 1, alignItems: 'center' },
 

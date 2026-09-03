@@ -15,6 +15,7 @@ import { FrequencyMap } from '../src/FrequencyMap';
 import ElementCube, { ResonatorEmission } from '../src/ElementCube';
 import TimeTravelDial from '../src/TimeTravelDial';
 import ChakraBodyMap from '../src/ChakraBodyMap';
+import MusicalSpiral from '../src/MusicalSpiral';
 
 import { skinStyles } from '../src/skins';
 
@@ -141,6 +142,10 @@ export default function MoodsScreen() {
                chromatic scale ⟷ 13 body-centre chart (A=432). ═══ */}
           <View style={{ height: 12 }} />
           <ChakraBodyMap />
+
+          {/* ═══ THE MUSICAL SPIRAL — interactive Shen Hz 432 spiral, 7-chakra
+               table, 7 healing frequencies, 432 grid + live scope. ═══ */}
+          <MusicalSpiral />
 
           {/* ═══ ELEMENT CUBE — interactive 3D periodic-table cube.
                Each facet plays its Cosmic-Octave audible frequency
