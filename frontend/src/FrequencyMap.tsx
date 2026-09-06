@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Animated, Easing } from 'react-native';
+import React, { useState, useMemo, useRef, useEffect, useId } from 'react';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import Svg, {
   Circle as SvgCircle,
   Line,
@@ -7,7 +7,6 @@ import Svg, {
   G,
   Defs,
   RadialGradient,
-  LinearGradient,
   Stop,
   Text as SvgText,
   Rect,
@@ -15,11 +14,12 @@ import Svg, {
   Ellipse,
 } from 'react-native-svg';
 import { AudioEngine } from './AudioEngine';
+import { MirrorDefs, MirrorNode, MirrorSurface } from './MirrorFinish';
 
 import { skinStyles, SK } from './skins';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const MAP_W = SCREEN_WIDTH - 32;
+// Virtual drawing coordinates; SVG scales with the native container, not the initial screen.
+const MAP_W = 360;
 const MAP_H = MAP_W * 1.02;
 const CX = MAP_W / 2;
 const CY = MAP_H / 2;
@@ -456,6 +456,7 @@ interface Props {
 }
 
 export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Props) {
+  const chromeId = `frequency-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const [activeGeometry, setActiveGeometry] = useState<GeometryType>('MERKABA');
   const [activeNode, setActiveNode] = useState<string | null>(null);
   const [activeNodes, setActiveNodes] = useState<Set<string>>(new Set()); // For "Play Geometry" - multiple active nodes
@@ -466,7 +467,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
   const [activeSolfeggio, setActiveSolfeggio] = useState<number | null>(null);
   const [geometryPlayIndex, setGeometryPlayIndex] = useState<number>(-1); // Current node index in sequence
   const [currentFrequency, setCurrentFrequency] = useState<number | null>(null); // Track active frequency for meter
-  const geometryIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const geometryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Get active brainwave band based on current frequency
   const activeBand = useMemo(() => getActiveBand(currentFrequency), [currentFrequency]);
@@ -499,28 +500,6 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
   const currentDescription = useMemo(() => {
     return GEOMETRY_TABS.find(t => t.id === activeGeometry)?.description || '';
   }, [activeGeometry]);
-
-  // Animations
-  const pulseAnim = useRef(new Animated.Value(0)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 30000,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      })
-    ).start();
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-        Animated.timing(pulseAnim, { toValue: 0, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-      ])
-    ).start();
-  }, []);
 
   // Reset active node when geometry changes
   useEffect(() => {
@@ -899,17 +878,19 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
   };
 
   return (
-    <View style={st.container}>
+    <View testID="frequency-lab" style={st.container}>
       {/* Header */}
       <View style={st.header}>
-        <Text style={st.headerTitle}>&gt; FREQUENCY_LAB</Text>
-        <Text style={st.headerSub}>/ {activeGeometry}</Text>
+        <Text testID="frequency-lab-title" style={st.headerTitle}>&gt; FREQUENCY_LAB</Text>
+        <Text testID="frequency-lab-active-geometry" style={st.headerSub}>/ {activeGeometry}</Text>
         <View style={st.headerRight}>
           {(isPlaying || isPlayingGeometry) && <View style={st.liveDot} />}
           <TouchableOpacity 
+            testID="frequency-play-geometry"
             style={[st.playBtn, isPlayingGeometry && st.playBtnActive]} 
             onPress={handlePlayGeometry}
           >
+            {!isPlayingGeometry && <MirrorSurface radius={0} />}
             <Text style={[st.playBtnText, isPlayingGeometry && st.playBtnTextActive]}>
               {isPlayingGeometry ? '■ STOP' : '▶ PLAY GEOMETRY'}
             </Text>
@@ -918,49 +899,54 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
       </View>
 
       {/* Geometry Tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={st.tabsScroll} contentContainerStyle={st.tabsContainer}>
+      <ScrollView testID="frequency-geometry-tabs" horizontal showsHorizontalScrollIndicator={false} style={st.tabsScroll} contentContainerStyle={st.tabsContainer}>
         {GEOMETRY_TABS.map((tab) => (
           <TouchableOpacity
             key={tab.id}
+            testID={`frequency-tab-${tab.id.toLowerCase()}`}
+            accessibilityRole="button"
+            accessibilityState={{ selected: activeGeometry === tab.id }}
             style={[st.tab, activeGeometry === tab.id && st.tabActive]}
             onPress={() => setActiveGeometry(tab.id)}
           >
+            <MirrorSurface radius={0} />
             <Text style={[st.tabText, activeGeometry === tab.id && st.tabTextActive]}>{tab.label}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
       {/* Geometry Description */}
-      <Text style={st.geoDescription}>
+      <Text testID="frequency-geometry-description" style={st.geoDescription}>
         {currentDescription}
       </Text>
 
       {/* Main Visualization */}
-      <View style={st.vizContainer}>
+      <View testID="frequency-visualization" style={st.vizContainer}>
         {/* Left Telemetry — HUD style */}
-        <View style={st.telemetryLeft}>
+        <View pointerEvents="none" style={st.telemetryLeft}>
           <Text style={st.hudLabel}>GEOMETRY</Text>
           <Text style={st.hudTitle}>
             {activeGeometry} <Text style={st.hudTitleAccent}>{currentNodes.length}</Text>
           </Text>
           <View style={st.hudDivider} />
           <Text style={st.hudLine}>NODES: {currentNodes.length}</Text>
-          <Text style={st.hudLine}>STATUS: {isPlaying ? 'LIVE' : 'IDLE'}</Text>
+          <Text testID="frequency-status" style={st.hudLine}>STATUS: {isPlaying ? 'LIVE' : 'IDLE'}</Text>
         </View>
 
         {/* SVG Visualization */}
-        <Svg width={MAP_W} height={MAP_H} viewBox={`0 0 ${MAP_W} ${MAP_H}`}>
+        <Svg testID="frequency-geometry-drawing" width="100%" height="100%" viewBox={`0 0 ${MAP_W} ${MAP_H}`}>
+          <MirrorDefs id={chromeId} />
           <Defs>
             {/* Background gradient */}
             <RadialGradient id="map-bg" cx="50%" cy="50%" r="70%">
-              <Stop offset="0%" stopColor={SK('#04120a')} stopOpacity="1" />
-              <Stop offset="55%" stopColor={SK('#020803')} stopOpacity="1" />
+              <Stop offset="0%" stopColor={SK('#0b1017')} stopOpacity="1" />
+              <Stop offset="55%" stopColor={SK('#040609')} stopOpacity="1" />
               <Stop offset="100%" stopColor={SK('#000000')} stopOpacity="1" />
             </RadialGradient>
 
             {/* Node glows */}
-            {currentNodes.map((node, i) => (
-              <RadialGradient key={`glow-${node.id}`} id={`glow-${node.id}`} cx="50%" cy="50%" r="50%">
+            {currentNodes.map((node) => (
+              <RadialGradient key={`glow-${node.id}`} id={`${chromeId}-glow-${node.id}`} cx="50%" cy="50%" r="50%">
                 <Stop offset="0%" stopColor={node.color} stopOpacity={activeNode === node.id ? '1' : '0.6'} />
                 <Stop offset="50%" stopColor={node.color} stopOpacity={activeNode === node.id ? '0.5' : '0.2'} />
                 <Stop offset="100%" stopColor={node.color} stopOpacity="0" />
@@ -968,7 +954,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
             ))}
 
             {/* Center glow */}
-            <RadialGradient id="center-glow" cx="50%" cy="50%" r="30%">
+            <RadialGradient id={`${chromeId}-center-glow`} cx="50%" cy="50%" r="30%">
               <Stop offset="0%" stopColor={SK('#ffffff')} stopOpacity={isPlaying ? '0.15' : '0.05'} />
               <Stop offset="70%" stopColor={SK('#ff0a0a')} stopOpacity={isPlaying ? '0.08' : '0.02'} />
               <Stop offset="100%" stopColor={SK('#ff0a0a')} stopOpacity="0" />
@@ -984,19 +970,19 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
               key={`mx-${i}`}
               x={m.x}
               y={m.y}
-              fill={m.bright ? SK('#7dffa0') : SK('#00ff41')}
+              fill={m.bright ? SK('#bfdced') : SK('#627b8e')}
               fontSize={m.bright ? 8 : 7}
               fontWeight="600"
-              opacity={m.bright ? m.o + 0.18 : m.o}
+              opacity={m.bright ? m.o : m.o * 0.45}
             >
               {m.c}
             </SvgText>
           ))}
 
           {/* HUD tech frame */}
-          <G>
-            <Rect x={3} y={3} width={MAP_W - 6} height={MAP_H - 6} rx={14} fill="none" stroke={SK('#ff0a0a')} strokeWidth={1} opacity={0.3} />
-            <Rect x={8} y={8} width={MAP_W - 16} height={MAP_H - 16} rx={10} fill="none" stroke={SK('#00e5ff')} strokeWidth={0.5} opacity={0.12} />
+          <G pointerEvents="none">
+            <Rect x={3} y={3} width={MAP_W - 6} height={MAP_H - 6} rx={14} fill="none" stroke={`url(#${chromeId}-chrome)`} strokeWidth={5} />
+            <Rect x={7} y={7} width={MAP_W - 14} height={MAP_H - 14} rx={10} fill="none" stroke={`url(#${chromeId}-edge)`} strokeWidth={0.7} opacity={0.8} />
             {/* Corner brackets */}
             <Path d={`M 3 34 L 3 15 Q 3 3 15 3 L 34 3`} stroke={SK('#ff2a2a')} strokeWidth={2.5} fill="none" opacity={0.85} />
             <Path d={`M ${MAP_W - 34} 3 L ${MAP_W - 15} 3 Q ${MAP_W - 3} 3 ${MAP_W - 3} 15 L ${MAP_W - 3} 34`} stroke={SK('#ff2a2a')} strokeWidth={2.5} fill="none" opacity={0.85} />
@@ -1012,7 +998,9 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
           </G>
 
           {/* Geometry-specific decorations */}
-          {renderGeometryDecorations()}
+          {renderGeometryDecorations()?.map(element => React.cloneElement(element, {
+            stroke: `url(#${chromeId}-chrome)`, strokeWidth: 1.8, opacity: 0.85, pointerEvents: 'none',
+          }))}
 
           {/* Connections (for geometries with defined connections) */}
           {currentConnections.map((conn, i) => {
@@ -1021,76 +1009,41 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
             if (!fromNode || !toNode) return null;
             const isActive = activeNode === conn[0] || activeNode === conn[1] || activeNodes.has(conn[0]) || activeNodes.has(conn[1]);
             return (
-              <Line
-                key={`conn-${i}`}
-                x1={fromNode.x}
-                y1={fromNode.y}
-                x2={toNode.x}
-                y2={toNode.y}
-                stroke={isActive ? SK('#ffffff') : SK('#ff0a0a')}
-                strokeWidth={isActive ? 1.5 : 0.8}
-                opacity={isActive ? 0.8 : 0.3}
-              />
+              <G key={`conn-${i}`} pointerEvents="none">
+                <Line x1={fromNode.x} y1={fromNode.y} x2={toNode.x} y2={toNode.y} stroke={`url(#${chromeId}-chrome)`} strokeWidth={isActive ? 3 : 2} opacity={isActive ? 1 : 0.8} />
+                <Line x1={fromNode.x} y1={fromNode.y} x2={toNode.x} y2={toNode.y} stroke={`url(#${chromeId}-edge)`} strokeWidth={0.5} opacity={0.85} />
+                {isActive && <Line x1={fromNode.x} y1={fromNode.y} x2={toNode.x} y2={toNode.y} stroke={SK('#ff0a0a')} strokeWidth={0.7} />}
+              </G>
             );
           })}
 
           {/* Center glow */}
-          <SvgCircle cx={CX} cy={CY} r={MAP_W * 0.15} fill="url(#center-glow)" />
+          <SvgCircle pointerEvents="none" cx={CX} cy={CY} r={MAP_W * 0.15} fill={`url(#${chromeId}-center-glow)`} />
 
           {/* Nodes */}
           {currentNodes.map((node) => {
             const isActive = activeNode === node.id || activeNodes.has(node.id);
             const nodeR = isActive ? 16 : 12;
+            const labelX = Math.max(56, Math.min(MAP_W - 56, node.x));
+            const labelY = node.y > MAP_H * 0.82 ? node.y - nodeR - 19 : node.y + nodeR + 17;
             return (
-              <G key={node.id} onPress={() => handleNodePress(node)}>
+              <G key={node.id} testID={`frequency-node-${node.id}`} onPress={() => handleNodePress(node)} accessibilityLabel={`${node.name}, ${node.freq} hertz`}>
+                <SvgCircle cx={node.x} cy={node.y} r={24} fill="transparent" />
                 {/* Glow */}
                 <SvgCircle
                   cx={node.x}
                   cy={node.y}
                   r={isActive ? 42 : 30}
-                  fill={`url(#glow-${node.id})`}
+                  pointerEvents="none"
+                  fill={`url(#${chromeId}-glow-${node.id})`}
                 />
-                {/* Outer bright ring */}
-                <SvgCircle
-                  cx={node.x}
-                  cy={node.y}
-                  r={nodeR + 6}
-                  fill="none"
-                  stroke={node.color}
-                  strokeWidth={isActive ? 3 : 2.2}
-                  opacity={isActive ? 1 : 0.9}
-                />
-                {/* Node body */}
-                <SvgCircle
-                  cx={node.x}
-                  cy={node.y}
-                  r={nodeR}
-                  fill={SK('#0a0a08')}
-                  stroke={node.color}
-                  strokeWidth={1}
-                  opacity={0.95}
-                />
-                {/* Inner disc */}
-                <SvgCircle
-                  cx={node.x}
-                  cy={node.y}
-                  r={nodeR * 0.62}
-                  fill={node.color}
-                  opacity={isActive ? 1 : 0.85}
-                />
-                {/* Hot pixel */}
-                <SvgCircle
-                  cx={node.x}
-                  cy={node.y}
-                  r={isActive ? 3.5 : 2.8}
-                  fill={SK('#ffffff')}
-                  opacity={isActive ? 1 : 0.9}
-                />
+                <MirrorNode id={chromeId} x={node.x} y={node.y} r={nodeR} color={node.color} active={isActive} />
                 {/* Label */}
                 <SvgText
-                  x={node.x}
-                  y={node.y + nodeR + 17}
-                  fill={isActive ? SK('#ffffff') : node.color}
+                  testID={`frequency-node-label-${node.id}`}
+                  x={labelX}
+                  y={labelY}
+                  fill={isActive ? SK('#ffffff') : SK('#d5e1e9')}
                   fontSize={8.5}
                   fontWeight="800"
                   textAnchor="middle"
@@ -1100,8 +1053,9 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
                 </SvgText>
                 {/* Frequency label */}
                 <SvgText
-                  x={node.x}
-                  y={node.y + nodeR + 28}
+                  testID={`frequency-node-hz-${node.id}`}
+                  x={labelX}
+                  y={labelY + 11}
                   fill={SK('#cfd8d3')}
                   fontSize={7}
                   fontWeight="600"
@@ -1122,10 +1076,10 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
         </Svg>
 
         {/* Right Telemetry — HUD style */}
-        <View style={st.telemetryRight}>
+        <View pointerEvents="none" style={st.telemetryRight}>
           <Text style={st.hudLabel}>TELEMETRY</Text>
           <Text style={st.hudLine}>BAND: {activeNodeData?.band || 'ALPHA'}</Text>
-          <Text style={st.hudFreq}>{activeNodeData?.freq || currentFrequency || '432'} Hz</Text>
+          <Text testID="frequency-telemetry-frequency" style={st.hudFreq}>{activeNodeData?.freq || currentFrequency || '432'} Hz</Text>
           <Text style={st.hudLine}>{isPlaying ? 'TRANSMIT' : 'STANDBY'}</Text>
         </View>
       </View>
@@ -1139,11 +1093,13 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
             return (
               <View
                 key={band.name}
+                testID={`frequency-band-${band.fullName.toLowerCase()}`}
                 style={[
                   st.meterCell,
-                  { borderColor: band.color, backgroundColor: isActive ? band.color : SK('#040a05') },
+                  { borderColor: band.color, backgroundColor: isActive ? band.color : SK('#080e14') },
                 ]}
               >
+                {!isActive && <MirrorSurface />}
                 <Text style={[st.meterSymbol, { color: isActive ? SK('#000') : band.color }]}>{band.name}</Text>
               </View>
             );
@@ -1167,9 +1123,13 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
             return (
               <TouchableOpacity
                 key={freqObj.freq}
+                testID={`solfeggio-chip-${freqObj.freq}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isActive }}
                 style={[st.solfeggioChip, isActive && st.solfeggioChipActive]}
                 onPress={() => handleSolfeggioPress(freqObj)}
               >
+                {!isActive && <MirrorSurface />}
                 <Text style={[st.solfeggioChipText, isActive && st.solfeggioChipTextActive]}>{freqObj.label}</Text>
               </TouchableOpacity>
             );
@@ -1190,12 +1150,14 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
           {/* Protocol Tabs */}
           <View style={st.protocolTabs}>
             <TouchableOpacity
+              testID="frequency-protocol-tab-state"
               style={[st.protocolTab, protocolTab === 'STATE' && st.protocolTabActive]}
               onPress={() => setProtocolTab('STATE')}
             >
               <Text style={[st.protocolTabText, protocolTab === 'STATE' && st.protocolTabTextActive]}>STATE MACHINE</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              testID="frequency-protocol-tab-cortex"
               style={[st.protocolTab, protocolTab === 'CORTEX' && st.protocolTabActive]}
               onPress={() => setProtocolTab('CORTEX')}
             >
@@ -1209,6 +1171,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
               STATE_PROTOCOLS.map((protocol) => (
                 <TouchableOpacity
                   key={protocol.id}
+                  testID={`frequency-protocol-${protocol.id}`}
                   style={[st.protocolCard, activeProtocol === protocol.id && st.protocolCardActive]}
                   onPress={() => handleProtocolPress(protocol)}
                 >
@@ -1224,6 +1187,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
               CORTEX_PROTOCOLS.map((cortex) => (
                 <TouchableOpacity
                   key={cortex.id}
+                  testID={`frequency-cortex-${cortex.id}`}
                   style={[st.protocolCard, activeProtocol === cortex.id && st.protocolCardActive]}
                   onPress={() => handleCortexPress(cortex)}
                 >
@@ -1252,7 +1216,7 @@ const st = skinStyles({
   container: {
     backgroundColor: '#000',
     borderWidth: 1.5,
-    borderColor: '#ff0a0a45',
+    borderColor: '#718394',
     borderRadius: 16,
     overflow: 'hidden',
     marginHorizontal: 0,
@@ -1261,26 +1225,28 @@ const st = skinStyles({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    rowGap: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#ff0a0a20',
+    borderBottomColor: '#8ca2b640',
   },
   headerTitle: {
-    color: '#ff0a0a',
+    color: '#e9f2f8',
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 2,
   },
   headerSub: {
-    color: '#ff0a0a60',
+    color: '#a4b7c7',
     fontSize: 10,
     fontWeight: '600',
     marginLeft: 8,
     letterSpacing: 1,
   },
   headerRight: {
-    flex: 1,
+    flexGrow: 1,
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
@@ -1293,8 +1259,10 @@ const st = skinStyles({
     backgroundColor: '#00ff00',
   },
   playBtn: {
+    minHeight: 44,
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#ff0a0a',
+    borderColor: '#8295a5',
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: '#ff0a0a15',
@@ -1304,7 +1272,7 @@ const st = skinStyles({
     borderColor: '#ff3030',
   },
   playBtnText: {
-    color: '#ff0a0a',
+    color: '#e8f2fa',
     fontSize: 8,
     fontWeight: '700',
     letterSpacing: 1.5,
@@ -1313,7 +1281,7 @@ const st = skinStyles({
     color: '#000000',
   },
   tabsScroll: {
-    maxHeight: 44,
+    maxHeight: 64,
     borderBottomWidth: 1,
     borderBottomColor: '#ff0a0a10',
   },
@@ -1323,6 +1291,8 @@ const st = skinStyles({
     paddingVertical: 8,
   },
   tab: {
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
@@ -1334,16 +1304,16 @@ const st = skinStyles({
     backgroundColor: '#ff0a0a20',
   },
   tabText: {
-    color: '#666',
+    color: '#bdccd8',
     fontSize: 8,
     fontWeight: '700',
     letterSpacing: 1.5,
   },
   tabTextActive: {
-    color: '#ff0a0a',
+    color: '#ff6060',
   },
   geoDescription: {
-    color: '#ff0a0a40',
+    color: '#a4b5c4',
     fontSize: 8,
     fontWeight: '400',
     letterSpacing: 0.5,
@@ -1352,6 +1322,8 @@ const st = skinStyles({
   },
   vizContainer: {
     position: 'relative',
+    width: '100%',
+    aspectRatio: 1 / 1.02,
   },
   telemetryLeft: {
     position: 'absolute',
@@ -1367,7 +1339,7 @@ const st = skinStyles({
     alignItems: 'flex-end',
   },
   hudLabel: {
-    color: '#6ee7ff',
+    color: '#b9d0e1',
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 3,
@@ -1375,7 +1347,7 @@ const st = skinStyles({
   },
   hudTitle: {
     color: '#eafcff',
-    fontSize: 17,
+    fontSize: 13,
     fontWeight: '900',
     letterSpacing: 2,
   },
@@ -1389,14 +1361,14 @@ const st = skinStyles({
     marginVertical: 6,
   },
   hudLine: {
-    color: '#8feaff',
+    color: '#b0c4d3',
     fontSize: 9,
     fontWeight: '600',
-    letterSpacing: 2,
+    letterSpacing: 0.8,
     marginBottom: 3,
   },
   hudFreq: {
-    color: '#bdf6ff',
+    color: '#e2f1fc',
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 2,
@@ -1448,25 +1420,24 @@ const st = skinStyles({
     paddingHorizontal: 4,
   },
   solfeggioChip: {
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderWidth: 1.5,
-    borderColor: '#8a2a2a',
+    borderColor: '#657d90',
     borderRadius: 10,
-    backgroundColor: '#0a0303',
+    backgroundColor: '#080e14',
   },
   solfeggioChipActive: {
     borderColor: '#ff4a4a',
     backgroundColor: '#ff0a0a22',
   },
   solfeggioChipText: {
-    color: '#ff2a2a',
+    color: '#dcebf6',
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 1,
-    textShadowColor: '#ff0a0a80',
-    textShadowRadius: 8,
-    textShadowOffset: { width: 0, height: 0 },
   },
   solfeggioChipTextActive: {
     color: '#ff6b6b',
@@ -1702,7 +1673,7 @@ const st = skinStyles({
     borderRadius: 4,
   },
   helpText: {
-    color: '#ff0a0a30',
+    color: '#94a6b6',
     fontSize: 8,
     fontWeight: '400',
     letterSpacing: 0.5,

@@ -388,6 +388,20 @@ backend:
         comment: "DELETE /api/codes/channels/{channel_id} endpoint tested successfully. Deletes channels and associated messages, returns proper confirmation message."
 
 frontend:
+  - task: "Logo-matched mirror chrome finish — Mirrors Wheel and Frequency Lab"
+    implemented: true
+    working: true
+    file: "frontend/src/MirrorFinish.tsx, frontend/src/MirrorsWheel.tsx, frontend/src/FrequencyMap.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "iteration_11.json: all 24 original key frequencies, second-tap stop, chrome butterfly/SPIN, eight geometries, node telemetry, geometry PLAY/STOP, 432 solfeggio toggle, sampled T-1000/WINTER/default skins, 390/320 viewport fit all PASS. No scope regressions; only pre-existing framework warnings. No source changes by tester. Physical-device verification pending."
+      - working: "NA"
+        agent: "main"
+        comment: "Added shared portable SVG chrome material, wheel rims/segment bevels/hub/butterfly, lab geometry and lens nodes, chrome control surfaces. Kept original spectrum colors as inlays and all audio callbacks unchanged. Fixed initial-Dimensions clipping using fixed SVG viewBox with responsive native containers, improved label contrast, reserved toolbar for SPIN. Screenshot verified lab node play/stop and wheel 8A=432 play/stop, butterfly selection. Please test all 24 wheel keys, eight geometry tabs, solfeggio, sequence stop, skin regression and narrow screen fit. Baseline tsc errors elsewhere unchanged; touched files clean. No backend/auth edits."
   - task: "Terminal Screen - Multi-layer tone generator"
     implemented: true
     working: true

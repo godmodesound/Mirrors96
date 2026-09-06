@@ -1,0 +1,143 @@
+{
+  "project_scope": "Scoped Material Finish Update for Expo React Native (Mirrors Wheel & FREQUENCY LAB)",
+  "brand_identity": {
+    "aesthetic": "Brutalist Cosmic / Black & Infrared",
+    "primary_accent": "#ff0a0a",
+    "base_background": "#000000",
+    "logo_asset_url": "https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/6ujv5mnt_B0209CA7-795F-4B90-BBD7-CAD7DAEA26B5.PNG"
+  },
+  "material_finish_blueprint": {
+    "concept": "Logo-Matching Metallic Mirror Chrome Finish with Infrared Dynamic Edge Reflection",
+    "svg_gradient_defs": {
+      "mirror_chrome_linear": {
+        "id": "mirror-chrome-grad",
+        "type": "LinearGradient",
+        "angle": "135deg (x1=0%, y1=0%, x2=100%, y2=100%)",
+        "stops": [
+          { "offset": "0%", "stopColor": "#1a1a1a", "stopOpacity": "1" },
+          { "offset": "20%", "stopColor": "#d0d0d0", "stopOpacity": "0.95" },
+          { "offset": "35%", "stopColor": "#ffffff", "stopOpacity": "1" },
+          { "offset": "50%", "stopColor": "#222222", "stopOpacity": "0.9" },
+          { "offset": "68%", "stopColor": "#ff0a0a", "stopOpacity": "0.85" },
+          { "offset": "82%", "stopColor": "#e0e0e0", "stopOpacity": "0.95" },
+          { "offset": "100%", "stopColor": "#080808", "stopOpacity": "1" }
+        ]
+      },
+      "mirror_specular_radial": {
+        "id": "mirror-specular-glow",
+        "type": "RadialGradient",
+        "cx": "35%",
+        "cy": "35%",
+        "r": "65%",
+        "stops": [
+          { "offset": "0%", "stopColor": "#ffffff", "stopOpacity": "0.9" },
+          { "offset": "25%", "stopColor": "#d4d4d4", "stopOpacity": "0.5" },
+          { "offset": "50%", "stopColor": "#ff0a0a", "stopOpacity": "0.3" },
+          { "offset": "100%", "stopColor": "#000000", "stopOpacity": "0" }
+        ]
+      },
+      "infrared_rim_linear": {
+        "id": "infrared-rim-bevel",
+        "type": "LinearGradient",
+        "x1": "0%", "y1": "0%", "x2": "0%", "y2": "100%",
+        "stops": [
+          { "offset": "0%", "stopColor": "#ff3030", "stopOpacity": "1" },
+          { "offset": "50%", "stopColor": "#800000", "stopOpacity": "0.8" },
+          { "offset": "100%", "stopColor": "#300000", "stopOpacity": "1" }
+        ]
+      }
+    },
+    "vector_stroke_layering_strategy": {
+      "layer_1_base_bevel": {
+        "description": "Outer metallic dark border providing specular contrast",
+        "stroke": "url(#mirror-chrome-grad)",
+        "strokeWidth": "2.5 to 3.5px",
+        "opacity": 0.95
+      },
+      "layer_2_inner_specular_core": {
+        "description": "Bright white high-glint hairline stroke directly inside the outer bevel",
+        "stroke": "#ffffff",
+        "strokeWidth": "0.8 to 1.2px",
+        "opacity": 0.9
+      },
+      "layer_3_infrared_glow_bleed": {
+        "description": "Subtle infrared reflection bleeding through the chrome surface",
+        "stroke": "#ff0a0a",
+        "strokeWidth": "1.5px",
+        "opacity": 0.45,
+        "strokeDasharray": "none"
+      }
+    },
+    "mirrors_wheel_specifics": {
+      "component_file": "/app/frontend/src/MirrorsWheel.tsx",
+      "ring_finishes": "Apply multi-stop mirror chrome LinearGradient to outer and inner segment borders, concentric bounding rings, and center 'MIRRORS 96' medal disc.",
+      "active_state_preservation": "Keep 432Hz chakra spectrum hues (bright & dim) for selected/primary harmonic keys, wrapping segment boundaries with high-gloss mirror strokes rather than replacing functional color feedback.",
+      "butterfly_view_preservation": "Attractor curves & infinity loops rendered with metallic silver & infrared dual-stroke lines with varying opacity."
+    },
+    "frequency_lab_specifics": {
+      "component_file": "/app/frontend/src/FrequencyMap.tsx",
+      "geometry_finishes": "Sacred geometry vector connections (Tree of Life, Merkaba, Metatron, VE64, Sri Yantra, Torus, Phi Spiral, Icosahedron) enhanced with metallic chrome stroke gradients and specular node bevel rings.",
+      "telemetry_and_controls": "HUD frames, corner brackets, and Solfeggio chip borders upgraded with mirror bevel stroke borders, ensuring taps and gesture callbacks stay 100% vector-interactive without blocking overlays."
+    }
+  },
+  "typography": {
+    "heading_font": "TerminatorRealNFI / SpaceMono-Regular",
+    "body_font": "SpaceMono-Regular",
+    "letter_spacing": {
+      "titles": 3,
+      "subtitles": 2,
+      "labels": 1.5
+    }
+  },
+  "colors": {
+    "background": "#000000",
+    "surface": "#0a0505",
+    "primary": "#ff0a0a",
+    "primary_glow": "#ff2a2a",
+    "secondary_cyan": "#00e5ff",
+    "mirror_silver_light": "#ffffff",
+    "mirror_chrome_mid": "#b8b8b8",
+    "mirror_chrome_dark": "#1f1f1f",
+    "chakra_spectrum": {
+      "1": { "bright": "#E040FB", "dim": "#4D1655" },
+      "2": { "bright": "#00BCD4", "dim": "#004954" },
+      "3": { "bright": "#FF5722", "dim": "#5A1F0D" },
+      "4": { "bright": "#3F51B5", "dim": "#1A2148" },
+      "5": { "bright": "#FFC400", "dim": "#5A4600" },
+      "6": { "bright": "#9C27B0", "dim": "#3C0F45" },
+      "7": { "bright": "#4CAF50", "dim": "#173D19" },
+      "8": { "bright": "#FF1A1A", "dim": "#5C0808" },
+      "9": { "bright": "#2196F3", "dim": "#0B3960" },
+      "10": { "bright": "#FF9500", "dim": "#5A3600" },
+      "11": { "bright": "#673AB7", "dim": "#25164A" },
+      "12": { "bright": "#FFEB00", "dim": "#5A5400" }
+    }
+  },
+  "visual_enhancers": {
+    "mirror_gloss_effect": "Multi-stop linear gradient stroke with specular white highlights",
+    "matrix_rain_overlay": "Vector matrix ASCII characters in low-opacity emerald/cyan",
+    "hud_corner_brackets": "2.5px infrared brutalist accent brackets with specular chrome caps",
+    "no_transparent_overlays_rule": "Containers or overlays over interactive graphics must use semi-solid opaque background (#000000ee or #0a0505) with 1px border stroke, avoiding raw non-blurred transparency."
+  },
+  "motion": {
+    "pulse_cycle": "4000ms sine wave easing for ambient glows",
+    "rotation_cycle": "60000ms continuous linear rotation for wheel elements",
+    "active_key_transition": "Immediate state response on tap with scale grow on SVG node circles"
+  },
+  "accessibility_and_testing": {
+    "data_testid_convention": "kebab-case role-based test identifiers (e.g. data-testid=\"mirrors-wheel-spin-button\", data-testid=\"frequency-node-kether\", data-testid=\"solfeggio-chip-432\")",
+    "contrast_ratio": "Minimum 4.5:1 text to surface contrast ratio with pure white or infrared glow for active labels"
+  },
+  "instructions_to_main_agent": [
+    "Preserve all existing audio callbacks (AudioEngine.playCamelot, playMulti, etc.) and state logic.",
+    "Do not add any full-screen raster overlay images that capture touch events.",
+    "Inject SVG Defs (<LinearGradient>, <RadialGradient>) into react-native-svg renders for MirrorsWheel.tsx and FrequencyMap.tsx.",
+    "Apply layered SVG strokes for chrome bevels directly onto Path, SvgCircle, Rect, and Polygon components.",
+    "Ensure skin switching and skinStyles compatibility via the SK() helper function."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": {
+    "testing": "All interactive elements (buttons, nodes, tabs, chips) MUST include data-testid attributes.",
+    "alignment": "Never force centered text inside asymmetric UI layouts without purposeful intent.",
+    "borders": "Never rely on un-bordered transparent overlays over canvas or SVG graphics."
+  }
+}

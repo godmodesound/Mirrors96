@@ -1,6 +1,7 @@
-import React, { useMemo, useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, Animated, Easing, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState, useId } from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { skinStyles, SK } from './skins';
+import { MirrorDefs, MirrorRing, MirrorNode, MirrorSurface } from './MirrorFinish';
 
 import Svg, {
   Circle as SvgCircle,
@@ -15,8 +16,6 @@ import Svg, {
   Line,
   Ellipse,
 } from 'react-native-svg';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export interface CamelotKey {
   id: string;
@@ -123,7 +122,8 @@ export function getHarmonicLevel(selectedId: string | null, testId: string): Har
 }
 
 // ═══ LAYOUT ═══
-const MAP_W = SCREEN_WIDTH - 32;
+// Stable drawing coordinates, scaled to the actual container on every device.
+const MAP_W = 360;
 const MAP_H = MAP_W * 1.0;
 const CX = MAP_W / 2;
 const CY = MAP_H / 2;
@@ -238,6 +238,7 @@ interface Props {
 }
 
 export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
+  const chromeId = `wheel-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   // DEFAULT to 'camelot' (MIRRORS 96 WHEEL) - shows first
   const [viewMode, setViewMode] = useState<'mirrors' | 'camelot'>('camelot');
   
@@ -264,21 +265,6 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
     return paths;
   }, []);
 
-  const pulseAnim = useRef(new Animated.Value(0)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.timing(rotateAnim, { toValue: 1, duration: 60000, easing: Easing.linear, useNativeDriver: false })
-    ).start();
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-        Animated.timing(pulseAnim, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-      ])
-    ).start();
-  }, []);
-
   const activePos = allPositions.find(p => p.key.id === activeKey);
   const activeColor = activePos?.key.color || SK('#ff0a0a');
 
@@ -289,10 +275,9 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
     const outerRadius = MAP_W * 0.48;
     const middleRadius = MAP_W * 0.35;
     const innerRadius = MAP_W * 0.22;
-    const centerRadius = MAP_W * 0.15;
-
     return (
-      <Svg width={MAP_W} height={MAP_H} viewBox={`0 0 ${MAP_W} ${MAP_H}`}>
+      <Svg testID="mirrors-wheel-camelot" width="100%" height="100%" viewBox={`0 0 ${MAP_W} ${MAP_H}`}>
+        <MirrorDefs id={chromeId} />
         <Defs>
           <RadialGradient id="m96-bg" cx="50%" cy="50%" r="55%">
             <Stop offset="0%" stopColor={SK('#0a0000')} stopOpacity="1" />
@@ -314,8 +299,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
         <Rect x="0" y="0" width={MAP_W} height={MAP_H} fill="url(#m96-bg)" />
 
         {/* Outer decorative ring */}
-        <SvgCircle cx={CX} cy={CY} r={outerRadius + 4} fill="none" stroke={SK('#ff0a0a')} strokeWidth={2} opacity={0.3} />
-        <SvgCircle cx={CX} cy={CY} r={outerRadius + 8} fill="none" stroke={SK('#ff0a0a')} strokeWidth={1} opacity={0.15} />
+        <MirrorRing id={chromeId} cx={CX} cy={CY} r={outerRadius + 2} width={7} />
 
         {/* Outer ring segments (B - Major keys) — 12 at 12 o'clock, 6 at 6 o'clock */}
         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => {
@@ -332,21 +316,23 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           const labelR = (middleRadius + outerRadius) / 2;
           
           return (
-            <G key={`outer-${num}`} onPress={() => key && onKeyPress(key)}>
+            <G key={`outer-${num}`} testID={`mirrors-key-${keyId}`} onPress={() => key && onKeyPress(key)} accessibilityLabel={`${keyId}, ${key?.note}, ${key?.freq} hertz`}>
+              <Path d={describeArc(CX, CY, middleRadius, outerRadius, startAngle, endAngle)} fill={`url(#${chromeId}-panel)`} stroke={`url(#${chromeId}-chrome)`} strokeWidth={2} />
               {/* Segment background — chakra-color tinted */}
               <Path
                 d={describeArc(CX, CY, middleRadius, outerRadius, startAngle, endAngle)}
                 fill={isActive ? chakra.bright : chakra.dim}
-                fillOpacity={isActive ? 0.55 : isPrimary ? 0.35 : 0.22}
+                fillOpacity={isActive ? 0.5 : isPrimary ? 0.3 : 0.12}
                 stroke={chakra.bright}
-                strokeWidth={isActive ? 2 : 1}
+                strokeWidth={isActive ? 2 : 0.45}
                 opacity={isActive ? 1 : isPrimary ? 0.95 : 0.85}
               />
+              <Path pointerEvents="none" d={describeArc(CX, CY, outerRadius - 4, outerRadius - 2, startAngle + 1, endAngle - 1)} fill={chakra.bright} opacity={isActive ? 1 : 0.7} />
               {/* Key ID label */}
               <SvgText
                 x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR + 8)}
                 y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR + 8)}
-                fill={isActive ? SK('#ffffff') : chakra.bright}
+                fill={SK('#e4eef7')}
                 fontSize={12}
                 fontWeight="900"
                 textAnchor="middle"
@@ -358,7 +344,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
               <SvgText
                 x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR - 10)}
                 y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR - 10)}
-                fill={isActive ? SK('#ffffff') : SK('#888888')}
+                fill={isActive ? SK('#ffffff') : SK('#b8c7d4')}
                 fontSize={7}
                 fontWeight="600"
                 textAnchor="middle"
@@ -369,7 +355,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
               <SvgText
                 x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR - 18)}
                 y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR - 18)}
-                fill={isActive ? SK('#ffffff') : SK('#666666')}
+                fill={isActive ? SK('#ffffff') : SK('#99adbd')}
                 fontSize={6}
                 textAnchor="middle"
                 alignmentBaseline="middle"
@@ -404,21 +390,23 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           const labelR = (innerRadius + middleRadius) / 2;
           
           return (
-            <G key={`inner-${num}`} onPress={() => key && onKeyPress(key)}>
+            <G key={`inner-${num}`} testID={`mirrors-key-${keyId}`} onPress={() => key && onKeyPress(key)} accessibilityLabel={`${keyId}, ${key?.note}, ${key?.freq} hertz`}>
+              <Path d={describeArc(CX, CY, innerRadius, middleRadius, startAngle, endAngle)} fill={`url(#${chromeId}-panel)`} stroke={`url(#${chromeId}-chrome)`} strokeWidth={2} />
               {/* Segment background — chakra-tinted */}
               <Path
                 d={describeArc(CX, CY, innerRadius, middleRadius, startAngle, endAngle)}
                 fill={isActive ? chakra.bright : chakra.dim}
-                fillOpacity={isActive ? 0.5 : isPrimary ? 0.3 : 0.16}
+                fillOpacity={isActive ? 0.5 : isPrimary ? 0.3 : 0.1}
                 stroke={chakra.bright}
-                strokeWidth={isActive ? 2 : 0.8}
+                strokeWidth={isActive ? 2 : 0.4}
                 opacity={isActive ? 1 : isPrimary ? 0.95 : 0.7}
               />
+              <Path pointerEvents="none" d={describeArc(CX, CY, middleRadius - 4, middleRadius - 2, startAngle + 1, endAngle - 1)} fill={chakra.bright} opacity={isActive ? 1 : 0.7} />
               {/* Key ID label */}
               <SvgText
                 x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR + 5)}
                 y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR + 5)}
-                fill={isActive ? SK('#ffffff') : chakra.bright}
+                fill={SK('#e4eef7')}
                 fontSize={10}
                 fontWeight="900"
                 textAnchor="middle"
@@ -430,7 +418,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
               <SvgText
                 x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR - 10)}
                 y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR - 10)}
-                fill={isActive ? SK('#ffffff') : SK('#666666')}
+                fill={isActive ? SK('#ffffff') : SK('#b8c7d4')}
                 fontSize={6}
                 textAnchor="middle"
                 alignmentBaseline="middle"
@@ -440,7 +428,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
               <SvgText
                 x={CX + Math.cos((midAngle - 90) * Math.PI / 180) * (labelR - 17)}
                 y={CY + Math.sin((midAngle - 90) * Math.PI / 180) * (labelR - 17)}
-                fill={isActive ? SK('#ffffff') : SK('#555555')}
+                fill={isActive ? SK('#ffffff') : SK('#99adbd')}
                 fontSize={5}
                 textAnchor="middle"
                 alignmentBaseline="middle"
@@ -462,19 +450,21 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
         })}
 
         {/* Center circle with MIRRORS 96 branding */}
-        <SvgCircle cx={CX} cy={CY} r={innerRadius} fill="url(#m96-center)" stroke={SK('#ff0a0a')} strokeWidth={2} />
-        <SvgCircle cx={CX} cy={CY} r={innerRadius - 4} fill="none" stroke={SK('#ff0a0a')} strokeWidth={0.5} opacity={0.5} />
+        <SvgCircle pointerEvents="none" cx={CX} cy={CY} r={innerRadius} fill={`url(#${chromeId}-panel)`} />
+        <MirrorRing id={chromeId} cx={CX} cy={CY} r={middleRadius} width={5} />
+        <MirrorRing id={chromeId} cx={CX} cy={CY} r={innerRadius} width={8} />
+        <MirrorRing id={chromeId} cx={CX} cy={CY} r={innerRadius - 9} width={1.5} />
         
         {/* Center text - MIRRORS */}
-        <SvgText x={CX} y={CY - 18} fill={SK('#ff0a0a')} fontSize={14} fontWeight="900" textAnchor="middle" letterSpacing={3}>
+        <SvgText pointerEvents="none" x={CX} y={CY - 24} fill="#dce9f2" fontSize={11} fontWeight="900" textAnchor="middle" letterSpacing={3}>
           MIRRORS
         </SvgText>
         {/* Center text - 96 */}
-        <SvgText x={CX} y={CY + 8} fill={SK('#ff0a0a')} fontSize={28} fontWeight="900" textAnchor="middle">
+        <SvgText pointerEvents="none" x={CX} y={CY + 16} fill={`url(#${chromeId}-chrome)`} stroke="#b8cbd9" strokeWidth={0.3} fontSize={46} fontWeight="900" fontStyle="italic" textAnchor="middle">
           96
         </SvgText>
         {/* Center text - WHEEL */}
-        <SvgText x={CX} y={CY + 26} fill={SK('#ff0a0a')} fontSize={8} fontWeight="700" textAnchor="middle" letterSpacing={4}>
+        <SvgText pointerEvents="none" x={CX} y={CY + 35} fill="#a6becf" fontSize={8} fontWeight="700" textAnchor="middle" letterSpacing={4}>
           ═ WHEEL ═
         </SvgText>
 
@@ -484,13 +474,14 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           return (
             <Line
               key={`radial-${i}`}
+              pointerEvents="none"
               x1={CX + Math.cos(angle) * innerRadius}
               y1={CY + Math.sin(angle) * innerRadius}
               x2={CX + Math.cos(angle) * outerRadius}
               y2={CY + Math.sin(angle) * outerRadius}
-              stroke={SK('#ff0a0a')}
+              stroke={`url(#${chromeId}-edge)`}
               strokeWidth={1}
-              opacity={0.4}
+              opacity={0.8}
             />
           );
         })}
@@ -507,7 +498,8 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
   // ═══════════════════════════════════════════════════════════════
   const renderButterflyWheel = () => {
     return (
-      <Svg width={MAP_W} height={MAP_H} viewBox={`0 0 ${MAP_W} ${MAP_H}`}>
+      <Svg testID="mirrors-wheel-butterfly" width="100%" height="100%" viewBox={`0 0 ${MAP_W} ${MAP_H}`}>
+        <MirrorDefs id={chromeId} />
         <Defs>
           <RadialGradient id="bg-grad" cx="50%" cy="50%" r="70%">
             <Stop offset="0%" stopColor={SK('#0a0000')} stopOpacity="1" />
@@ -551,16 +543,16 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
         <Ellipse cx={CX} cy={CY} rx={MAP_W * 0.48} ry={MAP_H * 0.35} fill="url(#attractor-glow)" />
 
         {attractorPaths.map((path, i) => (
-          <Path key={`attractor-${i}`} d={path} fill="none" stroke={SK('#ff0a0a')} strokeWidth={i < 3 ? 0.3 : 0.5 + (i - 3) * 0.1} opacity={0.08 + i * 0.03} />
+          <Path key={`attractor-${i}`} d={path} fill="none" stroke={`url(#${chromeId}-chrome)`} strokeWidth={i < 3 ? 0.5 : 0.8 + (i - 3) * 0.1} opacity={0.15 + i * 0.035} />
         ))}
         {infinityPaths.map((path, i) => (
-          <Path key={`infinity-${i}`} d={path} fill="none" stroke={SK('#ff0a0a')} strokeWidth={0.8 + i * 0.15} opacity={isEmitting ? 0.25 + i * 0.05 : 0.1 + i * 0.03} />
+          <Path key={`infinity-${i}`} d={path} fill="none" stroke={`url(#${chromeId}-chrome)`} strokeWidth={1.5 + i * 0.2} opacity={isEmitting ? 0.45 + i * 0.05 : 0.25 + i * 0.05} />
         ))}
         {lobeSpirals.map((path, i) => (
           <G key={`lobe-group-${i}`}>
             <Path d={path} fill="none" stroke={SK('#ff0a0a')} strokeWidth={4} opacity={isEmitting ? 0.15 : 0.05} strokeLinecap="round" />
-            <Path d={path} fill="none" stroke={SK('#ff2020')} strokeWidth={2} opacity={isEmitting ? 0.3 : 0.12} strokeLinecap="round" />
-            <Path d={path} fill="none" stroke={SK('#ff4040')} strokeWidth={1} opacity={isEmitting ? 0.5 : 0.2} strokeLinecap="round" />
+            <Path d={path} fill="none" stroke={`url(#${chromeId}-chrome)`} strokeWidth={3} opacity={isEmitting ? 1 : 0.7} strokeLinecap="round" />
+            <Path d={path} fill="none" stroke={`url(#${chromeId}-edge)`} strokeWidth={0.6} opacity={0.8} strokeLinecap="round" />
           </G>
         ))}
         {[0, 1, 2, 3].map((lobeIdx) => {
@@ -602,9 +594,10 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           const isPrimary = level === 'primary';
           const nodeR = isActive ? 18 : p.r;
           return (
-            <G key={`o-${i}`} onPress={() => onKeyPress(p.key)}>
+            <G key={`o-${i}`} testID={`mirrors-key-${p.key.id}`} onPress={() => onKeyPress(p.key)}>
+              <SvgCircle cx={p.x} cy={p.y} r={22} fill="transparent" />
               <SvgCircle cx={p.x} cy={p.y} r={isActive ? nodeR * 2.5 : isPrimary ? nodeR * 1.8 : nodeR * 1.5} fill={`url(#ng-${i})`} opacity={isActive ? 1 : isPrimary ? 0.7 : 0.3} />
-              <SvgCircle cx={p.x} cy={p.y} r={nodeR} fill={SK('#050000')} stroke={p.key.color} strokeWidth={isActive ? 2 : isPrimary ? 1.2 : 0.8} />
+              <MirrorNode id={chromeId} x={p.x} y={p.y} r={nodeR - 2} color={p.key.color} active={isActive} />
               <SvgCircle cx={p.x} cy={p.y} r={nodeR * 0.5} fill={p.key.color} opacity={isActive ? 1 : isPrimary ? 0.7 : 0.4} />
               <SvgCircle cx={p.x} cy={p.y} r={isActive ? 3 : 1.5} fill={SK('#ffffff')} opacity={isActive ? 1 : 0.4} />
               <SvgText x={p.x} y={p.y - nodeR - 4} fill={isActive ? SK('#ffffff') : p.key.color} fontSize={isActive ? 7 : 6} fontWeight="800" textAnchor="middle" opacity={isActive ? 1 : 0.8}>{p.key.id}</SvgText>
@@ -619,9 +612,10 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           const isPrimary = level === 'primary';
           const nodeR = isActive ? 15 : p.r;
           return (
-            <G key={`i-${idx}`} onPress={() => onKeyPress(p.key)}>
+            <G key={`i-${idx}`} testID={`mirrors-key-${p.key.id}`} onPress={() => onKeyPress(p.key)}>
+              <SvgCircle cx={p.x} cy={p.y} r={22} fill="transparent" />
               <SvgCircle cx={p.x} cy={p.y} r={isActive ? nodeR * 2.2 : nodeR * 1.4} fill={`url(#ng-${i})`} opacity={isActive ? 1 : isPrimary ? 0.6 : 0.25} />
-              <SvgCircle cx={p.x} cy={p.y} r={nodeR} fill={SK('#050000')} stroke={p.key.color} strokeWidth={isActive ? 1.8 : isPrimary ? 1 : 0.6} />
+              <MirrorNode id={chromeId} x={p.x} y={p.y} r={nodeR - 2} color={p.key.color} active={isActive} />
               <SvgCircle cx={p.x} cy={p.y} r={nodeR * 0.45} fill={p.key.color} opacity={isActive ? 1 : 0.4} />
               <SvgCircle cx={p.x} cy={p.y} r={isActive ? 2 : 1} fill={SK('#ffffff')} opacity={isActive ? 1 : 0.3} />
               <SvgText x={p.x} y={p.y - nodeR - 3} fill={isActive ? SK('#ffffff') : p.key.color} fontSize={isActive ? 6 : 5} fontWeight="800" textAnchor="middle" opacity={isActive ? 1 : 0.7}>{p.key.id}</SvgText>
@@ -636,25 +630,31 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
   };
 
   return (
-    <View style={st.container}>
+    <View testID="mirrors-wheel" style={st.container}>
+      {/* Reserved control space keeps SPIN and readout off every playable key. */}
+      <View pointerEvents="none" style={st.toolbar} />
       {/* SPIN Toggle Button */}
       <TouchableOpacity 
+        testID="mirrors-wheel-spin-button"
         style={st.spinButton} 
         onPress={() => setViewMode(viewMode === 'mirrors' ? 'camelot' : 'mirrors')}
       >
+        <MirrorSurface radius={0} />
         <Text style={st.spinButtonText}>◎ SPIN</Text>
       </TouchableOpacity>
 
       {/* Render appropriate wheel - CAMELOT (MIRRORS 96) is default */}
-      {viewMode === 'camelot' ? renderMirrors96Wheel() : renderButterflyWheel()}
+      <View style={st.drawing}>
+        {viewMode === 'camelot' ? renderMirrors96Wheel() : renderButterflyWheel()}
+      </View>
 
       {/* Active key info overlay */}
       {activeKey && activePos && (
-        <View style={st.infoOverlay}>
+        <View pointerEvents="none" testID="mirrors-wheel-selection" style={st.infoOverlay}>
           <View style={[st.infoBadge, { borderColor: activePos.key.color }]}>
             <Text style={[st.infoKey, { color: activePos.key.color }]}>{activePos.key.id}</Text>
             <Text style={st.infoNote}>{activePos.key.note}</Text>
-            <Text style={st.infoFreq}>{activePos.key.freq} Hz</Text>
+            <Text testID="mirrors-wheel-frequency" style={st.infoFreq}>{activePos.key.freq} Hz</Text>
           </View>
         </View>
       )}
@@ -680,26 +680,30 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
 }
 
 const st = skinStyles({
+  toolbar: { height: 64, borderBottomWidth: 1, borderBottomColor: '#657c9040' },
+  drawing: { width: '100%', aspectRatio: 1 },
   container: {
     borderWidth: 1,
-    borderColor: '#ff0a0a20',
+    borderColor: '#687d90',
     borderRadius: 0,
     overflow: 'hidden',
     backgroundColor: '#000',
   },
   spinButton: {
     position: 'absolute',
-    top: 8,
+    top: 10,
     right: 8,
     zIndex: 10,
     backgroundColor: '#0a0505',
     borderWidth: 1,
-    borderColor: '#ff0a0a',
+    borderColor: '#687d90',
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
   spinButtonText: {
-    color: '#ff0a0a',
+    color: '#e5f1fa',
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 2,
@@ -729,7 +733,7 @@ const st = skinStyles({
     marginTop: 2,
   },
   infoFreq: {
-    color: '#ffffff66',
+    color: '#bdc9d5',
     fontSize: 9,
     letterSpacing: 1,
     marginTop: 2,
@@ -737,13 +741,14 @@ const st = skinStyles({
   legend: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 16,
+    gap: 8,
+    flexWrap: 'wrap',
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: '#ff0a0a10',
+    borderTopColor: '#657c9040',
   },
   legendItem: {
-    color: '#ff0a0a40',
+    color: '#a6b6c5',
     fontSize: 7,
     letterSpacing: 1.5,
   },

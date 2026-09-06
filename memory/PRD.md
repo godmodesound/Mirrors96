@@ -95,6 +95,9 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - Voice→preview→SEND end-to-end + haptics feel
 
 ## Backlog
+- P0 (prior handoff, not investigated in this visual-only update): reported backend startup / Nginx loop; App Store cleanup listed below.
+- P1: physical-device validation of audio bridge and current mirror finish.
+- P2: existing index.tsx refactor / expo-av migration; future reduced-motion-aware chrome sheen if requested.
 - Refactor index.tsx (>3k lines) into components — HIGH RISK of edit corruption
 - App Store blockers: remove Stripe checkout (sound.tsx + /api/store/checkout, /api/sound/checkout), uninstall unused perms (expo-location/contacts/notifications/blur/symbols), delete orphaned mirrors-id.tsx + store.tsx, fix NSCameraUsageDescription "chirp"→"Mirror"
 - Migrate expo-av → expo-audio (deprecation warning)
@@ -133,3 +136,11 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 ## Session: Musical Spiral + Chakra re-base (June 2026)
 - 13 CHAKRA BODY MAP re-based on THE MUSICAL SPIRAL (Universal Tuning 432): C 252 → C 504 (252/270/288/306/324/342/360/378/405/432/459/486/504). Key colours follow chakra light spectrum RED=ROOT → ORANGE → YELLOW → GREEN(HEART) → BLUE → INDIGO → VIOLET → MAGENTA → WHITE.
 - NEW `/app/frontend/src/MusicalSpiral.tsx` (BRAIN tab, directly under the chakra map): interactive semicircle spiral (13 rays with Hz/degrees, tap to sound), 2nd-octave inner spiral, live ScopeNodePanel (CymaScope) driven by the selected tone, 7-chakra table (216-432-864 …, tappable), 7 HEALING FREQUENCIES (963→396, tap to play), 432 frequency grid (5 octaves × 12 notes), 7 alchemical stages footer.
+
+## Current session — logo-matched mirror finish
+- Request: “add a mirror Finish to the Mirrors Wheel and FREQUENCY LAB so it matches the logo.” Reference: uploaded silver/chrome 96 logo on black (`6ujv5mnt_B0209CA7-795F-4B90-BBD7-CAD7DAEA26B5.PNG`). Scope strictly visual; no app-icon, backend, tuning or audio-engine changes.
+- `src/MirrorFinish.tsx`: shared native SVG multi-stop chrome/reflection gradients, polished concentric rings, lens-like spectrum nodes and non-intercepting control backgrounds. Chrome remains neutral silver across skins; surrounding UI and active colors still use existing skin system.
+- `src/MirrorsWheel.tsx`: chrome outer/middle/hub rings, dark reflective key segments, spectrum color inlays, chrome butterfly loops and node bezels, SPIN in reserved toolbar so keys remain tappable. All 24 key mappings unchanged.
+- `src/FrequencyMap.tsx`: chrome geometry strokes/node bezels/frame and control surfaces; subdued cool matrix background; colored lenses, infrared active states and original callbacks retained. Responsive SVG containers replace initial-screen Dimensions calculations; node labels kept inside edges.
+- Removed unused, unbound animation loops in both touched modules (they drove no visible property). No new dependencies, images or services.
+- Verification: touched files lint clean; no added tsc errors (fixed existing FrequencyMap interval-ref type). Focused regression `/app/test_reports/iteration_11.json`: PASS all 24 keys and original frequency values, second-tap stop, SPIN/butterfly, all eight geometries, node telemetry, PLAY/STOP, 432 chip toggle, T-1000/WINTER/default skins, 390px/320px fit with no page overflow. No new runtime exceptions. Physical iOS/Android rendering/audio remains a device-verification item. Existing unrelated framework deprecation warnings and baseline type errors remain outside this visual scope.
