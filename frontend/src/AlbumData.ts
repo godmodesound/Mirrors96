@@ -1,8 +1,17 @@
+import Constants from 'expo-constants';
+
+const API_URL = (Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL || '').replace(/\/$/, '');
+export const MIRRORS_COVER_URL = 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/a531g1s7_Codex%20Image%20Sep%206%2C%202026%2C%2002_21_12%20AM.png';
+
+/** Legacy API catalogue paths use the same public, range-capable music endpoint. */
+export const resolveAlbumMediaUrl = (url: string) => url.startsWith('/api/') ? `${API_URL}${url}` : url;
+
 export interface Track {
   number: number;
   name: string;
   duration: number;
   previewUrl: string;
+  originalUrl?: string;
 }
 
 export interface Album {
@@ -17,9 +26,9 @@ export interface Album {
 export const ALBUMS: Album[] = [
   {
     id: 'mirrors',
-    name: '96 Mirrors',
+    name: '96 MIRRORS',
     artist: 'VINCE SINNOTT',
-    coverUrl: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/c5jwbmte_MIRRORS_1024x1024.jpg',
+    coverUrl: MIRRORS_COVER_URL,
     buyUrl: 'https://www.vincesinnott.com/',
     tracks: [
       { number: 1, name: '96 MIRRORS', duration: 0, previewUrl: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/ln4b6jco_8A%20-%20120%20-%2096%20MIRRORS.mp3' },
@@ -33,6 +42,9 @@ export const ALBUMS: Album[] = [
       { number: 9, name: 'Grateful', duration: 0, previewUrl: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/vqa0bq5r_12A%20-%2090%20-%20Grateful%20mp3' },
       { number: 10, name: 'UNCLE MAJIC', duration: 0, previewUrl: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/6nk2vnna_1A%20-%20123%20-%20UNCLE%20MAJIC.mp3' },
       { number: 11, name: 'RED Magick', duration: 0, previewUrl: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/nlohe1ei_6A%20-%2090%20-%20RED%20Magick.mp3' },
+      { number: 12, name: 'MIRROR WORLD', duration: 240, previewUrl: resolveAlbumMediaUrl('/api/music/mirrors/mirror-world.mp3'), originalUrl: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/13nmcsgk_10A%20-%20120%20-%20Mirror%20Worlds.wav' },
+      { number: 13, name: 'MIND SYNC', duration: 200, previewUrl: resolveAlbumMediaUrl('/api/music/mirrors/mind-sync.mp3'), originalUrl: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/mfpz1gp1_8A%20-%2096%20-%203Drifting%20Mind%20Drift.wav' },
+      { number: 14, name: 'INTERLUDE FLIP', duration: 35, previewUrl: resolveAlbumMediaUrl('/api/music/mirrors/interlude-flip.mp3'), originalUrl: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/dui0r9z0_2nd%20INTERLUDE.wav' },
     ],
   },
   {

@@ -105,6 +105,20 @@
 user_problem_statement: "Create a mobile app version of godmodesound.com - a 432Hz frequency generator app with binaural beats, solfeggio frequencies, chakra frequencies, and mood-based frequency stacks"
 
 backend:
+  - task: "96 MIRRORS catalogue migration and public full-length music streams"
+    implemented: true
+    working: true
+    file: "backend/music_catalog.py, backend/music_streaming.py, backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Album backend suite passed6/6 in iterations12,13,14: catalogue parity/persistence, full streams, ranges, cache regeneration. Durable files preserved."
+      - working: "NA"
+        agent: "main"
+        comment: "Added full-length 320kbps MP3 copies of three uploaded WAVs in managed object storage (public_music_files MongoDB metadata). Public allowlisted GET/HEAD /api/music/mirrors/{mirror-world,mind-sync,interlude-flip}.mp3 with disk cache and byte ranges. Exact original WAV URLs preserved. Versioned existing-album migration to 14 tracks + latest WHITE chrome logo cover, aligning all 14 preview_urls with tracklist. Other albums/pricing/purchases untouched. Initial catalogue GET and 3 HEAD requests pass. Test partial/suffix/invalid ranges, unknown tracks, MP3 durations and repeat migration, catalogue parity."
   - task: "User Registration API"
     implemented: true
     working: true
@@ -388,6 +402,48 @@ backend:
         comment: "DELETE /api/codes/channels/{channel_id} endpoint tested successfully. Deletes channels and associated messages, returns proper confirmation message."
 
 frontend:
+  - task: "Sound Lab matches Archive design, remove music FREE labels"
+    implemented: true
+    working: true
+    file: "frontend/src/sound/*, frontend/app/sound.tsx, frontend/app/index.tsx, frontend/app/store.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "iteration14: Sound/Home/Store noFREE labels, 6albums/53recordings/14MIRRORS/new3durations/whitecover, advancingprogress+stop, Home navigation and responsive320/390 fit PASS. No scope Sound bugs."
+      - working: "NA"
+        agent: "main"
+        comment: "New user request SoundLab same Archive design + noFREElabels. Shared six-album selector, true covers, fullwidth trackrows,readout across Home and/sound. Uses exact AlbumData (6albums/53recordings), preserves14MIRRORS/new3names/whitecover. HomeAudioEngine unchanged, /soundexpo-av retained in race-guarded useSoundPlayback hook with realprogress/status. AllFREEcopy removed from songs/albums/Home/Sound/legacyStore. No paywall/access changes. Main screenshots all3new tracks play withactual advancing progress andSTOP. Lintersclean, noaddedTSerrors. Test album switches/rapidcancel/home andlegacyStorelabels; confirm previous Archivegesturefixes remain."
+  - task: "Unified CODES Archive design — Home modal and Archive tab"
+    implemented: true
+    working: true
+    file: "frontend/src/archive/*, frontend/app/library.tsx, frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "After reports13/14, fixed blur-triggered header geometry shifts, resetview, enlargedletters and fullyunmountedHomeModal/SendCodesModaltoeliminatecrossroutefocustrap. iteration15 main screenshot evidence: 3completeHome→popup→Sound→Archive→Homecycles at390/375/320, actualinputfocus, fill/play/stop/load/reset/categorytapsPASS. Holdpreview/releaseandHomeloadbanneralsoverified."
+      - working: "NA"
+        agent: "main"
+        comment: "User cancelled voice search; design only. New shared modular Archive UI for /library and Home modal. Existing 300 entries/22 categories unchanged; CODEX grid, A-Z horizontal filters, trimmed name/category/Hz search, persistent stop/elapsed playback bar, stable IDs, tap+stage/holdpreview, Standard/$-Codes. LAB keeps preset frequencies/mood stacks and collapsed CodesLabShared, direct LAB action opens it or loads Home via unchanged callback. Initial screenshot: collection selection,432play/stop, Hz search, loadtoLab all pass. Test native-like hold/release, filter active state, empty/reset, Home popup close even while search focused, home load layers, narrow320 layout/skins, no voice prompts. Prefix archive-* vs home-archive-* avoids duplicate IDs. Songs from preceding task must remain14/white cover; prior agent verified all but lacked JSON report."
+  - task: "96 MIRRORS three added songs and white chrome artwork across app"
+    implemented: true
+    working: true
+    file: "frontend/src/AlbumData.ts, frontend/app/index.tsx, frontend/app/sound.tsx, frontend/app/store.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Verified in albumQA and iteration14 Sound redesign regression. Original11+3newtracks intact, exact titles/durations, actual playback, currentwhitecover across musicviews."
+      - working: "NA"
+        agent: "main"
+        comment: "Shared album now 96 MIRRORS with original 11 tracks + 12 MIRROR WORLD (4:00), 13 MIND SYNC (3:20), 14 INTERLUDE FLIP (0:35). Latest white logo URL reused in Home carousel/nav thumbnail, Sound shelf/detail, legacy Store catalogue/detail/library/admin, contain fit avoids cropping. Home and Sound use shared full-length MP3s, Store resolves relative public stream paths. Corrected Mirrors-only misleading 30-second preview labels. Screenshot verified Sound new cover/14 tracks and MIRROR WORLD actual advancing playback + second-tap stop. Test all 3 new tracks in Home and Sound plus old first track, other album preservation and legacy Store catalogue."
   - task: "Logo-matched mirror chrome finish — Mirrors Wheel and Frequency Lab"
     implemented: true
     working: true

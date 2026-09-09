@@ -8,6 +8,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Audio } from 'expo-av';
 import Constants from 'expo-constants';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
+import { resolveAlbumMediaUrl } from '../src/AlbumData';
 
 import { skinStyles, SK } from '../src/skins';
 
@@ -143,7 +144,7 @@ export default function StoreScreen() {
     await stopAudio();
     if (playingIdx === idx) { setPlayingIdx(-1); return; }
     try {
-      const { sound } = await Audio.Sound.createAsync({ uri: url }, { shouldPlay: true });
+      const { sound } = await Audio.Sound.createAsync({ uri: resolveAlbumMediaUrl(url) }, { shouldPlay: true });
       soundRef.current = sound;
       setPlayingIdx(idx);
       sound.setOnPlaybackStatusUpdate((s: any) => {
@@ -230,7 +231,7 @@ export default function StoreScreen() {
               >
                 <View style={styles.albumCoverWrap}>
                   {album.cover_url ? (
-                    <Image source={{ uri: album.cover_url }} style={styles.albumCover} resizeMode="cover" />
+                    <Image testID={`store-cover-${album.id}`} source={{ uri: album.cover_url }} style={[styles.albumCover, album.id === 'mirrors' && { backgroundColor: '#ffffff' }]} resizeMode={album.id === 'mirrors' ? 'contain' : 'cover'} />
                   ) : (
                     <View style={[styles.albumCover, { backgroundColor: SK('#1a0808'), justifyContent: 'center', alignItems: 'center' }]}>
                       <Text style={{ color: SK('#ff0a0a'), fontSize: 8 }}>{album.name}</Text>
@@ -241,7 +242,6 @@ export default function StoreScreen() {
                   <Text style={styles.albumName}>{album.name}</Text>
                   <Text style={styles.albumArtist}>{album.artist}</Text>
                   <View style={styles.albumBottom}>
-                    <Text style={styles.albumFreeTag}>FREE</Text>
                     <Text style={styles.albumTracks}>{album.tracklist.length} TRK</Text>
                   </View>
                 </View>
@@ -261,12 +261,12 @@ export default function StoreScreen() {
         <TouchableOpacity onPress={() => setView('shop')}>
           <Text style={styles.backLink}>◁ BACK TO SHOP</Text>
         </TouchableOpacity>
-        <Image source={{ uri: a.cover_url }} style={styles.detailCover} resizeMode="cover" />
+        <Image testID="store-detail-cover" source={{ uri: a.cover_url }} style={[styles.detailCover, a.id === 'mirrors' && { backgroundColor: '#ffffff' }]} resizeMode={a.id === 'mirrors' ? 'contain' : 'cover'} />
         <Text style={styles.detailTitle}>{a.name}</Text>
         <Text style={styles.detailArtist}>{a.artist}</Text>
         <Text style={styles.detailDesc}>{a.description}</Text>
         <View style={styles.freeAccessBanner}>
-          <Text style={styles.freeAccessText}>FREE STREAMING ACCESS</Text>
+          <Text testID="store-album-track-count" style={styles.freeAccessText}>{a.tracklist.length} TRACKS</Text>
         </View>
 
         {/* Tracklist */}
@@ -338,7 +338,7 @@ export default function StoreScreen() {
         <View style={styles.purchasesList}>
           {purchases.map(p => (
             <View key={p.purchase_id} style={styles.purchaseCard}>
-              <Image source={{ uri: p.cover_url }} style={styles.purchaseCover} resizeMode="cover" />
+              <Image testID={`store-library-cover-${p.purchase_id}`} source={{ uri: p.cover_url }} style={[styles.purchaseCover, p.album_id === 'mirrors' && { backgroundColor: '#ffffff' }]} resizeMode={p.album_id === 'mirrors' ? 'contain' : 'cover'} />
               <View style={styles.purchaseInfo}>
                 <Text style={styles.purchaseName}>{p.album_name}</Text>
                 <Text style={styles.purchaseDate}>
@@ -405,7 +405,7 @@ export default function StoreScreen() {
         <Text style={styles.sectionLabel}>ALBUMS ({adminAlbums.length})</Text>
         {adminAlbums.map(a => (
           <View key={a.id} style={styles.adminAlbumRow}>
-            <Image source={{ uri: a.cover_url }} style={styles.adminThumb} resizeMode="cover" />
+            <Image testID={`store-admin-cover-${a.id}`} source={{ uri: a.cover_url }} style={[styles.adminThumb, a.id === 'mirrors' && { backgroundColor: '#ffffff' }]} resizeMode={a.id === 'mirrors' ? 'contain' : 'cover'} />
             <View style={styles.adminAlbumInfo}>
               <Text style={styles.adminAlbumName}>{a.name}</Text>
               <Text style={styles.adminAlbumMeta}>{formatPrice(a.price_cents)} • {a.tracklist.length} tracks • {a.is_published ? 'LIVE' : 'DRAFT'}</Text>

@@ -18,6 +18,8 @@ from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 import jwt
 from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
+from music_catalog import MIRRORS_RELEASE
+from music_streaming import music_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -40,6 +42,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer(auto_error=False)
 
 app = FastAPI()
+app.include_router(music_router(db))
 api_router = APIRouter(prefix="/api")
 
 # ═══════════════════════════════════
@@ -197,16 +200,9 @@ ADMIN_PASSWORD = os.environ.get('STORE_ADMIN_PASSWORD', 'godmode96')
 SEED_ALBUMS = [
     {
         "_id": "mirrors",
-        "name": "MIRRORS",
+        **MIRRORS_RELEASE,
         "artist": "VINCE SINNOTT",
-        "description": "96 Mirrors — the flagship album. A sonic architecture of 432Hz-tuned frequencies, infrared textures, and hypnotic rhythms. 11 tracks of pure frequency exploration.",
         "price_cents": 1299,
-        "cover_url": "https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/c5jwbmte_MIRRORS_1024x1024.jpg",
-        "tracklist": ["96 MIRRORS","WENOTDONE","13th St","Here 2day Gone 2morrow","Musical Chairs 2026","Poor Man Style","$hango","Spun The Block","Grateful","UNCLE MAJIC","RED Magick"],
-        "preview_urls": [
-            "https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/ln4b6jco_8A%20-%20120%20-%2096%20MIRRORS.mp3",
-            "https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/qvnwhve9_12A%20-%20120%20-%20WENOTDONE.mp3",
-        ],
         "download_urls": [],
         "is_published": True,
         "created_at": datetime.utcnow().isoformat(),
@@ -296,6 +292,12 @@ async def seed_store_albums():
                 await db.store_albums.insert_one(album)
             except Exception:
                 pass
+    # Versioned catalogue migration: update existing databases, not only empty ones.
+    # Explicit metadata fields preserve pricing, purchases, downloads and other albums.
+    await db.store_albums.update_one(
+        {"_id": "mirrors", "catalog_revision": {"$ne": MIRRORS_RELEASE["catalog_revision"]}},
+        {"$set": MIRRORS_RELEASE},
+    )
 
 @api_router.get("/store/config")
 async def get_store_config():
@@ -505,6 +507,7 @@ async def verify_session(session_id: str):
 @api_router.get("/store/library/{email}")
 async def get_user_library(email: str):
     """Get all purchased albums for a user."""
+    await seed_store_albums()
     purchases = await db.store_purchases.find(
         {"customer_email": email.lower(), "status": "completed"}
     ).sort("created_at", -1).to_list(100)
@@ -516,7 +519,7 @@ async def get_user_library(email: str):
         result.append({
             "purchase_id": p["_id"],
             "album_id": p["album_id"],
-            "album_name": p.get("album_name", ""),
+            "album_name": album.get("name", p.get("album_name", "")) if album else p.get("album_name", ""),
             "amount_cents": p.get("amount_cents", 0),
             "purchased_at": p.get("created_at", ""),
             "cover_url": album.get("cover_url", "") if album else "",

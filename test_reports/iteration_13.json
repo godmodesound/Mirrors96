@@ -1,0 +1,100 @@
+{
+  "summary": "Executed backend regression + mobile-web archive QA on public preview. Backend mirrors streaming suite passed (6/6). Frontend archive redesign loads with correct default totals (300 codes / 22 collections) and A–Z/search basics, but critical interaction regressions remain in archive play/load and Home modal integration flows.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Archive entry play action",
+        "issue": "Tap on archive play buttons in A–Z/search views repeatedly failed to activate now-playing/readout in automation runs.",
+        "testID": "archive-play-*",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Archive load arrow",
+        "issue": "Load action was unreliable; in successful click path lab did not open/staged label did not appear (no archive-lab-loaded-name).",
+        "testID": "archive-load-*",
+        "priority": "CRITICAL"
+      },
+      {
+        "component": "Reset filters",
+        "issue": "From no-result state, RESET FILTERS left count at 0 CODES instead of restoring default collection/count context.",
+        "testID": "archive-reset-filters",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Home -> open archive modal -> close while search focused",
+        "issue": "Observed close behavior inconsistency; modal screen remained present in DOM checks after close attempt in one successful open run.",
+        "affected_testIDs": [
+          "home-open-codes-archive",
+          "home-archive-close",
+          "home-archive-search-input"
+        ]
+      },
+      {
+        "flow": "Home archive explicit Load -> update Home Lab",
+        "issue": "Explicit load path did not produce verifiable Home loaded banner/readout in tested run.",
+        "affected_testIDs": [
+          "home-archive-load-solfeggio-432-hz-natural-tuning"
+        ]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "/library archive",
+        "issues": [
+          "At 320px width, horizontal alphabet strip appears crowded and near-edge clipped visually for later letters (functional scroll exists but readability/tap comfort is tight)."
+        ]
+      }
+    ],
+    "react_native_issues": [
+      {
+        "component": "Expo web runtime",
+        "issue": "Pre-existing warnings observed: expo-av deprecation, pointerEvents/shadow prop deprecations, missing native animated module fallback, responder handler warnings on web."
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_mirrors_album_streaming.py",
+    "/app/test_reports/pytest/iteration13_mirrors_album_streaming.xml",
+    "/app/test_reports/artifacts_iter13/library_default_375.jpeg",
+    "/app/test_reports/artifacts_iter13/library_entry_playback_375.jpeg",
+    "/app/test_reports/artifacts_iter13/library_narrow_390.jpeg",
+    "/app/test_reports/artifacts_iter13/library_narrow_320.jpeg",
+    "/app/test_reports/artifacts_iter13/home_archive_modal_375.jpeg",
+    "/app/test_reports/artifacts_iter13/home_mirrors_tracks_375.jpeg",
+    "/root/.emergent/automation_output/20260909_060751/console_20260909_060751.log",
+    "/root/.emergent/automation_output/20260909_060825/console_20260909_060825.log",
+    "/root/.emergent/automation_output/20260909_060957/console_20260909_060957.log",
+    "/root/.emergent/automation_output/20260909_061039/console_20260909_061039.log",
+    "/root/.emergent/automation_output/20260909_061202/console_20260909_061202.log"
+  ],
+  "action_items": [
+    "Fix archive entry tap reliability for play/stop in A–Z and search result contexts.",
+    "Fix archive load-arrow behavior so selecting archive-load-* consistently stages to shared Codes Lab and visibly switches to/open Lab with loaded label.",
+    "Fix Home archive modal close + explicit load close/update path (focused-search close and handleArchiveLoadFrequency integration).",
+    "Revalidate reset-filters behavior to restore default CODEX collection state/count.",
+    "After fixes, rerun mobile viewport QA at 375/390/320 and repeat backend mirrors streaming regression."
+  ],
+  "critical_code_review_comments": [
+    "Archive module cleanly reuses shared state via useSyncExternalStore in archiveSession and keeps IDs prefixed by passed prefix (archive-* vs home-archive-*).",
+    "No voice/recording/transcription/permission UI added in tested archive files (grep across archive + library + home matched none).",
+    "Potential standards mismatch: codebase and tests currently use EXPO_PUBLIC_BACKEND_URL (not EXPO_BACKEND_URL named in infra guidance); keep aligned with project env contract to avoid drift."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_13.json"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6)",
+    "frontend": "55% (core rendering/count/search mostly pass; critical play/load/modal integration failures)"
+  },
+  "seed_data_creation": "none",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Do not spend extra cycles on archive-load-* selector retries without first stabilizing list scroll/state; loop-prevention reached on repeated load/play selector failures. Start with /library: validate archive-play-* and archive-load-* from CODEX and A–Z states, then Home modal close/load behaviors. Existing screenshots + console logs are in /app/test_reports/artifacts_iter13 and /root/.emergent/automation_output/20260909_*.",
+  "rca_of_issue": "Likely interaction-layer regression in ArchiveEntry touch targets/gesture handling after redesign: play/load handlers are present in source but behavior is inconsistent in Expo web runtime under filtered/alpha states. Reproduction: /library -> A–Z INDEX -> search 432 or 174 -> tap archive-play-* (no now-playing) and tap archive-load-* (no lab transition/loaded label). Home integration also shows inconsistent modal close/load completion from archive overlay when search is focused."
+}

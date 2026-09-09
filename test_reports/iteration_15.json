@@ -1,0 +1,26 @@
+{
+  "tester": "main-agent mobile screenshot verification after iteration_14 fixes",
+  "scope": "Resolve remaining Archive cross-route focus traps; retain passing Sound redesign",
+  "status": "pass",
+  "source_reports": ["/app/test_reports/iteration_13.json", "/app/test_reports/iteration_14.json"],
+  "root_causes_resolved": [
+    "Header resizing on TextInput blur shifted targets mid-gesture; removed focus-dependent geometry changes.",
+    "Home archive Modal wrapper persisted during route changes/close transitions; now entire Modal unmounts when closed. SendCodesModal wrapper also conditionally mounted.",
+    "Reset did not restore CODEX; now resets view and filters.",
+    "Alphabet rail targets increased to 50x48 points."
+  ],
+  "verification": [
+    "390, 375 and 320px: Home modal open, focused 432 Hz search, play, close; modal wrapper confirmed detached.",
+    "Each width: Home -> Sound -> Archive -> Home navigation with no forced clicks.",
+    "Each width: archive-search-input confirmed document.activeElement; actual fill works.",
+    "Each width: focused search -> play/readout -> STOP -> explicit load to shared Lab.",
+    "Each width: no-result -> reset -> CODEX -> Solfeggio collection -> correct entries.",
+    "Earlier self-verification: hold preview -> release stops, Home explicit load closes popup and updates main loaded banner.",
+    "Sound/Home/Store and audio backend remain covered by passing iteration_14 tests: no FREE labels, 6 albums/53 recordings, 14-track 96 MIRRORS with latest white cover, all three added tracks playable, real progress, stop, responsive fit; backend 6/6."
+  ],
+  "evidence": "/root/.emergent/automation_output/20260909_064210/console_20260909_064210.log",
+  "frontend_issues": [],
+  "backend_issues": [],
+  "limitations": ["Physical iOS/Android audio and device keyboard behavior not tested here.", "Existing unrelated project-wide TypeScript errors and Expo deprecation warnings remain outside this scope."],
+  "mocked_apis": []
+}

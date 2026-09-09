@@ -11,7 +11,6 @@ import {
   Dimensions,
   Modal,
   TextInput,
-  FlatList,
   PanResponder,
   Pressable,
 } from 'react-native';
@@ -22,8 +21,15 @@ import Svg, { Path, Circle as SvgCircle, Text as SvgText, G, Line } from 'react-
 import { AudioEngine } from '../src/AudioEngine';
 import { ParticleLab } from '../src/GodmodeFeatures';
 import { MirrorsWheel, CAMELOT_KEYS, CamelotKey } from '../src/MirrorsWheel';
-import { FREQUENCY_ARCHIVE, ARCHIVE_CATEGORIES, FrequencyEntry } from '../src/FrequencyArchiveData';
-import { PLAYABLE_ALBUMS, ALBUMS, Album, Track } from '../src/AlbumData';
+import { FREQUENCY_ARCHIVE, FrequencyEntry } from '../src/FrequencyArchiveData';
+import ArchiveScreen from '../src/archive/ArchiveScreen';
+import { stopArchive } from '../src/archive/archiveSession';
+import { SoundHeader } from '../src/sound/SoundHeader';
+import { SoundLibrary } from '../src/sound/SoundLibrary';
+import { SoundReadout } from '../src/sound/SoundReadout';
+import { ss as soundStyles } from '../src/sound/soundStyles';
+import { Ionicons } from '@expo/vector-icons';
+import { PLAYABLE_ALBUMS, ALBUMS, Album, Track, MIRRORS_COVER_URL } from '../src/AlbumData';
 import { Audio } from 'expo-av';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -187,12 +193,7 @@ export default function TerminalScreen() {
   const [activePianoKey, setActivePianoKey] = useState<number | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [archiveModalVisible, setArchiveModalVisible] = useState(false);
-  const [archiveSearch, setArchiveSearch] = useState('');
-  const [archiveCategory, setArchiveCategory] = useState('all');
-  const [archivePlayingItem, setArchivePlayingItem] = useState<string | null>(null);
   const [loadedArchiveName, setLoadedArchiveName] = useState<string | null>(null);
-  const [archiveViewMode, setArchiveViewMode] = useState<'codex' | 'a-z' | 'lab'>('a-z');
-  const [selectedCodex, setSelectedCodex] = useState<string | null>(null);
   const [sendCodesModalVisible, setSendCodesModalVisible] = useState(false);
   const { setPickerOpen } = useSkin();
   const logoTaps = useRef(0);
@@ -268,7 +269,6 @@ export default function TerminalScreen() {
   }, []);
 
   // ═══ Sound Lab State ═══
-  const [slExpandedAlbum, setSlExpandedAlbum] = useState<string | null>(null);
   const [slPlayingTrack, setSlPlayingTrack] = useState<string | null>(null);
   const slSoundRef = useRef<Audio.Sound | null>(null);
   const [slCheckoutLoading, setSlCheckoutLoading] = useState(false);
@@ -665,13 +665,6 @@ export default function TerminalScreen() {
     return 'ULTRA';
   };
 
-  // ═══ FREQUENCY ARCHIVE HELPERS ═══
-  const filteredArchive = FREQUENCY_ARCHIVE.filter(item => {
-    const matchesCategory = archiveCategory === 'all' || item.category === archiveCategory;
-    const matchesSearch = archiveSearch.length === 0 || item.name.toLowerCase().includes(archiveSearch.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
-
   // ═══ Frequency History (User Memory) ═══
   const [freqHistory, setFreqHistory] = useState<any[]>([]);
   const { user } = (() => { try { return require('../src/AuthContext').useAuth(); } catch { return { user: null }; } })();
@@ -763,16 +756,6 @@ export default function TerminalScreen() {
     setArchiveModalVisible(false);
   };
 
-  const handleArchivePlayFrequency = (name: string, frequencies: number[]) => {
-    if (archivePlayingItem === name) {
-      AudioEngine.stopMulti();
-      setArchivePlayingItem(null);
-    } else {
-      AudioEngine.playMulti(frequencies, 0.3);
-      setArchivePlayingItem(name);
-    }
-  };
-
   const getBandPosition = (freq: number) => {
     if (freq < 60) return 0;
     if (freq < 250) return 1;
@@ -819,9 +802,10 @@ export default function TerminalScreen() {
             {/* RIGHT — 96 Logo */}
             <TouchableOpacity onPress={() => Linking.openURL('https://earth.google.com/web/')} activeOpacity={0.8}>
               <Image
-                source={{ uri: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/c5jwbmte_MIRRORS_1024x1024.jpg' }}
+                testID="nav-mirrors-album-cover"
+                source={{ uri: MIRRORS_COVER_URL }}
                 style={styles.navLogoRight}
-                resizeMode="cover"
+                resizeMode="contain"
               />
             </TouchableOpacity>
           </View>
@@ -888,6 +872,7 @@ export default function TerminalScreen() {
                   <Text style={styles.sendCodesBubbleText}>SEND CODES</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
+                  testID="home-open-codes-archive"
                   style={styles.archiveBubble}
                   onPress={() => setArchiveModalVisible(true)}
                 >
@@ -1162,71 +1147,13 @@ export default function TerminalScreen() {
           {/* SCALAR is now folded into the LINK bar (◈ SCALAR toggle) — no dedicated section */}
 
           {/* ══════ SOUND LAB ══════ */}
-          <View style={slabStyles.container}>
-            <View style={slabStyles.headerRow}>
-              <View style={slabStyles.headerLeft}>
-                <View style={slabStyles.headerDot} />
-                <Text style={slabStyles.headerTitle}>SOUND LAB</Text>
-              </View>
-              <Text style={slabStyles.headerMeta}>{ALBUMS.length} albums {'\u00B7'} {ALBUMS.reduce((acc, a) => acc + a.tracks.length, 0)} tracks</Text>
-            </View>
-
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={slabStyles.albumScroll} contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingRight: 20 }}>
-              {ALBUMS.map((album) => {
-                const isExpanded = slExpandedAlbum === album.id;
-                const hasTracks = album.tracks.length > 0;
-                return (
-                  <View key={album.id} style={[slabStyles.albumCard, isExpanded && slabStyles.albumCardExpanded]}>
-                    <TouchableOpacity onPress={() => setSlExpandedAlbum(isExpanded ? null : album.id)} activeOpacity={0.8}>
-                      <Image source={{ uri: album.coverUrl }} style={slabStyles.albumCover} />
-                      <Text style={slabStyles.albumName} numberOfLines={1}>{album.name.toUpperCase()}</Text>
-                      <Text style={slabStyles.albumMeta}>{hasTracks ? `${album.tracks.length} tracks` : 'Album'}</Text>
-                    </TouchableOpacity>
-
-                    {isExpanded && hasTracks && (
-                      <View style={slabStyles.trackList}>
-                        {album.tracks.map((track) => {
-                          const trackKey = `${album.name}-${track.number}`;
-                          const isPlaying = slPlayingTrack === trackKey;
-                          return (
-                            <View key={track.number} style={slabStyles.trackRow}>
-                              <TouchableOpacity style={slabStyles.trackPlayBtn} onPress={() => slPlayPreview(track, album.name)}>
-                                <Text style={[slabStyles.trackPlayIcon, isPlaying && slabStyles.trackPlayIconActive]}>
-                                  {isPlaying ? '\u25A0' : '\u25B6'}
-                                </Text>
-                              </TouchableOpacity>
-                              <Text style={[slabStyles.trackName, isPlaying && slabStyles.trackNameActive]} numberOfLines={1}>{track.name}</Text>
-                              <View style={slabStyles.trackFreeTag}>
-                                <Text style={slabStyles.trackFreeText}>FREE</Text>
-                              </View>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </ScrollView>
-
-            {/* Support Discography - All Music Free */}
-            <TouchableOpacity
-              style={slabStyles.discographyBtn}
-              onPress={() => slHandleCheckout('album', 'GODMODE DISCOGRAPHY', '', 'VINCE SINNOTT')}
-            >
-              <Text style={slabStyles.discographyText}>DISCOGRAPHY</Text>
+          <View testID="home-sound-lab" style={soundStyles.embedded}>
+            <SoundHeader prefix="home" />
+            <SoundLibrary prefix="home" activeKey={slPlayingTrack} onPlay={(track, album) => slPlayPreview(track, album.name)} onStop={slStopPreview} />
+            <SoundReadout prefix="home" activeKey={slPlayingTrack} onStop={slStopPreview} />
+            <TouchableOpacity testID="home-open-discography" style={soundStyles.browseButton} onPress={() => { slStopPreview(); router.push('/sound'); }}>
+              <Text style={soundStyles.browseText}>OPEN SOUND LAB</Text><Ionicons name="arrow-forward" size={18} color={SK('#bdc3ce')} />
             </TouchableOpacity>
-            <Text style={slabStyles.freeAccessText}>ALL MUSIC FREE · STREAMING ENABLED</Text>
-
-            {slPlayingTrack && (
-              <View style={slabStyles.nowPlayingBar}>
-                <View style={slabStyles.npDot} />
-                <Text style={slabStyles.npLabel} numberOfLines={1}>PREVIEW: {slPlayingTrack.toUpperCase()}</Text>
-                <TouchableOpacity onPress={slStopPreview}>
-                  <Text style={slabStyles.npStopBtn}>{'\u25A0'} STOP</Text>
-                </TouchableOpacity>
-              </View>
-            )}
           </View>
 
           {/* ══════ FREQUENCY LAB / MERKABA ══════ */}
@@ -1371,7 +1298,7 @@ export default function TerminalScreen() {
               onPress={() => router.push('/library')}
             >
               <Text style={styles.viewAllText}>[ VIEW FULL ARCHIVE → ]</Text>
-              <Text style={styles.viewAllSub}>32+ CONDITIONS | ALL CATEGORIES</Text>
+              <Text style={styles.viewAllSub}>{FREQUENCY_ARCHIVE.length} CODES | ALL CATEGORIES</Text>
             </TouchableOpacity>
           </View>
 
@@ -1391,278 +1318,29 @@ export default function TerminalScreen() {
       </View>
 
       {/* ═══════ CODES ARCHIVE MODAL ═══════ */}
-      <Modal
+      {archiveModalVisible && <Modal
+        testID="home-codes-archive-modal"
         visible={archiveModalVisible}
         animationType="slide"
         transparent={false}
-        onRequestClose={() => { setArchiveModalVisible(false); AudioEngine.stopMulti(); setArchivePlayingItem(null); setSelectedCodex(null); }}
+        onRequestClose={() => { stopArchive(); setArchiveModalVisible(false); }}
       >
-        <View style={archiveStyles.modalContainer}>
-          <View style={[archiveStyles.modalSafeArea, { paddingTop: insets.top }]}>
-            {/* Decorative Header with Diamonds */}
-            <View style={archiveStyles.headerDecoration}>
-              <Text style={archiveStyles.headerDiamond}>◆</Text>
-              <View style={archiveStyles.headerLine} />
-              <Text style={archiveStyles.headerDiamond}>◆</Text>
-            </View>
-            
-            {/* Main Header */}
-            <View style={archiveStyles.modalHeader}>
-              <Text style={archiveStyles.modalTitle}>CODES ARCHIVE</Text>
-              <Text style={archiveStyles.modalSubtitle}>CONSOLIDATED ANNOTATED FREQUENCY LIST</Text>
-              <Text style={archiveStyles.modalStats}>
-                {FREQUENCY_ARCHIVE.length} FREQUENCIES · {ARCHIVE_CATEGORIES.length - 1} CODICES · 432Hz CALIBRATED
-              </Text>
-              {/* ═══ TIER SELECT — STANDARD vs $-CODES (scalar-augmented GodMode) ═══ */}
-              <View style={archiveStyles.tierRow}>
-                <TouchableOpacity
-                  style={[archiveStyles.tierBtn, !godMode && archiveStyles.tierBtnActive]}
-                  onPress={() => { if (godMode) toggleGodMode(); }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[archiveStyles.tierBtnText, !godMode && archiveStyles.tierBtnTextActive]}>STANDARD</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[archiveStyles.tierBtn, godMode && archiveStyles.tierBtnGold]}
-                  onPress={() => { if (!godMode) toggleGodMode(); }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[archiveStyles.tierBtnText, godMode && archiveStyles.tierBtnTextGold]}>$-CODES · GODMODE</Text>
-                </TouchableOpacity>
-              </View>
-              {godMode && (
-                <Text style={archiveStyles.tierMeta}>
-                  SCALAR-AUGMENTED · DUAL-DDS ±{(scalarHz / 2).toFixed(2)}Hz SIDEBANDS · AM BURST {scalarHz.toFixed(2)}Hz · OPPOSED-COIL FIELD
-                </Text>
-              )}
-              <TouchableOpacity
-                style={archiveStyles.modalCloseBtn}
-                onPress={() => { setArchiveModalVisible(false); AudioEngine.stopMulti(); setArchivePlayingItem(null); setSelectedCodex(null); }}
-              >
-                <Text style={archiveStyles.modalCloseBtnText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Search Bar */}
-            <View style={archiveStyles.searchContainer}>
-              <Text style={archiveStyles.searchIcon}>⊕</Text>
-              <TextInput
-                style={archiveStyles.searchInput}
-                placeholder="Search conditions, frequencies..."
-                placeholderTextColor={SK('#5a1a1a')}
-                value={archiveSearch}
-                onChangeText={setArchiveSearch}
-              />
-              {archiveSearch.length > 0 && (
-                <TouchableOpacity onPress={() => setArchiveSearch('')}>
-                  <Text style={archiveStyles.clearBtn}>✕</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Tab Navigation: CODEX | A-Z | LAB */}
-            <View style={archiveStyles.tabRow}>
-              <TouchableOpacity
-                style={[archiveStyles.tabBtn, archiveViewMode === 'codex' && archiveStyles.tabBtnActive]}
-                onPress={() => { setArchiveViewMode('codex'); setSelectedCodex(null); }}
-              >
-                <Text style={[archiveStyles.tabBtnText, archiveViewMode === 'codex' && archiveStyles.tabBtnTextActive]}>CODEX</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[archiveStyles.tabBtn, archiveViewMode === 'a-z' && archiveStyles.tabBtnActive]}
-                onPress={() => { setArchiveViewMode('a-z'); setSelectedCodex(null); }}
-              >
-                <Text style={[archiveStyles.tabBtnText, archiveViewMode === 'a-z' && archiveStyles.tabBtnTextActive]}>A - Z</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[archiveStyles.tabBtn, archiveViewMode === 'lab' && archiveStyles.tabBtnActive]}
-                onPress={() => { setArchiveViewMode('lab'); setSelectedCodex(null); }}
-              >
-                <Text style={[archiveStyles.tabBtnText, archiveViewMode === 'lab' && archiveStyles.tabBtnTextActive]}>LAB</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Now Playing Bar */}
-            {archivePlayingItem && (
-              <View style={archiveStyles.nowPlaying}>
-                <View style={archiveStyles.nowPlayingDot} />
-                <Text style={archiveStyles.nowPlayingText} numberOfLines={1}>TRANSMITTING: {archivePlayingItem}</Text>
-                <TouchableOpacity onPress={() => { AudioEngine.stopMulti(); setArchivePlayingItem(null); }}>
-                  <Text style={archiveStyles.stopAllBtn}>[STOP]</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* CODEX VIEW - Category List */}
-            {archiveViewMode === 'codex' && !selectedCodex && (
-              <ScrollView style={archiveStyles.codexScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
-                {ARCHIVE_CATEGORIES.filter(cat => cat.id !== 'all').map((cat) => {
-                  const entryCount = FREQUENCY_ARCHIVE.filter(f => f.category === cat.id).length;
-                  return (
-                    <TouchableOpacity
-                      key={cat.id}
-                      style={archiveStyles.codexRow}
-                      onPress={() => setSelectedCodex(cat.id)}
-                    >
-                      <View style={archiveStyles.codexIconWrap}>
-                        <Text style={archiveStyles.codexIcon}>{cat.icon}</Text>
-                      </View>
-                      <View style={archiveStyles.codexInfo}>
-                        <Text style={archiveStyles.codexName}>{cat.latinName}</Text>
-                        <Text style={archiveStyles.codexEntryCount}>{entryCount} ENTRIES</Text>
-                      </View>
-                      <Text style={archiveStyles.codexArrow}>▶</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            )}
-
-            {/* CODEX VIEW - Selected Category Entries */}
-            {archiveViewMode === 'codex' && selectedCodex && (
-              <>
-                <TouchableOpacity style={archiveStyles.backBtn} onPress={() => setSelectedCodex(null)}>
-                  <Text style={archiveStyles.backBtnText}>◀ BACK TO CODEX</Text>
-                </TouchableOpacity>
-                <FlatList
-                  data={FREQUENCY_ARCHIVE.filter(f => f.category === selectedCodex && (archiveSearch.length === 0 || f.name.toLowerCase().includes(archiveSearch.toLowerCase())))}
-                  keyExtractor={(item, index) => `${item.name}-${index}`}
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={{ paddingBottom: insets.bottom + 90, paddingHorizontal: 16 }}
-                  renderItem={({ item }) => {
-                    const isPlaying = archivePlayingItem === item.name;
-                    return (
-                      <View style={[archiveStyles.archiveCard, isPlaying && archiveStyles.archiveCardActive]}>
-                        <View style={archiveStyles.archiveCardHeader}>
-                          <View style={archiveStyles.archiveCardInfo}>
-                            <Text style={archiveStyles.archiveCardName}>{godMode ? '$ ' : ''}{item.name}</Text>
-                            <Text style={archiveStyles.archiveCardCategory}>{item.frequencies.length} FREQUENCIES{godMode ? ' · $-CODE' : ''}</Text>
-                          </View>
-                        </View>
-                        <View style={archiveStyles.freqChipRow}>
-                          {item.frequencies.slice(0, 6).map((f, i) => (
-                            <Text key={i} style={archiveStyles.freqChip}>{f} Hz</Text>
-                          ))}
-                          {item.frequencies.length > 6 && <Text style={archiveStyles.freqChip}>+{item.frequencies.length - 6}</Text>}
-                        </View>
-                        <View style={archiveStyles.actionRow}>
-                          <TouchableOpacity
-                            style={[archiveStyles.playBtn, isPlaying && archiveStyles.playBtnActive]}
-                            onPress={() => handleArchivePlayFrequency(item.name, item.frequencies)}
-                          >
-                            <Text style={[archiveStyles.playBtnText, isPlaying && archiveStyles.playBtnTextActive]}>
-                              {isPlaying ? '■ STOP' : '▶ PLAY'}
-                            </Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={archiveStyles.loadBtn} onPress={() => handleArchiveLoadFrequency(item)}>
-                            <Text style={archiveStyles.loadBtnText}>LOAD → LAB</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    );
-                  }}
-                />
-              </>
-            )}
-
-            {/* A-Z VIEW - Alphabetical List */}
-            {archiveViewMode === 'a-z' && (
-              <FlatList
-                data={filteredArchive.sort((a, b) => a.name.localeCompare(b.name))}
-                keyExtractor={(item, index) => `${item.name}-${index}`}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: insets.bottom + 90, paddingHorizontal: 16 }}
-                renderItem={({ item }) => {
-                  const isPlaying = archivePlayingItem === item.name;
-                  return (
-                    <View style={[archiveStyles.archiveCard, isPlaying && archiveStyles.archiveCardActive]}>
-                      <View style={archiveStyles.archiveCardHeader}>
-                        <View style={archiveStyles.archiveCardInfo}>
-                          <Text style={archiveStyles.archiveCardName}>{godMode ? '$ ' : ''}{item.name}</Text>
-                          <Text style={archiveStyles.archiveCardCategory}>{item.category.toUpperCase()} · {item.frequencies.length} FREQ{godMode ? ' · $-CODE' : ''}</Text>
-                        </View>
-                      </View>
-                      <View style={archiveStyles.freqChipRow}>
-                        {item.frequencies.slice(0, 6).map((f, i) => (
-                          <Text key={i} style={archiveStyles.freqChip}>{f} Hz</Text>
-                        ))}
-                        {item.frequencies.length > 6 && <Text style={archiveStyles.freqChip}>+{item.frequencies.length - 6}</Text>}
-                      </View>
-                      <View style={archiveStyles.actionRow}>
-                        <TouchableOpacity
-                          style={[archiveStyles.playBtn, isPlaying && archiveStyles.playBtnActive]}
-                          onPress={() => handleArchivePlayFrequency(item.name, item.frequencies)}
-                        >
-                          <Text style={[archiveStyles.playBtnText, isPlaying && archiveStyles.playBtnTextActive]}>
-                            {isPlaying ? '■ STOP' : '▶ PLAY'}
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={archiveStyles.loadBtn} onPress={() => handleArchiveLoadFrequency(item)}>
-                          <Text style={archiveStyles.loadBtnText}>LOAD → LAB</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  );
-                }}
-              />
-            )}
-
-            {/* LAB VIEW - Recent & Favorites */}
-            {archiveViewMode === 'lab' && (
-              <ScrollView style={archiveStyles.labScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
-                {/* Recent Frequencies */}
-                {freqHistory.length > 0 && (
-                  <View style={archiveStyles.labSection}>
-                    <Text style={archiveStyles.labSectionTitle}>RECENT FREQUENCIES</Text>
-                    {freqHistory.slice(0, 8).map((item: any, idx: number) => (
-                      <TouchableOpacity
-                        key={idx}
-                        style={archiveStyles.labRow}
-                        onPress={() => {
-                          const entry = FREQUENCY_ARCHIVE.find(f => f.name === item.name);
-                          if (entry) handleArchiveLoadFrequency(entry);
-                          else {
-                            updateLayerFrequency(layers[0].id, item.frequency);
-                            setArchiveModalVisible(false);
-                          }
-                        }}
-                      >
-                        <Text style={archiveStyles.labRowFreq}>{item.frequency} Hz</Text>
-                        <Text style={archiveStyles.labRowName}>{item.name}</Text>
-                        <Text style={archiveStyles.labRowArrow}>▶</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-                
-                {/* Quick Access Presets */}
-                <View style={archiveStyles.labSection}>
-                  <Text style={archiveStyles.labSectionTitle}>SOLFEGGIO SACRUM</Text>
-                  {FREQUENCY_ARCHIVE.filter(f => f.category === 'solfeggio').slice(0, 6).map((item, idx) => (
-                    <TouchableOpacity
-                      key={idx}
-                      style={archiveStyles.labRow}
-                      onPress={() => handleArchiveLoadFrequency(item)}
-                    >
-                      <Text style={archiveStyles.labRowFreq}>{item.frequencies[0]} Hz</Text>
-                      <Text style={archiveStyles.labRowName}>{item.name}</Text>
-                      <Text style={archiveStyles.labRowArrow}>▶</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-            )}
-          </View>
-        </View>
-      </Modal>
+        <ArchiveScreen
+          prefix="home-archive"
+          onClose={() => { stopArchive(); setArchiveModalVisible(false); }}
+          onLoadEntry={handleArchiveLoadFrequency}
+          onModeChange={(enabled) => { if (godMode !== enabled) toggleGodMode(); }}
+          recent={freqHistory}
+        />
+      </Modal>}
 
       {/* ═══════ SEND CODES MODAL ═══════ */}
-      <SendCodesModal
+      {sendCodesModalVisible && <SendCodesModal
         visible={sendCodesModalVisible}
         onClose={() => setSendCodesModalVisible(false)}
         layers={layers}
         loadedArchiveName={loadedArchiveName}
-      />
+      />}
 
     </View>
   );
