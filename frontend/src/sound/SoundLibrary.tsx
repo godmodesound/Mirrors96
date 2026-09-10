@@ -18,7 +18,8 @@ export function SoundLibrary({ prefix, activeKey, loading = false, progress, onP
     </ScrollView>
     <View style={ss.selected}><SoundArtwork testID={`${prefix}-selected-cover`} album={selected} style={ss.selectedCover} /><View style={ss.selectedInfo}><Text style={ss.selectedLabel}>SELECTED RECORD</Text><Text testID={`${prefix}-selected-album`} style={ss.selectedName}>{selected.name.toUpperCase()}</Text><Text testID={`${prefix}-selected-artist`} style={ss.selectedArtist}>{selected.artist}</Text></View></View>
     <View style={ss.trackHeading}><Text testID={`${prefix}-tracklist-title`} style={ss.sectionTitle}>Tracklist</Text><Text testID={`${prefix}-tracklist-count`} style={ss.count}>{selected.tracks.length} RECORDINGS</Text></View>
-    <View style={ss.tracks}>{selected.tracks.map(track => <SoundTrack key={track.number} prefix={prefix} album={selected} track={track} active={activeKey === trackKey(selected, track)} loading={loading} progress={progress} onPlay={onPlay} />)}</View>
+    <ScrollView key={selected.id} testID={`${prefix}-compact-tracklist`} accessibilityLabel={`${selected.name} tracklist, scroll for all ${selected.tracks.length} tracks`} style={ss.tracks} nestedScrollEnabled showsVerticalScrollIndicator>{selected.tracks.map(track => <SoundTrack key={track.number} prefix={prefix} album={selected} track={track} active={activeKey === trackKey(selected, track)} loading={loading} progress={progress} onPlay={onPlay} />)}</ScrollView>
+    {selected.tracks.length > 5 && <Text testID={`${prefix}-tracklist-scroll-hint`} style={ss.scrollHint}>SCROLL TRACKLIST TO EXPLORE ALL {selected.tracks.length} TRACKS</Text>}
     <Text testID={`${prefix}-tracklist-source`} style={ss.source}>{['codes', 'in-memory-of'].includes(selected.id) ? 'PUBLIC PREVIEWS / ITUNES' : 'FULL-LENGTH RECORDINGS / ARTIST ARCHIVE'}</Text>
   </View>;
 }

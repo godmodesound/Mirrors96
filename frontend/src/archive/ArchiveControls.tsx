@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SK } from '../skins';
@@ -11,14 +11,15 @@ const TABS: { view: ArchiveView; title: string; icon: keyof typeof Ionicons.glyp
 ];
 
 export function ArchiveControls({ prefix, query, setQuery, view, setView, godMode, setGodMode }: Props) {
+  const searchRef = useRef<TextInput>(null);
   return <>
     <View style={s.search}>
       <Ionicons name="search-outline" size={19} color={SK('#a0a0b0')} />
-      <TextInput testID={`${prefix}-search-input`} accessibilityLabel="Search archive by name, category or frequency" style={s.searchInput} placeholder="Search a name or frequency" placeholderTextColor={SK('#a0a0b0')} value={query} onChangeText={setQuery} autoCorrect={false} autoCapitalize="none" returnKeyType="search" />
+      <TextInput ref={searchRef} testID={`${prefix}-search-input`} accessibilityLabel="Search archive by name, category or frequency" style={s.searchInput} placeholder="Search a name or frequency" placeholderTextColor={SK('#a0a0b0')} value={query} onChangeText={setQuery} autoCorrect={false} autoCapitalize="none" returnKeyType="search" />
       {query ? <TouchableOpacity testID={`${prefix}-search-clear`} accessibilityLabel="Clear search" accessibilityRole="button" onPress={() => setQuery('')} style={s.iconButton}><Ionicons name="close-circle" color={SK('#a0a0b0')} size={20} /></TouchableOpacity> : <View style={s.searchEnd}><Text style={s.micro}>Hz</Text></View>}
     </View>
     <View style={s.tabs}>
-      {TABS.map(tab => <TouchableOpacity key={tab.view} testID={`${prefix}-tab-${tab.view}`} accessibilityRole="tab" accessibilityState={{ selected: view === tab.view }} onPress={() => setView(tab.view)} activeOpacity={0.65} style={[s.tab, view === tab.view && s.tabActive]}>
+      {TABS.map(tab => <TouchableOpacity key={tab.view} testID={`${prefix}-tab-${tab.view}`} accessibilityRole="tab" accessibilityState={{ selected: view === tab.view }} onPress={() => { setView(tab.view); if (query) searchRef.current?.focus(); }} activeOpacity={0.65} style={[s.tab, view === tab.view && s.tabActive]}>
         <Ionicons name={tab.icon} size={16} color={SK(view === tab.view ? '#ff0a0a' : '#a0a0b0')} /><Text style={[s.tabText, view === tab.view && s.tabTextActive]}>{tab.title}</Text>
       </TouchableOpacity>)}
     </View>

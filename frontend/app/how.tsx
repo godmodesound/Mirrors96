@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Linking, TouchableOpacity } from 'r
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import NinetySixGuide from '../src/NinetySixGuide';
+import LandingScope from '../src/LandingScope';
 
 import { skinStyles, SK } from '../src/skins';
 
@@ -23,8 +24,9 @@ export default function HowScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
-        <MirrorsIdBanner />
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
+          <LandingScope testID="how-scope" />
+          <MirrorsIdBanner />
 
           {/* ══════ HEADER ══════ */}
           <View style={styles.header}>

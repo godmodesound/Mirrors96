@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, FlatList, KeyboardAvoidingView, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { AccessibilityInfo, Animated, FlatList, KeyboardAvoidingView, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,11 +15,13 @@ import { ArchiveReadout } from './ArchiveReadout';
 import { ArchiveLab } from './ArchiveLab';
 import { archiveTick, stageArchiveCode, stopArchive, useArchiveSession } from './archiveSession';
 import { s } from './archiveStyles';
+import LandingScope from '../LandingScope';
 
 type Props = {
   prefix?: string; onClose?: () => void; onLoadEntry?: (entry: FrequencyEntry) => void;
   onModeChange?: (enabled: boolean) => void; recent?: { name: string; frequency: number; category?: string }[];
 };
+type ArchiveRow = { id: string; entry?: ArchiveCode; collections?: typeof COLLECTIONS; lab?: boolean };
 
 export default function ArchiveScreen({ prefix = 'archive', onClose, onLoadEntry, onModeChange, recent = [] }: Props) {
   const insets = useSafeAreaInsets();
@@ -30,7 +32,7 @@ export default function ArchiveScreen({ prefix = 'archive', onClose, onLoadEntry
   const [godMode, setGodMode] = useState(AudioEngine.getGodMode());
   const [labExpanded, setLabExpanded] = useState(false);
   const { active, preview } = useArchiveSession();
-  const entriesRef = useRef<FlatList<ArchiveCode>>(null);
+  const entriesRef = useRef<FlatList<ArchiveRow>>(null);
   const entrance = useRef(new Animated.Value(0)).current;
 
   useFocusEffect(useCallback(() => { setGodMode(AudioEngine.getGodMode()); }, []));
@@ -42,13 +44,16 @@ export default function ArchiveScreen({ prefix = 'archive', onClose, onLoadEntry
     }).catch(() => entrance.setValue(1));
     return () => { mounted = false; entrance.stopAnimation(); };
   }, [entrance]);
-  useEffect(() => { entriesRef.current?.scrollToOffset({ offset: 0, animated: false }); }, [query, category, letter]);
+  useEffect(() => { entriesRef.current?.scrollToOffset({ offset: 0, animated: false }); }, [category, letter]);
 
   const matches = useMemo(() => SORTED_CODES.filter(entry => matchesCode(entry, query) && (!category || entry.category === category) && (!letter || letterFor(entry.name) === letter)), [query, category, letter]);
   const history = useMemo(() => recent.slice(0, 8).map((item, index) => ARCHIVE_CODES.find(code => code.name === item.name) || { name: item.name, frequencies: [item.frequency], category: item.category || 'body', id: `recent-${codeSlug(item.name)}`, index }), [recent]);
   const showCollections = view === 'codex' && !category && !query.trim();
+  const rows: ArchiveRow[] = showCollections
+    ? COLLECTIONS.filter((_, index) => index % 2 === 0).map((collection, index) => ({ id: `collections-${collection.id}`, collections: COLLECTIONS.slice(index * 2, index * 2 + 2) }))
+    : view === 'lab' ? [{ id: 'lab', lab: true }] : matches.map(entry => ({ id: entry.id, entry }));
 
-  const changeView = (next: ArchiveView) => { archiveTick(); setView(next); setCategory(null); setLetter(null); setQuery(''); };
+  const changeView = (next: ArchiveView) => { archiveTick(); setView(next); setCategory(null); setLetter(null); };
   const changeQuery = (text: string) => { setQuery(text); setCategory(null); setLetter(null); if (text.trim()) setView('alpha'); };
   const changeMode = (enabled: boolean) => { archiveTick(); if (onModeChange) onModeChange(enabled); else AudioEngine.setGodMode(enabled); setGodMode(enabled); };
   const loadCode = useCallback(async (entry: ArchiveCode) => {
@@ -66,15 +71,15 @@ export default function ArchiveScreen({ prefix = 'archive', onClose, onLoadEntry
 
   return <KeyboardAvoidingView testID={`${prefix}-screen`} style={[s.screen, { paddingTop: insets.top, paddingBottom: onClose ? insets.bottom : 0 }]} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}>
     <Animated.View style={[s.frame, { opacity: entrance }]}>
-      <ArchiveHeader prefix={prefix} onClose={onClose} />
-      <ArchiveControls prefix={prefix} query={query} setQuery={changeQuery} view={view} setView={changeView} godMode={godMode} setGodMode={changeMode} />
-      {showCollections ? <FlatList key="collections" testID={`${prefix}-collections-list`} style={s.list} data={COLLECTIONS} keyExtractor={item => item.id} numColumns={2} columnWrapperStyle={s.gridRow} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={<View style={s.listHeading}><View><Text style={s.sectionTitle}>Choose a collection</Text><Text style={s.sectionSubtitle}>Explore the archive by system.</Text></View><Text testID={`${prefix}-results-count`} style={s.count}>{COLLECTIONS.length} / INDEX</Text></View>}
-        renderItem={({ item, index }) => <ArchiveCollection prefix={prefix} collection={item} index={index} onSelect={setCategory} />} />
-      : view === 'lab' ? <ScrollView testID={`${prefix}-lab-scroll`} style={s.list} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"><ArchiveLab key={String(labExpanded)} prefix={prefix} expanded={labExpanded} recent={history} onLoad={loadCode} /></ScrollView>
-      : <FlatList key="entries" ref={entriesRef} testID={`${prefix}-entries-list`} style={s.list} data={matches} extraData={`${active?.id}-${preview}-${godMode}`} keyExtractor={item => item.id} initialNumToRender={8} maxToRenderPerBatch={10} windowSize={7} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" ListHeaderComponent={entriesHeading}
-        renderItem={({ item }) => <ArchiveEntry prefix={prefix} entry={item} active={active?.id === item.id} preview={preview} godMode={godMode} onLoad={loadCode} />}
-        ListEmptyComponent={<View testID={`${prefix}-empty`} style={s.empty}><Ionicons name="search-outline" color={SK('#a0a0b0')} size={30} /><Text style={s.emptyTitle}>No matching codes</Text><Text style={s.emptyText}>Try a different name, collection or Hz value.</Text><TouchableOpacity testID={`${prefix}-reset-filters`} accessibilityRole="button" onPress={reset} style={s.resetButton}><Text style={s.resetText}>RESET FILTERS</Text></TouchableOpacity></View>} />}
+      <FlatList ref={entriesRef} testID={`${prefix}-browse-list`} style={s.list} data={rows} extraData={`${active?.id}-${preview}-${godMode}-${labExpanded}`} keyExtractor={item => item.id} initialNumToRender={8} maxToRenderPerBatch={10} windowSize={7} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
+        ListHeaderComponent={<View style={s.listHeader}>
+          <LandingScope testID={`${prefix}-scope`} />
+          <ArchiveHeader prefix={prefix} onClose={onClose} />
+          <ArchiveControls prefix={prefix} query={query} setQuery={changeQuery} view={view} setView={changeView} godMode={godMode} setGodMode={changeMode} />
+          <View style={s.headerSummary}>{showCollections ? <View style={s.listHeading}><View><Text style={s.sectionTitle}>Choose a collection</Text><Text style={s.sectionSubtitle}>Explore the archive by system.</Text></View><Text testID={`${prefix}-results-count`} style={s.count}>{COLLECTIONS.length} / INDEX</Text></View> : view !== 'lab' ? entriesHeading : null}</View>
+        </View>}
+        renderItem={({ item, index }) => item.collections ? <View testID={`${prefix}-collection-row-${index}`} style={s.gridRow}>{item.collections.map((collection, offset) => <ArchiveCollection key={collection.id} prefix={prefix} collection={collection} index={index * 2 + offset} onSelect={setCategory} />)}</View> : item.lab ? <View testID={`${prefix}-lab-scroll`}><ArchiveLab key={String(labExpanded)} prefix={prefix} expanded={labExpanded} recent={history} onLoad={loadCode} /></View> : item.entry ? <ArchiveEntry prefix={prefix} entry={item.entry} active={active?.id === item.entry.id} preview={preview} godMode={godMode} onLoad={loadCode} /> : null}
+        ListEmptyComponent={<View testID={`${prefix}-empty`} style={s.empty}><Ionicons name="search-outline" color={SK('#a0a0b0')} size={30} /><Text style={s.emptyTitle}>No matching codes</Text><Text style={s.emptyText}>Try a different name, collection or Hz value.</Text><TouchableOpacity testID={`${prefix}-reset-filters`} accessibilityRole="button" onPress={reset} style={s.resetButton}><Text style={s.resetText}>RESET FILTERS</Text></TouchableOpacity></View>} />
       <ArchiveReadout prefix={prefix} />
     </Animated.View>
   </KeyboardAvoidingView>;

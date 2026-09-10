@@ -97,6 +97,8 @@ interface Contact {
 // ═══════════════════════════════════════════════════════════
 // COMPONENT
 // ═══════════════════════════════════════════════════════════
+import LandingScope from '../src/LandingScope';
+
 export default function ChirpConnect() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -953,6 +955,7 @@ export default function ChirpConnect() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <LandingScope testID="id-scope" />
       {/* HEADER */}
       <View style={styles.header}>
         <View style={styles.headerTop}>

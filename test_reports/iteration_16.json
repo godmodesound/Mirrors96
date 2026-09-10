@@ -1,0 +1,70 @@
+{
+  "summary": "Executed backend + frontend regression for scope placement/controls, Lab dropdowns, compact Sound tracklist/playback, and GODMODE live checkout safety. Backend GODMODE suite passed; frontend found one functional regression in Archive search persistence across CODEX/A-Z tab switches.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/store/webhook",
+        "issue": "Returns 503 fail-closed when STRIPE_WEBHOOK_SECRET is placeholder/unset. This matches expected fail-closed behavior and remains external configuration pending."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Archive search + view tabs",
+        "issue": "Typed query '432 Hz' is cleared when switching CODEX -> A-Z -> CODEX, violating required persistence behavior.",
+        "testID": "archive-search-input, archive-tab-codex, archive-tab-alpha",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Library search retention during view change",
+        "issue": "Input focus/value persistence requirement fails because query resets on tab change.",
+        "affected_testIDs": [
+          "archive-search-input",
+          "archive-tab-codex",
+          "archive-tab-alpha"
+        ]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": [
+      {
+        "component": "PanResponder on Expo web",
+        "issue": "Console emits repeated unknown responder handler warnings on web preview (non-blocking but noisy)."
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_godmode_checkout_and_status.py",
+    "/app/test_reports/pytest/iteration16_godmode.xml",
+    "/root/.emergent/automation_output/20260910_102346/console_20260910_102346.log",
+    "/root/.emergent/automation_output/20260910_102428/console_20260910_102428.log",
+    "/root/.emergent/automation_output/20260910_102441/console_20260910_102441.log"
+  ],
+  "action_items": [
+    "Fix ArchiveControls/ArchiveScreen tab-switch behavior so search value and focus persist across CODEX/A-Z/LAB transitions as required.",
+    "Retest full archive flow after fix: character-by-character typing, tab switch, play/stop/load/reset.",
+    "Optional cleanup: reduce web console warning noise from responder props in web preview."
+  ],
+  "critical_code_review_comments": [
+    "Root cause for archive bug is in view-switch logic resetting query state (changeView currently clears query).",
+    "Very large files remain: frontend/app/index.tsx and backend/server.py exceed maintainability thresholds and increase regression risk.",
+    "Frontend uses EXPO_PUBLIC_BACKEND_URL key; ensure env key usage remains consistent with deployment contract to avoid drift."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_godmode_checkout_and_status.py",
+    "/app/test_reports/iteration_16.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "95%"
+  },
+  "seed_data_creation": "No seeded data created. Multiple LIVE unpaid Stripe checkout sessions were created for verification only; no payment completed.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Validated: Home hero logo above scope; no SOLID/GEO/WOBBLE summary by default; home scope settings via 44px gear; MERKABA add/remove works; wobble toggle ON/OFF text works; all landing tabs show leading scope IDs; sound compact tracklist maxHeight 280 and row height 48; MIRROR WORLD/MIND SYNC/INTERLUDE FLIP each played with visible progress then stopped; GODMODE page shows $33.96 and opens live Stripe checkout without payment; fake success URL with invalid session shows checkout error and does not mark paid.",
+  "rca_of_issue": "Reproduction: Go to /library, type '432 Hz' in archive-search-input, tap archive-tab-alpha then archive-tab-codex. Actual: input value becomes empty. Expected: retain full typed value and focus behavior. Likely cause: tab-change handler clears query state during view transitions. Mitigation: preserve query unless explicit reset action is invoked."
+}

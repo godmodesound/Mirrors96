@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../src/AuthContext';
 import GoogleSignInButton from '../src/GoogleSignInButton';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
+import LandingScope from '../src/LandingScope';
 
 import { skinStyles, SK } from '../src/skins';
 
@@ -86,6 +87,7 @@ export default function MirrorsIdScreen() {
           contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
           showsVerticalScrollIndicator={false}
         >
+          <LandingScope testID="mirrors-id-scope" />
           <Text style={styles.title}>MIRRORS ID</Text>
 
           {/* ID Card */}
@@ -275,6 +277,7 @@ export default function MirrorsIdScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        <LandingScope testID="mirrors-id-scope" />
         <MirrorsIdBanner />
         <Text style={styles.title}>MIRRORS ID</Text>
 

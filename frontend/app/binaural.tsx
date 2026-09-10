@@ -683,12 +683,13 @@ export default function BinauralScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
-        <MirrorsIdBanner />
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         >
+          <View style={styles.scopeSection}><ScopeNodePanel testID="binaural-scope" compact frequencies={[carrierFreq, carrierFreq + beatFreq]} playing={isPlaying} scalarBeatHz={isPlaying ? beatFreq : 0} /></View>
+          <MirrorsIdBanner />
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>BI-NAURAL FIELD</Text>
@@ -748,16 +749,6 @@ export default function BinauralScreen() {
               <Text style={styles.freqChLabel}>R CHANNEL</Text>
               <Text style={styles.freqChValue}>{(carrierFreq + beatFreq).toFixed(0)} Hz</Text>
             </View>
-          </View>
-
-          {/* ═══ CYMASCOPE — live master-bus FFT drive (zero-latency: frames stream
-              straight from the audio analyser, not from React state) ═══ */}
-          <View style={styles.scopeSection}>
-            <ScopeNodePanel
-              frequencies={[carrierFreq, carrierFreq + beatFreq]}
-              playing={isPlaying}
-              scalarBeatHz={isPlaying ? beatFreq : 0}
-            />
           </View>
 
           {/* Timer */}
@@ -899,6 +890,7 @@ export default function BinauralScreen() {
 }
 
 const styles = skinStyles({
+  scopeSection: { marginTop: 8, marginBottom: 16 },
   container: { flex: 1, backgroundColor: '#000' },
   safeArea: { flex: 1 },
   scrollView: { flex: 1, paddingHorizontal: 16 },

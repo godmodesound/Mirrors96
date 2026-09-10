@@ -16,6 +16,7 @@ import ElementCube, { ResonatorEmission } from '../src/ElementCube';
 import TimeTravelDial from '../src/TimeTravelDial';
 import ChakraBodyMap from '../src/ChakraBodyMap';
 import MusicalSpiral from '../src/MusicalSpiral';
+import LandingScope from '../src/LandingScope';
 
 import { skinStyles } from '../src/skins';
 
@@ -135,8 +136,9 @@ export default function MoodsScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
-        <MirrorsIdBanner />
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
+          <LandingScope testID="brain-scope" />
+          <MirrorsIdBanner />
 
           {/* ═══ 13 CHAKRA BODY MAP — interactive version of the 13-key
                chromatic scale ⟷ 13 body-centre chart (A=432). ═══ */}

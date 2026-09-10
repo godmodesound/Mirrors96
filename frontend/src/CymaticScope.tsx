@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { AudioEngine, ScopeFrame } from './AudioEngine';
+import { SOLID_SCOPE_JS } from './SolidScope';
 
 import { skinStyles, SK, skinHtml } from './skins';
 
@@ -14,10 +15,11 @@ import { skinStyles, SK, skinHtml } from './skins';
 // Both react to real time-domain data from AudioEngine (all layers).
 // ═══════════════════════════════════════════════════════════
 
-export const MEDIUMS = ['CHLADNI', 'WATER', 'SAND', 'CYMATICS', 'MERCURY', 'GOLD', 'FIRE'] as const;
+export const MEDIUMS = ['SOLID', 'CHLADNI', 'WATER', 'SAND', 'CYMATICS', 'MERCURY', 'GOLD', 'FIRE'] as const;
 export type Medium = typeof MEDIUMS[number];
 
 const MEDIUM_COLORS: Record<Medium, string> = {
+  SOLID: '#b8d5e8',
   CHLADNI: '#7de87d',
   WATER: '#5fc9ff',
   SAND: '#e8c87d',
@@ -53,9 +55,10 @@ var canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
 var W=0,H=0,CX=0,CY=0,R0=0;
 function resize(){W=window.innerWidth;H=window.innerHeight;canvas.width=W;canvas.height=H;CX=W/2;CY=H/2;R0=Math.min(W,H)*0.40;}
 resize();window.addEventListener('resize',resize);
-var cfg={freqs:[432],playing:false,medium:'CYMATICS',geometries:[]};
+var cfg={freqs:[432],playing:false,medium:'SOLID',geometries:[],wobble:false};
 var LIVE={wave:new Array(128).fill(128),peak:0,ts:0};
 var PAL={
+  SOLID:{main:'#bfd8ea',glow:'#8bafc7',dim:'rgba(139,175,199,0.08)'},
   CHLADNI:{main:'#9be89b',glow:'#3aff6e',dim:'rgba(125,232,125,0.10)'},
   WATER:{main:'#8fd8ff',glow:'#19b6ff',dim:'rgba(95,201,255,0.10)'},
   SAND:{main:'#eed9a6',glow:'#d9a441',dim:'rgba(232,200,125,0.10)'},
@@ -64,7 +67,7 @@ var PAL={
   GOLD:{main:'#ffe08a',glow:'#ffaa00',dim:'rgba(255,215,94,0.10)'},
   FIRE:{main:'#ff9a5a',glow:'#ff2a0a',dim:'rgba(255,90,42,0.10)'}
 };
-window.updateScope=function(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.freqs)cfg.freqs=c.freqs;if(typeof c.playing==='boolean')cfg.playing=c.playing;if(c.medium)cfg.medium=c.medium;if(Array.isArray(c.geometries))cfg.geometries=c.geometries;}catch(e){}};
+window.updateScope=function(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.freqs)cfg.freqs=c.freqs;if(typeof c.playing==='boolean')cfg.playing=c.playing;if(c.medium)cfg.medium=c.medium;if(typeof c.wobble==='boolean')cfg.wobble=c.wobble;if(Array.isArray(c.geometries))cfg.geometries=c.geometries;}catch(e){}};
 window.pushWave=function(w){try{if(typeof w==='string')w=JSON.parse(w);if(w&&w.wave){LIVE.wave=w.wave;LIVE.peak=w.peak||0;LIVE.ts=performance.now();}}catch(e){}};
 window.addEventListener('message',function(e){
   var d=e.data;try{var p=typeof d==='string'?JSON.parse(d):d;if(p&&p.__wave){window.pushWave(p);return;}}catch(_){}
@@ -302,12 +305,15 @@ function drawJulia(R,rot,pal,env,freq){
   ctx.restore();
 }
 
+${SOLID_SCOPE_JS}
 // Audio-reactive envelope smoothing
-var envSmooth=0;
+var envSmooth=0,lastSolidPaint=0;
 function draw(t){
-  ctx.fillStyle='rgba(0,0,0,0.22)';ctx.fillRect(0,0,W,H);
+  if(cfg.medium==='SOLID'&&!cfg.wobble&&!cfg.playing&&(LIVE.peak||0)<1.5&&!cfg.geometries.length&&t-lastSolidPaint<80){requestAnimationFrame(draw);return;}
+  lastSolidPaint=t;
+  ctx.fillStyle=cfg.medium==='SOLID'?'#010409':'rgba(0,0,0,0.22)';ctx.fillRect(0,0,W,H);
   var p=PAL[cfg.medium]||PAL.CYMATICS;
-  polarGrid(p);
+  if(cfg.medium!=='SOLID')polarGrid(p);
   // Live amplitude 0..1
   var live=Math.min(1,(LIVE.peak||0)/110);
   var fresh=(performance.now()-LIVE.ts)<400;
@@ -317,11 +323,12 @@ function draw(t){
   var f=(cfg.freqs&&cfg.freqs[0])||432;
   var n=2+Math.round(f%12);
   var m=3+Math.round((f/100)%9);
-  var spin=audioActive?t*0.00045*(1+(f%7)*0.25)*(0.4+envSmooth*1.6):0;
-  var breathe=1+(0.04+0.14*envSmooth)*Math.sin(t*0.003*(1+(f%5)));
+  var spin=cfg.wobble&&audioActive?t*0.00045*(1+(f%7)*0.25)*(0.4+envSmooth*1.6):0;
+  var breathe=cfg.wobble?1+(0.04+0.14*envSmooth)*Math.sin(t*0.003*(1+(f%5))):1;
   var R=R0*breathe;
   var med=cfg.medium;
-  var pts=Math.floor((audioActive?(med==='SAND'?1400:900):320)*(0.4+envSmooth*1.4));
+  if(med==='SOLID')drawSolidField(R,p,envSmooth);
+  var pts=med==='SOLID'?0:Math.floor((audioActive?(med==='SAND'?1400:900):320)*(0.4+envSmooth*1.4));
   for(var i=0;i<pts;i++){
     var th=Math.random()*6.2832,r=Math.sqrt(Math.random());
     var I=Math.abs(Math.sin(n*th+spin)*Math.sin(m*Math.PI*r));
@@ -344,7 +351,7 @@ function draw(t){
   }
   ctx.globalAlpha=1;
   // Live waveform ring
-  if(fresh){
+  if(fresh&&cfg.wobble){
     ctx.save();ctx.shadowColor=p.glow;ctx.shadowBlur=8;
     ctx.strokeStyle=p.main;ctx.lineWidth=1.2;ctx.globalAlpha=0.7;
     ctx.beginPath();
@@ -389,7 +396,7 @@ function draw(t){
   ctx.strokeStyle=p.glow;ctx.lineWidth=audioActive?2:1;ctx.globalAlpha=audioActive?0.85:0.4;
   ctx.beginPath();
   for(var a2=0;a2<=6.2832;a2+=0.05){
-    var wob=1+(audioActive?(0.02+0.05*envSmooth)*Math.sin(n*a2+spin*3):0.006*Math.sin(n*a2));
+    var wob=cfg.wobble?1+(audioActive?(0.02+0.05*envSmooth)*Math.sin(n*a2+spin*3):0.006*Math.sin(n*a2)):1;
     var rx=CX+Math.cos(a2)*R*wob,ry=CY+Math.sin(a2)*R*wob;
     a2===0?ctx.moveTo(rx,ry):ctx.lineTo(rx,ry);
   }
@@ -409,7 +416,9 @@ interface Props {
 }
 
 export default function CymaticScope({ frequencies, playing }: Props) {
-  const [medium, setMedium] = useState<Medium>('CYMATICS');
+  const scopeId = `cyma-${React.useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const [medium, setMedium] = useState<Medium>('SOLID');
+  const [wobble, setWobble] = useState(false);
   const [geometries, setGeometries] = useState<Set<Geometry>>(new Set());
   const [livePeak, setLivePeak] = useState(0);
   const [measuredHz, setMeasuredHz] = useState(0);
@@ -437,8 +446,8 @@ export default function CymaticScope({ frequencies, playing }: Props) {
   }, []);
 
   useEffect(() => {
-    pushConfig({ freqs: frequencies, playing, medium, geometries: Array.from(geometries) });
-  }, [frequencies, playing, medium, geometries, pushConfig]);
+    pushConfig({ freqs: frequencies, playing, medium, wobble, geometries: Array.from(geometries) });
+  }, [frequencies, playing, medium, wobble, geometries, pushConfig]);
 
   useEffect(() => {
     const unsub = AudioEngine.subscribeScope((frame) => {
@@ -466,13 +475,13 @@ export default function CymaticScope({ frequencies, playing }: Props) {
     });
   };
   const geoSummary = geometries.size === 0
-    ? '—'
+    ? 'OFF'
     : geometries.size === 1
       ? GEOMETRY_LABEL[Array.from(geometries)[0]]
       : `${geometries.size}× LAYERED`;
 
   return (
-    <View style={st.wrap}>
+    <View testID={scopeId} style={st.wrap}>
       {/* Compact readout header — Hz · MEASURED · MED · GEO · LIVE% */}
       <View style={[st.headerBar, { borderColor: color }]}>
         <View style={st.headerHz}>
@@ -505,6 +514,7 @@ export default function CymaticScope({ frequencies, playing }: Props) {
         </View>
       </View>
 
+      <TouchableOpacity testID={`${scopeId}-wobble`} accessibilityState={{ selected: wobble }} onPress={() => setWobble(on => !on)} style={st.motionToggle}><Text style={st.motionLabel}>WOBBLE / {wobble ? 'ON' : 'OFF'}</Text></TouchableOpacity>
       {geoPickerOpen && (
         <View style={st.geoPicker}>
           {GEOMETRIES.map(g => {
@@ -525,7 +535,7 @@ export default function CymaticScope({ frequencies, playing }: Props) {
             ref: iframeRef,
             srcDoc: skinHtml(SCOPE_HTML),
             style: { width: '100%', height: '100%', border: 'none', backgroundColor: SK('#000') },
-            onLoad: () => pushConfig({ freqs: frequencies, playing, medium, geometries: Array.from(geometries) }),
+            onLoad: () => pushConfig({ freqs: frequencies, playing, medium, wobble, geometries: Array.from(geometries) }),
           })
         ) : (
           <WebView
@@ -535,7 +545,7 @@ export default function CymaticScope({ frequencies, playing }: Props) {
             javaScriptEnabled
             scrollEnabled={false}
             androidLayerType="hardware"
-            onLoadEnd={() => pushConfig({ freqs: frequencies, playing, medium, geometries: Array.from(geometries) })}
+            onLoadEnd={() => pushConfig({ freqs: frequencies, playing, medium, wobble, geometries: Array.from(geometries) })}
           />
         )}
       </View>
@@ -544,6 +554,8 @@ export default function CymaticScope({ frequencies, playing }: Props) {
 }
 
 const st = skinStyles({
+  motionToggle: { minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+  motionLabel: { color: '#a6bac9', fontSize: 10, letterSpacing: 1 },
   wrap: { marginBottom: 16 },
   headerBar: {
     flexDirection: 'row',

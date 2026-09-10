@@ -3,6 +3,7 @@ import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { skinStyles, SK } from './skins';
+import { SoundLabIcon } from './sound/SoundLabIcon';
 
 // 7 chakras mapped to tabs — cymatic sacred geometry icons + traditional colors
 const TABS = [
@@ -36,6 +37,7 @@ export default function MobiusTabBar({ state, descriptors, navigation }: Props) 
           return (
             <TouchableOpacity
               key={route.key}
+              testID={`nav-tab-${route.name}`}
               style={styles.tab}
               onPress={() => {
                 if (!active) navigation.navigate(route.name);
@@ -43,14 +45,14 @@ export default function MobiusTabBar({ state, descriptors, navigation }: Props) 
               activeOpacity={0.7}
             >
               {active && <View style={styles.glowDot} />}
-              <Text
+              {route.name === 'sound' ? <SoundLabIcon size={27} testID="nav-sound-lab-icon" /> : <Text
                 style={[
                   styles.icon,
                   { color: active ? SK('#ff0a0a') : SK(tab.color) },
                 ]}
               >
                 {tab.icon}
-              </Text>
+              </Text>}
               <Text
                 style={[
                   styles.label,

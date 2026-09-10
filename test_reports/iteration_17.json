@@ -1,0 +1,21 @@
+{
+  "tester": "main-agent screenshot verification after iteration_16",
+  "status": "pass",
+  "latest_user_request": "remove the godmode button on top menu entirely",
+  "changes": [
+    "Removed Home top-menu GODMODE purchase button and $33.96 label; preserved Lab engine GODMODE controls.",
+    "Fixed Archive tab changes clearing the search query; preserves value and restores search focus across CODEX, A-Z and LAB."
+  ],
+  "verified": [
+    "390px: typed432Hz preserved acrossCODEX/A-Z/LAB/A-Z; play/stop/load/reset passed.",
+    "320px fresh mobile render: typed432Hz preserved across all tabs with actual DOMinput focus, then play/stop/stagedLab/reset passed.",
+    "320px Home: no godmode-purchase-button or visible$33.96 label; LabGODMODE mode control stillaccessible.",
+    "Home logo remains above clean scope; no defaultSOLID/GEO/WOBBLE statusstrip."
+  ],
+  "evidence": "/root/.emergent/automation_output/20260910_103002/console_20260910_103002.log",
+  "prior_feature_validation": "/app/test_reports/iteration_16.json",
+  "note": "An immediate focus assertion after dynamically resizing the previous run was racy; the fresh320px render plus auto-waitedfocus verification passed without furthercodechanges.",
+  "remaining_external_setup": ["Stripe automatic notifications are still fail-closed503 until a valid signingsecret is configured; user did not approve accountconfiguration. Checkout infrastructure remains but purchaseentry is removed from topmenu."],
+  "limitations": ["Physical iOS/Android keyboard, audio and Stripe native return not device-tested.", "No live payment was completed."],
+  "mocked_apis": []
+}

@@ -6,6 +6,7 @@ import { SoundLibrary } from '../src/sound/SoundLibrary';
 import { SoundReadout } from '../src/sound/SoundReadout';
 import { useSoundPlayback } from '../src/sound/useSoundPlayback';
 import { ss } from '../src/sound/soundStyles';
+import LandingScope from '../src/LandingScope';
 
 export default function SoundScreen() {
   const insets = useSafeAreaInsets();
@@ -13,6 +14,7 @@ export default function SoundScreen() {
   return <View testID="sound-screen" style={[ss.screen, { paddingTop: insets.top }]}>
     <View style={ss.frame}>
       <ScrollView testID="sound-scroll" style={ss.scroll} contentContainerStyle={ss.content} showsVerticalScrollIndicator={false}>
+        <LandingScope testID="sound-scope" />
         <SoundHeader prefix="sound" />
         {player.error && <Text testID="sound-playback-error" accessibilityRole="alert" style={ss.error}>{player.error}</Text>}
         <SoundLibrary prefix="sound" activeKey={player.activeKey} loading={player.loading} progress={player.progress} onPlay={player.play} onStop={player.stop} />

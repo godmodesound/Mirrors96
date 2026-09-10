@@ -14,6 +14,7 @@ import { AudioEngine } from './AudioEngine';
 import GodmodeSlider from './GodmodeSlider';
 import { FullSpectrumMeter, AudioMeterScale } from './SpectrumMeters';
 import CymaticScope from './CymaticScope';
+import LabMenuBar, { LabMenu } from './LabMenuBar';
 
 import { skinStyles, SK } from './skins';
 
@@ -36,6 +37,8 @@ interface CodesLabProps {
   onFrequencyChange?: (layers: ToneLayer[]) => void;
   onLoadedNameChange?: (name: string | null) => void;
   compact?: boolean;
+  showScope?: boolean;
+  testID?: string;
 }
 
 // Analog Dial Component — touch-drag to sweep frequency (log scale, 1 Hz — 26 kHz)
@@ -141,7 +144,10 @@ const dialStyles = skinStyles({
   dialLabelActive: { color: '#ff8080' },
 });
 
-export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, compact = false }: CodesLabProps) {
+export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, compact = false, showScope = true, testID }: CodesLabProps) {
+  const generatedId = React.useId().replace(/[^a-zA-Z0-9]/g, '');
+  const labId = testID || `shared-lab-${generatedId}`;
+  const [menu, setMenu] = useState<LabMenu>(null);
   const [layers, setLayers] = useState<ToneLayer[]>([
     { id: 1, frequency: 432, gain: 0.5, isPlaying: false },
   ]);
@@ -284,7 +290,8 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
   };
 
   return (
-    <View style={styles.container}>
+    <View testID={labId} style={styles.container}>
+      {showScope && <CymaticScope frequencies={layers.map(l => l.frequency)} playing={isPlaying} />}
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>&gt; CODES_LAB</Text>
@@ -309,16 +316,16 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
         </View>
       )}
 
-      {/* Cymatic Oscilloscope — real-time frequency feedback */}
-      <CymaticScope frequencies={layers.map(l => l.frequency)} playing={isPlaying} />
+      <LabMenuBar prefix={labId} selected={menu} onSelect={setMenu} modesLabel="MODES & RESET" />
 
       {/* LINK LAYERS — sync all Analog nodes so a sweep on one shifts all together (ratio-locked) */}
-      <View style={styles.linkBar}>
+      {menu === 'modes' && <View testID={`${labId}-modes-panel`} style={styles.linkBar}>
         <View style={styles.linkBarLeft}>
           <View style={[styles.linkBarDot, layersLinked && styles.linkBarDotActive]} />
           <Text style={styles.linkBarLabel}>NODES {'\u2192'} {layers.length}</Text>
         </View>
         <TouchableOpacity
+          testID={`${labId}-link-layers`}
           style={[styles.linkBtn, layersLinked && styles.linkBtnActive]}
           onPress={() => setLayersLinked(v => !v)}
           activeOpacity={0.7}
@@ -327,10 +334,11 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
             {layersLinked ? '◈ LINKED' : '◇ LINK ALL'}
           </Text>
         </TouchableOpacity>
-      </View>
+        <TouchableOpacity testID={`${labId}-reset`} style={styles.linkBtn} onPress={() => { if (isPlaying) handlePlay(); clearLoaded(); }}><Text style={styles.linkBtnText}>RESET</Text></TouchableOpacity>
+      </View>}
 
       {/* Layer Cards */}
-      {layers.map((layer, index) => (
+      {menu === 'signals' && <View testID={`${labId}-signals-panel`}>{layers.map((layer, index) => (
         <View key={layer.id} style={[styles.layerCard, layersLinked && styles.layerCardLinked]}>
           <View style={styles.layerTopRow}>
             <AnalogDial
@@ -389,6 +397,7 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
           <View style={styles.digitalReadout}>
             {editingFreqId === layer.id ? (
               <TextInput
+                testID={`${labId}-frequency-input-${index + 1}`}
                 style={styles.digitalHzInput}
                 value={freqInput}
                 onChangeText={setFreqInput}
@@ -402,6 +411,7 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
               />
             ) : (
               <TouchableOpacity
+                testID={`${labId}-frequency-${index + 1}`}
                 onPress={() => { setEditingFreqId(layer.id); setFreqInput(String(layer.frequency)); }}
                 activeOpacity={0.7}
               >
@@ -419,14 +429,16 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
 
       {/* Add Layer */}
       {layers.length < 5 && (
-        <TouchableOpacity style={styles.addLayerBtn} onPress={addLayer}>
+        <TouchableOpacity testID={`${labId}-add-layer`} style={styles.addLayerBtn} onPress={addLayer}>
           <Text style={styles.addLayerText}>[+] ADD_LAYER</Text>
         </TouchableOpacity>
       )}
+      </View>}
 
       {/* Execute Button */}
       <View style={styles.controlsContainer}>
         <TouchableOpacity
+          testID={`${labId}-execute`}
           style={[styles.playButton, isPlaying && styles.playButtonActive]}
           onPress={handlePlay}
         >

@@ -20,6 +20,7 @@ import jwt
 from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
 from music_catalog import MIRRORS_RELEASE
 from music_streaming import music_router
+from godmode_payments import create_godmode_checkout, godmode_router, record_godmode_payment
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -43,6 +44,7 @@ security = HTTPBearer(auto_error=False)
 
 app = FastAPI()
 app.include_router(music_router(db))
+app.include_router(godmode_router(db))
 api_router = APIRouter(prefix="/api")
 
 # ═══════════════════════════════════
@@ -390,6 +392,8 @@ async def create_checkout_session(request: Request):
 async def create_sound_checkout(request: Request):
     """Create a Stripe Checkout session for Sound page purchases (albums $13, singles $1.96)."""
     body = await request.json()
+    if body.get("type") == "godmode":
+        return await create_godmode_checkout(request, body, db)
     product_type = body.get("type", "album")  # "album" or "single"
     product_name = body.get("name", "Album")
     artist = body.get("artist", "VINCE SINNOTT")
@@ -440,13 +444,18 @@ async def stripe_webhook(request: Request):
         except (ValueError, stripe.error.SignatureVerificationError):
             raise HTTPException(status_code=400, detail="Invalid signature")
     else:
-        # In dev mode without webhook secret, parse directly
-        event = json.loads(payload)
+        # Live payment notifications must never trust unsigned request bodies.
+        raise HTTPException(status_code=503, detail="Stripe payment notifications are not configured")
 
     event_type = event.get("type", "")
 
     if event_type == "checkout.session.completed":
         session = event.get("data", {}).get("object", {})
+        if session.get("metadata", {}).get("product") == "godmode":
+            if not STRIPE_WEBHOOK_SECRET or STRIPE_WEBHOOK_SECRET == "whsec_placeholder":
+                raise HTTPException(503, "Stripe payment notifications are not configured")
+            await record_godmode_payment(session, db)
+            return {"received": True}
         album_id = session.get("metadata", {}).get("album_id", "")
         customer_email = session.get("customer_email") or session.get("customer_details", {}).get("email", "")
         payment_intent = session.get("payment_intent", "")

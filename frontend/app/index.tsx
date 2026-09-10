@@ -29,6 +29,7 @@ import { SoundLibrary } from '../src/sound/SoundLibrary';
 import { SoundReadout } from '../src/sound/SoundReadout';
 import { ss as soundStyles } from '../src/sound/soundStyles';
 import { Ionicons } from '@expo/vector-icons';
+import LabMenuBar, { LabMenu } from '../src/LabMenuBar';
 import { PLAYABLE_ALBUMS, ALBUMS, Album, Track, MIRRORS_COVER_URL } from '../src/AlbumData';
 import { Audio } from 'expo-av';
 import Constants from 'expo-constants';
@@ -193,6 +194,7 @@ export default function TerminalScreen() {
   const [activePianoKey, setActivePianoKey] = useState<number | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [archiveModalVisible, setArchiveModalVisible] = useState(false);
+  const [labMenu, setLabMenu] = useState<LabMenu>(null);
   const [loadedArchiveName, setLoadedArchiveName] = useState<string | null>(null);
   const [sendCodesModalVisible, setSendCodesModalVisible] = useState(false);
   const { setPickerOpen } = useSkin();
@@ -791,9 +793,6 @@ export default function TerminalScreen() {
               <TouchableOpacity style={styles.navPill} onPress={() => router.push('/sound')}>
                 <Text style={styles.navPillText}>90.6</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.navPill} onPress={() => Linking.openURL('https://earth.google.com/web/')}>
-                <Text style={styles.navPillText}>GODMODE</Text>
-              </TouchableOpacity>
               <TouchableOpacity style={styles.navPill} onPress={() => Linking.openURL('https://soundcloud.com/codes-godmode/sets/dj-sets')}>
                 <Text style={styles.navPillText}>DJ SETS</Text>
               </TouchableOpacity>
@@ -847,14 +846,9 @@ export default function TerminalScreen() {
             </View>
           </View>
 
-          {/* SCOPE ⟷ NODE — moved directly under LIBRARY. Still cymatics face.
-              Reflects live tones from CODES_LAB (frequencies + playing state). */}
-          <View style={styles.scopeUnderLibrary}>
-            <ScopeNodePanel
-              frequencies={layers.map(l => l.frequency)}
-              playing={isPlaying}
-              scalarBeatHz={scalarOn || (godMode && isPlaying) ? scalarHz : 0}
-            />
+          {/* Brand first; the clean scope follows the logo and Library action. */}
+          <View testID="home-scope-below-logo" style={styles.scopeUnderLibrary}>
+            <ScopeNodePanel testID="home-scope" compact frequencies={layers.map(l => l.frequency)} playing={isPlaying} scalarBeatHz={scalarOn || (godMode && isPlaying) ? scalarHz : 0} />
           </View>
 
           {/* Tone Layers - Analog Style */}
@@ -881,15 +875,18 @@ export default function TerminalScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-            {/* Lab controls — folded into the CODES LAB header */}
+            <LabMenuBar prefix="home-lab" selected={labMenu} onSelect={setLabMenu} />
+            {labMenu === 'modes' && <View testID="home-lab-modes-panel">
+            {/* Existing mode/preset controls, now grouped in one dropdown. */}
             <View style={styles.headerChipRow}>
-              <TouchableOpacity style={styles.labPresetChip} onPress={savePreset} activeOpacity={0.7}>
+              <TouchableOpacity testID="home-lab-save-preset" style={styles.labPresetChip} onPress={savePreset} activeOpacity={0.7}>
                 <Text style={styles.labPresetChipTxt}>◆ SAVE</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.labPresetChip} onPress={() => setPresetListOpen(o => !o)} activeOpacity={0.7}>
+              <TouchableOpacity testID="home-lab-load-presets" style={styles.labPresetChip} onPress={() => setPresetListOpen(o => !o)} activeOpacity={0.7}>
                 <Text style={styles.labPresetChipTxt}>◆ LOAD {presets.length > 0 ? `(${presets.length})` : ''}</Text>
               </TouchableOpacity>
               <TouchableOpacity
+                testID="home-lab-link-layers"
                 style={[styles.linkBtn, layersLinked && styles.linkBtnActive]}
                 onPress={() => setLayersLinked(v => !v)}
                 activeOpacity={0.7}
@@ -900,6 +897,7 @@ export default function TerminalScreen() {
               </TouchableOpacity>
               {/* $-CODES tier — GodMode scalar-augmented generator */}
               <TouchableOpacity
+                testID="home-lab-godmode"
                 style={[styles.godChip, godMode && styles.godChipActive]}
                 onPress={toggleGodMode}
                 activeOpacity={0.7}
@@ -910,6 +908,7 @@ export default function TerminalScreen() {
               </TouchableOpacity>
               {/* SCALAR — folded into the CODES LAB header (pulse toggle + step + sweep) */}
               <TouchableOpacity
+                testID="home-lab-scalar"
                 style={[styles.scalarBtn, scalarOn && styles.scalarBtnActive]}
                 onPress={toggleScalar}
                 activeOpacity={0.7}
@@ -963,6 +962,7 @@ export default function TerminalScreen() {
                 ))}
               </View>
             )}
+            </View>}
 
             {loadedArchiveName && (
               <View style={styles.loadedBanner}>
@@ -982,7 +982,7 @@ export default function TerminalScreen() {
               </View>
             )}
 
-            {/* SCOPE moved to hero section — directly under LIBRARY */}
+            {labMenu === 'signals' && <View testID="home-lab-signals-panel">
 
             {/* ═══ LATTICE FRAMEWORK — infuses "The Lattice That Binds All Dimensions"
                  into the lab; maps carrier freq to its dimensional/energetic slot. ═══ */}
@@ -1082,6 +1082,7 @@ export default function TerminalScreen() {
                 <View style={styles.digitalReadout}>
                   {editingFreqId === layer.id ? (
                     <TextInput
+                      testID={`home-lab-frequency-input-${index + 1}`}
                       style={styles.digitalHzInput}
                       value={freqInput}
                       onChangeText={setFreqInput}
@@ -1095,6 +1096,7 @@ export default function TerminalScreen() {
                     />
                   ) : (
                     <TouchableOpacity
+                      testID={`home-lab-frequency-${index + 1}`}
                       onPress={() => { setEditingFreqId(layer.id); setFreqInput(layer.frequency.toFixed(2)); }}
                       activeOpacity={0.7}
                     >
@@ -1111,6 +1113,7 @@ export default function TerminalScreen() {
                     return (
                       <TouchableOpacity
                         key={w}
+                        testID={`home-lab-wave-${index + 1}-${w.toLowerCase()}`}
                         style={[styles.waveChip, active && styles.waveChipActive]}
                         onPress={() => updateLayerWave(layer.id, w)}
                         activeOpacity={0.7}
@@ -1127,14 +1130,16 @@ export default function TerminalScreen() {
               );
             })}
 
-            <TouchableOpacity style={styles.addLayerBtn} onPress={addLayer}>
+            <TouchableOpacity testID="home-lab-add-layer" style={styles.addLayerBtn} onPress={addLayer}>
               <Text style={styles.addLayerText}>[+] ADD_LAYER</Text>
             </TouchableOpacity>
+            </View>}
           </View>
 
           {/* Play Controls */}
           <View style={styles.controlsContainer}>
             <TouchableOpacity
+              testID="home-lab-execute"
               style={[styles.playButton, isPlaying && styles.playButtonActive]}
               onPress={handlePlay}
             >

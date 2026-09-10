@@ -105,6 +105,20 @@
 user_problem_statement: "Create a mobile app version of godmodesound.com - a 432Hz frequency generator app with binaural beats, solfeggio frequencies, chakra frequencies, and mood-based frequency stacks"
 
 backend:
+  - task: "Restore GODMODE one-time Stripe checkout $33.96"
+    implemented: true
+    working: true
+    file: "backend/godmode_payments.py, backend/server.py, frontend/app/godmode.tsx, frontend/src/payments/useGodmodeCheckout.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "iteration16 backend15/15PASSforrealunpaidcheckout,3396USD,idempotency/validation/return/status. LatestuserthenrequestedremoveGODMODEfromtopmenu: removedentryandpricelabel, hiddencheckoutinfrastructurekept. Automaticnotificationsstill503failclosedpendingapprovedsigningsecret; noLIVEpaymentcompleted."
+      - working: "NA"
+        agent: "main"
+        comment: "ConfiguredStripeLIVEkeyverified. ExistingPOST/api/sound/checkout newgodmodebranch fixed3396USD, uuididempotency, verifiedGETstatus, native/Exporeturnallowlist, atomicreceipt. HomeGODMODEbuttonnow/godmode insteadEarth. Realunpaidcheckoutsessioncreated/price+hostcorrect; status200unpaid. NOlivechargesauthorized. Webhooksecretplaceholder; userdidnotapproveconfiguringendpoint, so noaccountconfigchanged. Webhooknowfailclosed503withoutsigningsecret. Testrealcheckoutcreation/UIpricedisplay/unpaidstatus/tamperrejection/nativecallbackURL; donotpayLIVE. Positivepaid/automaticnotificationsremainunverified/configpending."
   - task: "96 MIRRORS catalogue migration and public full-length music streams"
     implemented: true
     working: true
@@ -402,6 +416,20 @@ backend:
         comment: "DELETE /api/codes/channels/{channel_id} endpoint tested successfully. Deletes channels and associated messages, returns proper confirmation message."
 
 frontend:
+  - task: "Compact songs, supplied icon, clean solid scopes and two Lab dropdowns"
+    implemented: true
+    working: true
+    file: "frontend/src/{sound,archive}/*, ScopeNodePanel.tsx, CymaticScope.tsx, SolidScope.ts, LandingScope.tsx, LabMenuBar.tsx, CodesLabShared.tsx, frontend/app/{index,sound,binaural,moods,how,mirrors-id,chirpconnect}.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "iteration16passedallrequestedUIexceptArchivesearchqueryreset. Fixedqueryandfocusretention; iteration17selftest390/320PASSacrossalltabs/play/stop/load/reset. AlsoverifiedtopGODMODEpurchaseentryremovedandLabGODMODEeffectretained. LogoaboveHomeScope/noStatusStrip,otherleadingScopes,soliddefaults/optincontrols,twoLabmenus,280pxtracklist,newicon,all3musicplaybackPASS."
+      - working: "NA"
+        agent: "main"
+        comment: "LatestoverrideHomeLogoABOVEscope, removeSOLID/GEO/WOBBLEstatusstrip: done,optionsbehindgear. Other7primarylandingtabsscopesfirst(exceptHomebrandfirst), SOLIDdefaultgeometrynone/wobbleoff/autoOrbitoff, renderingthrottledonlyidlesolid. Tracklistmax280rows48 all14MIRRORSaccessiblevia nestedscroll. UploadedchromesymbolHome/Soundheaders+Soundnav unchangedalbumcover. CodesLabHome/sharedArchive2inline mutuallyexclusivedropdowns preservingexecutionoutside. ArchiveonesingleFlatListheaderkeepssearchsameinstance. MainselfPASStyping432Hzretainsfocus,play/stop/stage,shared/Home2dropdowns,logoabove+nostatusstrip,280pxlist+INTERLUDEFLIPactualadvancingaudio. Test320/390allroutes,settingselectionwobble/GEOoptin,playbackpreservation."
   - task: "Sound Lab matches Archive design, remove music FREE labels"
     implemented: true
     working: true

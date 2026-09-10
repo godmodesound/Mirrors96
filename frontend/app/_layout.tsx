@@ -141,6 +141,7 @@ function RootLayout() {
               title: 'Store',
             }}
           />
+          <Tabs.Screen name="godmode" options={{ href: null, title: 'GODMODE' }} />
         </Tabs>
       </View>
       {/* Hidden skin selector — lives outside the keyed tree so it stays open

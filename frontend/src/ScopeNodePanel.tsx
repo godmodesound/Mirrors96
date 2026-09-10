@@ -2,7 +2,9 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { AudioEngine, ScopeFrame } from './AudioEngine';
+import { Ionicons } from '@expo/vector-icons';
 import { chakraForFreq, mapOrbitGeometry, detectBeat } from './OrbitGeometry';
+import { SOLID_SCOPE_JS } from './SolidScope';
 
 import { skinStyles, SK, skinHtml } from './skins';
 
@@ -16,10 +18,11 @@ import { skinStyles, SK, skinHtml } from './skins';
 //                real harmonic stack of the base frequency.
 // ═══════════════════════════════════════════════════════════
 
-export const MEDIUMS = ['STARS', 'CYMASCOPE', 'LASER', 'MIRRORS', 'CODON', 'GENUS', 'E8', 'CHLADNI', 'WATER', 'SAND', 'CYMATICS', 'MERCURY', 'GOLD', 'FIRE'] as const;
+export const MEDIUMS = ['SOLID', 'STARS', 'CYMASCOPE', 'LASER', 'MIRRORS', 'CODON', 'GENUS', 'E8', 'CHLADNI', 'WATER', 'SAND', 'CYMATICS', 'MERCURY', 'GOLD', 'FIRE'] as const;
 export type Medium = typeof MEDIUMS[number];
 
 const MEDIUM_COLORS: Record<Medium, string> = {
+  SOLID: '#b8d5e8',
   STARS: '#c86aff',
   CYMASCOPE: '#7fd4ff',
   LASER: '#ff2a5e',
@@ -69,9 +72,10 @@ CanvasRenderingContext2D.prototype.arc=function(x,y,r,a0,a1,ccw){return __arc.ca
 var W=0,H=0,CX=0,CY=0,R0=0;
 function resize(){W=window.innerWidth;H=window.innerHeight;canvas.width=W;canvas.height=H;CX=W/2;CY=H/2;R0=Math.min(W,H)*0.40;}
 resize();window.addEventListener('resize',resize);
-var cfg={freqs:[432],playing:false,medium:'CYMATICS',geometries:[],view:'SCOPE',orbs:[],resonating:false,baseFreq:432,pattern:'SEED',orbit:null,beat:0,layers:{darkFx:true,threeField:true,orbit:true,labels:true,waveRing:true}};
+var cfg={freqs:[432],playing:false,medium:'SOLID',geometries:[],wobble:false,view:'SCOPE',orbs:[],resonating:false,baseFreq:432,pattern:'SEED',orbit:null,beat:0,layers:{darkFx:false,threeField:false,orbit:false,labels:false,waveRing:false}};
 var LIVE={wave:new Array(128).fill(128),peak:0,ts:0,peaks:[]};
 var PAL={
+  SOLID:{main:'#bfd8ea',glow:'#8bafc7',dim:'rgba(139,175,199,0.08)'},
   STARS:{main:'#e2b8ff',glow:'#c86aff',dim:'rgba(200,106,255,0.08)'},
   CYMASCOPE:{main:'#a8e2ff',glow:'#3ec6ff',dim:'rgba(127,212,255,0.08)'},
   LASER:{main:'#ff88b0',glow:'#ff0a5e',dim:'rgba(255,42,94,0.10)'},
@@ -87,7 +91,7 @@ var PAL={
   GOLD:{main:'#ffe08a',glow:'#ffaa00',dim:'rgba(255,215,94,0.10)'},
   FIRE:{main:'#ff9a5a',glow:'#ff2a0a',dim:'rgba(255,90,42,0.10)'}
 };
-window.updateScope=function(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.freqs)cfg.freqs=c.freqs;if(typeof c.playing==='boolean')cfg.playing=c.playing;if(c.medium)cfg.medium=c.medium;if(Array.isArray(c.geometries))cfg.geometries=c.geometries;if(c.view)cfg.view=c.view;if(Array.isArray(c.orbs))cfg.orbs=c.orbs;if(typeof c.resonating==='boolean')cfg.resonating=c.resonating;if(c.baseFreq)cfg.baseFreq=c.baseFreq;if(c.pattern)cfg.pattern=c.pattern;if(c.orbit!==undefined)cfg.orbit=c.orbit;if(typeof c.beat==='number')cfg.beat=c.beat;if(c.layers){cfg.layers.darkFx=!!c.layers.darkFx;cfg.layers.threeField=!!c.layers.threeField;cfg.layers.orbit=!!c.layers.orbit;cfg.layers.labels=!!c.layers.labels;cfg.layers.waveRing=!!c.layers.waveRing;}}catch(e){}};
+window.updateScope=function(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.freqs)cfg.freqs=c.freqs;if(typeof c.playing==='boolean')cfg.playing=c.playing;if(c.medium)cfg.medium=c.medium;if(typeof c.wobble==='boolean')cfg.wobble=c.wobble;if(Array.isArray(c.geometries))cfg.geometries=c.geometries;if(c.view)cfg.view=c.view;if(Array.isArray(c.orbs))cfg.orbs=c.orbs;if(typeof c.resonating==='boolean')cfg.resonating=c.resonating;if(c.baseFreq)cfg.baseFreq=c.baseFreq;if(c.pattern)cfg.pattern=c.pattern;if(c.orbit!==undefined)cfg.orbit=c.orbit;if(typeof c.beat==='number')cfg.beat=c.beat;if(c.layers){cfg.layers.darkFx=!!c.layers.darkFx;cfg.layers.threeField=!!c.layers.threeField;cfg.layers.orbit=!!c.layers.orbit;cfg.layers.labels=!!c.layers.labels;cfg.layers.waveRing=!!c.layers.waveRing;}}catch(e){}};
 window.pushWave=function(w){try{if(typeof w==='string')w=JSON.parse(w);if(w&&w.wave){LIVE.wave=w.wave;LIVE.peak=w.peak||0;LIVE.peaks=Array.isArray(w.peaks)?w.peaks:LIVE.peaks;LIVE.ts=performance.now();}}catch(e){}};
 window.addEventListener('message',function(e){
   var d=e.data;try{var p=typeof d==='string'?JSON.parse(d):d;if(p&&p.__wave){window.pushWave(p);return;}}catch(_){}
@@ -102,7 +106,7 @@ document.addEventListener('message',function(e){
 // Every touch spawns an expanding capillary ripple; in WATER the ripple
 // front also splashes real particles along its ring (field disturbance).
 var RIPPLES=[];
-function addRipple(x,y){RIPPLES.push({x:x,y:y,t0:performance.now()});if(RIPPLES.length>7)RIPPLES.shift();}
+function addRipple(x,y){if(cfg.medium==='SOLID'&&!cfg.wobble)return;RIPPLES.push({x:x,y:y,t0:performance.now()});if(RIPPLES.length>7)RIPPLES.shift();}
 var touchDown=false,lastRip=0;
 document.addEventListener('pointerdown',function(e){touchDown=true;addRipple(e.clientX,e.clientY);},{passive:true});
 document.addEventListener('pointermove',function(e){if(!touchDown)return;var nw=performance.now();if(nw-lastRip>70){addRipple(e.clientX,e.clientY);lastRip=nw;}},{passive:true});
@@ -875,8 +879,10 @@ function drawStars(t,env,R){
   for(var m2=0;m2<k;m2++)drawStarMandala(lay[m2][0],lay[m2][1],lay[m2][2],drv[m2].f,drv[m2].a,t);
 }
 
+${SOLID_SCOPE_JS}
 function drawScopeFace(t,envSmooth){
   var now2=performance.now();
+  var isSolid=cfg.medium==='SOLID';
   var isStars=cfg.medium==='STARS';
   var isCyma=cfg.medium==='CYMASCOPE';
   var isLaser=cfg.medium==='LASER';
@@ -886,7 +892,7 @@ function drawScopeFace(t,envSmooth){
   var isE8=cfg.medium==='E8';
   // "One display at a time" — cyma-family mediums render exclusively (no polar grid, particles, FFT ring or stacked geometries)
   var exclusive=isStars||isCyma||isLaser||isMirrors||isCodon||isGenus||isE8;
-  if(exclusive){ctx.fillStyle='#010409';ctx.fillRect(0,0,W,H);}
+  if(exclusive||isSolid){ctx.fillStyle='#010409';ctx.fillRect(0,0,W,H);}
   else{ctx.fillStyle='rgba(0,0,0,0.22)';ctx.fillRect(0,0,W,H);}
   var p=PAL[cfg.medium]||PAL.CYMATICS;
   // Pure cymatics — no instrument grid over the scope
@@ -894,14 +900,16 @@ function drawScopeFace(t,envSmooth){
   var f=(cfg.freqs&&cfg.freqs[0])||432;
   var n=2+Math.round(f%12);
   var m=3+Math.round((f/100)%9);
-  var spin=audioActive?t*0.00045*(1+(f%7)*0.25)*(0.4+envSmooth*1.6):0;
+  var spin=cfg.wobble&&audioActive?t*0.00045*(1+(f%7)*0.25)*(0.4+envSmooth*1.6):0;
   // Static radius — the scope no longer breathes. The active signal is
   // conveyed through in-medium motion (ripples, star bursts, waveform ring)
   // instead of expanding/contracting the outer field.
   var R=R0;
   var med=cfg.medium;
   var fresh=(performance.now()-LIVE.ts)<700;
-  if(isStars){
+  if(isSolid){
+    drawSolidField(R,p,envSmooth);
+  } else if(isStars){
     drawStars(t,envSmooth,R);
   } else if(isCyma){
     drawCymascope(t,envSmooth,R);
@@ -962,7 +970,7 @@ function drawScopeFace(t,envSmooth){
     ctx.save();
     ctx.shadowColor=p.glow;ctx.shadowBlur=audioActive?12+envSmooth*18:6;
     var geomRot=spin*0.6;
-    var geomR=R*0.92*(cfg.beat>0&&audioActive?(0.97+0.03*beatMod):1);
+    var geomR=R*0.92*(cfg.wobble&&cfg.beat>0&&audioActive?(0.97+0.03*beatMod):1);
     for(var gi=0;gi<cfg.geometries.length;gi++){
       var g=cfg.geometries[gi];
       switch(g){
@@ -1011,7 +1019,7 @@ function drawScopeFace(t,envSmooth){
   ctx.strokeStyle=p.glow;ctx.lineWidth=audioActive?2:1;ctx.globalAlpha=audioActive?0.85:0.4;
   ctx.beginPath();
   for(var a2=0;a2<=6.2832;a2+=0.05){
-    var wob=1+(audioActive?(0.02+0.05*envSmooth)*Math.sin(n*a2+spin*3):0.006*Math.sin(n*a2));
+    var wob=cfg.wobble?1+(audioActive?(0.02+0.05*envSmooth)*Math.sin(n*a2+spin*3):0.006*Math.sin(n*a2)):1;
     var rx=CX+Math.cos(a2)*R*wob,ry=CY+Math.sin(a2)*R*wob;
     a2===0?ctx.moveTo(rx,ry):ctx.lineTo(rx,ry);
   }
@@ -1183,8 +1191,12 @@ function drawNodeFace(t,envSmooth){
 
 // ═════════ SPIN FLIP + MAIN LOOP ═════════
 var flip=0; // 0 = SCOPE, 1 = NODE
-var envSmooth=0;
+var envSmooth=0,lastSolidPaint=0;
 function draw(t){
+  // A still, idle scope does not need sixty identical paints per second.
+  // Audio, selected effects and face transitions retain the original frame rate.
+  if(cfg.view==='SCOPE'&&flip===0&&cfg.medium==='SOLID'&&!cfg.wobble&&!cfg.playing&&(LIVE.peak||0)<1.5&&!cfg.geometries.length&&!cfg.orbit&&!cfg.layers.darkFx&&!cfg.layers.threeField&&!cfg.layers.waveRing&&t-lastSolidPaint<80){requestAnimationFrame(draw);return;}
+  lastSolidPaint=t;
 try{
   var target=cfg.view==='NODE'?1:0;
   flip+=(target-flip)*0.14;
@@ -1225,17 +1237,22 @@ requestAnimationFrame(draw);
 </script></body></html>`;
 
 interface Props {
+  testID?: string;
+  compact?: boolean;
   frequencies: number[];
   playing: boolean;
   scalarBeatHz?: number; // scalar resonator pulse (e.g. 7.83) when engaged
 }
 
-export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 }: Props) {
+export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0, testID, compact = false }: Props) {
+  const generatedId = React.useId().replace(/[^a-zA-Z0-9]/g, '');
+  const scopeId = testID || `scope-${generatedId}`;
+  const [optionsOpen, setOptionsOpen] = useState(!compact);
+  const [wobble, setWobble] = useState(false);
   const [view, setView] = useState<'SCOPE' | 'NODE'>('SCOPE');
-  const [medium, setMedium] = useState<Medium>('WATER');
-  const [geometries, setGeometries] = useState<Set<Geometry>>(new Set(['MERKABA']));
-  // Default GEO = MERKABA (brand identity). AUTO·orbit mode is opt-in so the
-  // scope always opens on the merkaba until the user cycles the ORB pill.
+  const [medium, setMedium] = useState<Medium>('SOLID');
+  const [geometries, setGeometries] = useState<Set<Geometry>>(new Set());
+  // Visual movement, orbit and geometry are all opt-in.
   const [autoOrbit, setAutoOrbit] = useState(false);
   const [orbCount, setOrbCount] = useState<number>(7);
   const [resonating, setResonating] = useState(false);
@@ -1249,7 +1266,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
   const [layers, setLayers] = useState({
     darkFx: false,      // Dark matter clumps + dark energy filaments (cosmic bloom)
     threeField: false,  // Potential → Biofield → Coherence sequential rings
-    orbit: true,        // Planet marker orbit
+    orbit: false,       // Planet marker orbit, enabled only by the user
     labels: false,      // Field side labels
     waveRing: false,    // Outer waveform overlay ring
   });
@@ -1389,6 +1406,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
     freqs: frequencies,
     playing,
     medium,
+    wobble,
     geometries: Array.from(geometries),
     view,
     orbs,
@@ -1398,7 +1416,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
     orbit: autoOrbit ? { planet: orbitInfo.planet, symbol: orbitInfo.symbol, color: orbitInfo.color, hz: orbitInfo.orbitHz } : null,
     beat: beatHz,
     layers,
-  }), [frequencies, playing, medium, geometries, view, orbs, resonating, baseFreq, orbCount, autoOrbit, orbitInfo, beatHz, layers]);
+  }), [frequencies, playing, medium, wobble, geometries, view, orbs, resonating, baseFreq, orbCount, autoOrbit, orbitInfo, beatHz, layers]);
 
   useEffect(() => {
     pushConfig(fullConfig());
@@ -1436,18 +1454,19 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
     });
   };
   const geoSummary = geometries.size === 0
-    ? '—'
+    ? 'OFF'
     : geometries.size === 1
       ? GEOMETRY_LABEL[Array.from(geometries)[0]]
       : `${geometries.size}× LAYERED`;
 
   return (
-    <View style={st.wrap}>
+    <View testID={scopeId} style={st.wrap}>
       {/* ── T-800 header: SPIN toggle + readout ── */}
       <View style={[st.headerBar, { borderColor: view === 'NODE' ? SK('#ff0a0a') : `${color}70` }]}>
         {/* SPIN toggle switch */}
         <View style={st.spinSwitch}>
           <TouchableOpacity
+            testID={`${scopeId}-scope-face`}
             style={[st.spinSeg, view === 'SCOPE' && st.spinSegActive]}
             onPress={() => setView('SCOPE')}
             activeOpacity={0.7}
@@ -1455,6 +1474,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
             <Text style={[st.spinSegTxt, view === 'SCOPE' && st.spinSegTxtActive]}>SCOPE</Text>
           </TouchableOpacity>
           <TouchableOpacity
+            testID={`${scopeId}-flip`}
             style={st.spinBtn}
             onPress={() => setView(v => (v === 'SCOPE' ? 'NODE' : 'SCOPE'))}
             activeOpacity={0.7}
@@ -1462,6 +1482,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
             <Text style={st.spinBtnTxt}>↻</Text>
           </TouchableOpacity>
           <TouchableOpacity
+            testID={`${scopeId}-node-face`}
             style={[st.spinSeg, view === 'NODE' && st.spinSegActiveRed]}
             onPress={() => setView('NODE')}
             activeOpacity={0.7}
@@ -1490,6 +1511,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
 
         {/* ── REF-A tuning pill (432/440) — global multiplicative scale ── */}
         <TouchableOpacity
+          testID={`${scopeId}-tuning`}
           onPress={toggleTuning}
           style={[st.tunePill, tuningA === 432 ? st.tunePill432 : st.tunePill440]}
           activeOpacity={0.7}
@@ -1500,10 +1522,11 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
       </View>
 
       {/* ── Face-specific control strip ── */}
-      {view === 'SCOPE' ? (
+      {optionsOpen && (view === 'SCOPE' ? (
         <View style={st.faceRow}>
           <TouchableOpacity
-            onPress={() => setAutoOrbit(o => !o)}
+            testID={`${scopeId}-orbit`}
+            onPress={() => { setAutoOrbit(o => !o); setLayers(prev => ({ ...prev, orbit: !autoOrbit })); }}
             style={[st.cycler, { borderColor: autoOrbit ? orbitInfo.color : SK('#2a3340') }]}
             activeOpacity={0.7}
           >
@@ -1512,20 +1535,22 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
               {autoOrbit ? `${orbitInfo.symbol} ${orbitInfo.planet}` : 'MANUAL'}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={cycleMedium} style={[st.cycler, { borderColor: `${color}60` }]} activeOpacity={0.7}>
+          <TouchableOpacity testID={`${scopeId}-medium`} onPress={cycleMedium} style={[st.cycler, { borderColor: `${color}60` }]} activeOpacity={0.7}>
             <Text style={st.cyclerLabel}>MED</Text>
-            <Text style={[st.cyclerVal, { color }]}>{medium}</Text>
+            <Text testID={`${scopeId}-medium-value`} style={[st.cyclerVal, { color }]}>{medium}</Text>
           </TouchableOpacity>
           <TouchableOpacity
+            testID={`${scopeId}-geometry-picker`}
             onPress={() => setGeoPickerOpen(o => !o)}
             style={[st.cycler, { borderColor: geometries.size ? SK('#ff0a0a') : SK('#2a3340') }]}
             activeOpacity={0.7}
           >
             <Text style={st.cyclerLabel}>GEO</Text>
-            <Text style={[st.cyclerVal, { color: geometries.size ? SK('#ff0a0a') : SK('#7d8794') }]}>
+            <Text testID={`${scopeId}-geometry-value`} style={[st.cyclerVal, { color: geometries.size ? SK('#ff0a0a') : SK('#7d8794') }]}>
               {autoOrbit ? `AUTO·${geoSummary}` : geoSummary}
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity testID={`${scopeId}-wobble`} accessibilityRole="button" accessibilityState={{ selected: wobble }} onPress={() => setWobble(on => !on)} style={[st.cycler, { borderColor: wobble ? SK('#ff0a0a') : SK('#2a3340') }]}><Text style={st.cyclerLabel}>WOBBLE</Text><Text style={[st.cyclerVal, { color: wobble ? SK('#ff0a0a') : SK('#7d8794') }]}>{wobble ? 'ON' : 'OFF'}</Text></TouchableOpacity>
         </View>
       ) : (
         <View style={st.faceRow}>
@@ -1551,7 +1576,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
             </Text>
           </TouchableOpacity>
         </View>
-      )}
+      ))}
 
       {view === 'NODE' && (
         <Text style={st.patternMeta}>
@@ -1597,12 +1622,12 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
         </Text>
       )}
 
-      {view === 'SCOPE' && geoPickerOpen && (
+      {optionsOpen && view === 'SCOPE' && geoPickerOpen && (
         <View style={st.geoPicker}>
           {GEOMETRIES.map(g => {
             const isOn = geometries.has(g);
             return (
-              <TouchableOpacity key={g} onPress={() => toggleGeometry(g)} style={[st.geoPill, isOn && st.geoPillActive]} activeOpacity={0.7}>
+              <TouchableOpacity testID={`${scopeId}-geometry-${g.toLowerCase()}`} accessibilityState={{ selected: isOn }} key={g} onPress={() => toggleGeometry(g)} style={[st.geoPill, isOn && st.geoPillActive]} activeOpacity={0.7}>
                 <Text style={[st.geoPillText, isOn && st.geoPillTextActive]}>{GEOMETRY_LABEL[g]}</Text>
               </TouchableOpacity>
             );
@@ -1611,7 +1636,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
       )}
 
       {/* ── Shared flip canvas ── */}
-      <View style={[st.scope, { borderColor: view === 'NODE' ? SK('#3a4450') : `${color}40` }]}>
+      <View testID={`${scopeId}-canvas`} style={[st.scope, compact && st.compactScope, { borderColor: view === 'NODE' ? SK('#3a4450') : `${color}40` }]}>
         {Platform.OS === 'web' ? (
           React.createElement('iframe', {
             ref: iframeRef,
@@ -1630,12 +1655,15 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0 
             onLoadEnd={() => pushConfig(fullConfig())}
           />
         )}
+        {compact && <TouchableOpacity testID={`${scopeId}-options`} accessibilityRole="button" accessibilityLabel={optionsOpen ? 'Close scope settings' : 'Open scope settings'} accessibilityState={{ expanded: optionsOpen }} onPress={() => setOptionsOpen(on => !on)} style={st.scopeSettings}><Ionicons name={optionsOpen ? 'close' : 'options-outline'} size={18} color={SK('#a6bac9')} /></TouchableOpacity>}
       </View>
     </View>
   );
 }
 
 const st = skinStyles({
+  compactScope: { height: 170 },
+  scopeSettings: { position: 'absolute', top: 7, right: 7, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#36424d', backgroundColor: '#0b1017', borderRadius: 5 },
   wrap: { marginBottom: 16 },
   headerBar: {
     flexDirection: 'row',
