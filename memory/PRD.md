@@ -194,3 +194,10 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - Removed the two square PLATE/DISC preview cards (CymascopePair) from the scope panel.
 - Scope now defaults to the CHLADNI plate medium.
 - Home scope moved from under the logo into the CODES_LAB frame (testID home-scope-in-lab). Hz signal slider kept.
+
+## Latest update — CYMASCOPE default and remove standalone Hz panel
+- User request: "default cymascope + remove hz slider to expose signals/ codes lab directly under scope", followed by "remove this" with the standalone Hz / LEVEL / play / 20Hz–2kHz slider card pictured.
+- Supersedes the preceding CHLADNI default and retained slider: `ScopeNodePanel.tsx` now starts on CYMASCOPE in both React state and initial canvas configuration. Removed the `CymaticSignalControl` import/render from the shared scope, so the entire pictured panel is absent on every scope instance. The existing Lab frequency/gain controls and EXECUTE remain unchanged.
+- `app/index.tsx`: scope stays inside the Lab frame, now first; CODES LAB header/actions and SIGNALS / MODES & PRESETS menus follow immediately. Original collapsed menu behavior retained. No audio-engine, backend, permissions, payments, media, or unrelated refactoring changes.
+- Verified using interactive mobile-preview checks at 390px and 320px: CYMASCOPE initial config, panel/slider absence, scope→header→menus order, options default/geometry OFF, SIGNALS numeric edit to 528Hz, EXECUTE with actual analyser signal, STOP, NODE/SCOPE switch, restore 432Hz, no horizontal page overflow. Screenshots: `/tmp/cymascope-panel-removed-{390,320}.jpg` via screenshot tool. Lints report no errors, only existing unused-code/hook warnings. Physical-device audio not retested.
+- Backlog priorities unchanged: P0 reported backend startup/App Store questions remain outside this tightly scoped UI request; P1 native audio validation; P2 main-screen refactor and expo-av migration.

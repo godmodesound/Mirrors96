@@ -848,13 +848,18 @@ export default function TerminalScreen() {
 
           {/* Tone Layers - Analog Style */}
           <View style={[styles.section, styles.t800Frame]}>
-            <View style={styles.toneLayerHeaderRow}>
+            {/* Live scope leads CODES LAB; its existing controls follow directly below. */}
+            <View testID="home-scope-in-lab" style={styles.scopeInLab}>
+              <ScopeNodePanel testID="home-scope" compact frequencies={layers.map(l => l.frequency)} playing={isPlaying} scalarBeatHz={scalarOn || (godMode && isPlaying) ? scalarHz : 0} />
+            </View>
+            <View testID="home-lab-header" style={styles.toneLayerHeaderRow}>
               <View>
-                <Text style={styles.sectionTitle}>&gt; CODES_LAB</Text>
+                <Text testID="home-lab-title" style={styles.sectionTitle}>&gt; CODES_LAB</Text>
                 <Text style={styles.t800Tag}>T-800 // CSM-101 HUD</Text>
               </View>
               <View style={styles.headerBtnRow}>
                 <TouchableOpacity
+                  testID="home-send-codes"
                   style={styles.sendCodesBubble}
                   onPress={() => setSendCodesModalVisible(true)}
                 >
@@ -869,10 +874,6 @@ export default function TerminalScreen() {
                   <Text style={styles.archiveBubbleText}>CODES ARCHIVE</Text>
                 </TouchableOpacity>
               </View>
-            </View>
-            {/* Live scope lives inside CODES LAB */}
-            <View testID="home-scope-in-lab" style={styles.scopeInLab}>
-              <ScopeNodePanel testID="home-scope" compact frequencies={layers.map(l => l.frequency)} playing={isPlaying} scalarBeatHz={scalarOn || (godMode && isPlaying) ? scalarHz : 0} />
             </View>
             <LabMenuBar prefix="home-lab" selected={labMenu} onSelect={setLabMenu} />
             {labMenu === 'modes' && <View testID="home-lab-modes-panel">

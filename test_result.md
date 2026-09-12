@@ -416,6 +416,17 @@ backend:
         comment: "DELETE /api/codes/channels/{channel_id} endpoint tested successfully. Deletes channels and associated messages, returns proper confirmation message."
 
 frontend:
+  - task: "CYMASCOPE default and removal of standalone Hz/level/play panel"
+    implemented: true
+    working: true
+    file: "frontend/src/ScopeNodePanel.tsx, frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Latest user screenshot identifies complete standalone Hz/LEVEL/play/slider card for removal. Shared scope no longer renders that component; React and canvas defaults CYMASCOPE. Home order scope→CODES LAB header/actions→SIGNALS/MODES menus, existing frequency controls untouched. Interactive screenshot tests PASS at390/320: absent panel/slider, correct default/order, options geometry OFF,528Hz frequency edit and actual live analyser on EXECUTE,STOP,NODE/SCOPE switch,restore432,no horizontal page overflow. Lint no errors, existing warnings only. Native-device audio not retested."
   - task: "Compact songs, supplied icon, clean solid scopes and two Lab dropdowns"
     implemented: true
     working: true

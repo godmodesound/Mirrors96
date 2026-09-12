@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { chakraForFreq, mapOrbitGeometry, detectBeat } from './OrbitGeometry';
 import { SOLID_SCOPE_JS } from './SolidScope';
 import { CYMATIC_RUNTIME } from './cymatics/cymaticRuntime';
-import { CymaticSignalControl } from './cymatics/CymaticSignalControl';
 
 import { skinStyles, SK, skinHtml } from './skins';
 
@@ -75,7 +74,7 @@ CanvasRenderingContext2D.prototype.arc=function(x,y,r,a0,a1,ccw){return __arc.ca
 var W=0,H=0,CX=0,CY=0,R0=0;
 function resize(){W=window.innerWidth;H=window.innerHeight;canvas.width=W;canvas.height=H;CX=W/2;CY=H/2;R0=Math.min(W,H)*0.40;}
 resize();window.addEventListener('resize',resize);
-var cfg={freqs:[432],playing:false,medium:'SOLID',geometries:[],wobble:false,view:'SCOPE',orbs:[],resonating:false,baseFreq:432,pattern:'SEED',orbit:null,beat:0,layers:{darkFx:false,threeField:false,orbit:false,labels:false,waveRing:false}};
+var cfg={freqs:[432],playing:false,medium:'CYMASCOPE',geometries:[],wobble:false,view:'SCOPE',orbs:[],resonating:false,baseFreq:432,pattern:'SEED',orbit:null,beat:0,layers:{darkFx:false,threeField:false,orbit:false,labels:false,waveRing:false}};
 var LIVE={wave:new Array(128).fill(128),peak:0,rms:0,measuredHz:0,ts:0,peaks:[]};
 /*__CYMATIC_RUNTIME__*/
 var cymaticPlateMain=MirrorsCymatics.renderer(200),cymaticDiscMain=MirrorsCymatics.renderer(200);
@@ -1263,7 +1262,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0,
   const [optionsOpen, setOptionsOpen] = useState(!compact);
   const [wobble, setWobble] = useState(false);
   const [view, setView] = useState<'SCOPE' | 'NODE'>('SCOPE');
-  const [medium, setMedium] = useState<Medium>('CHLADNI');
+  const [medium, setMedium] = useState<Medium>('CYMASCOPE');
   const [geometries, setGeometries] = useState<Set<Geometry>>(new Set());
   // Visual movement, orbit and geometry are all opt-in.
   const [autoOrbit, setAutoOrbit] = useState(false);
@@ -1612,6 +1611,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0,
             return (
               <TouchableOpacity
                 key={key}
+                testID={`${scopeId}-layer-${key}`}
                 onPress={() => toggleLayer(key)}
                 style={[st.layerChip, on && st.layerChipOn]}
                 activeOpacity={0.7}
@@ -1624,7 +1624,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0,
       )}
 
       {view === 'SCOPE' && medium === 'CYMASCOPE' && (
-        <Text style={st.patternMeta}>
+        <Text testID={`${scopeId}-signal-readout`} style={st.patternMeta}>
           ≋ CYMASCOPE · A={tuningA} · ZERO-LATENCY FFT · {livePeaks.length > 0 ? `LIVE ${livePeaks.join(' · ')} Hz` : 'AWAITING SIGNAL — WATER AT REST'}
         </Text>
       )}
@@ -1671,7 +1671,6 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0,
         )}
         {compact && <TouchableOpacity testID={`${scopeId}-options`} accessibilityRole="button" accessibilityLabel={optionsOpen ? 'Close scope settings' : 'Open scope settings'} accessibilityState={{ expanded: optionsOpen }} onPress={() => setOptionsOpen(on => !on)} style={st.scopeSettings}><Ionicons name={optionsOpen ? 'close' : 'options-outline'} size={18} color={SK('#a6bac9')} /></TouchableOpacity>}
       </View>
-      {view === 'SCOPE' && <CymaticSignalControl prefix={scopeId} />}
     </View>
   );
 }
