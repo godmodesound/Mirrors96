@@ -189,3 +189,8 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - Dependency: ExpoCrypto~15.0.9 installedviaexpo/yarn(SDK54) forsecureidempotencyUUIDs. Noframeworkenv/protectedconfigmodified. Checkoutroutehelpersload_dotenv;useconfiguredURL/requestorigin, nostalehardcodedapphost.
 - Currentchecks: touchedJSfiles/newpaymentmodulelintclean; pre-existingbackendserverruffduplicategenerate_mirrors_idandbareexceptwarningsremainoutsidecurrentchanges. TSbaselineerrorselsewhereonly(andfixedpreexistingbinauralscopeSectionmissingstyle). UI/APIverificationcompleteasreports16/17above. Physicalnativeaudio/paymentdeep-linkroundtripnotverified; paidreceiptpositiveflowwasnottestedwithareallivecharge.
 - GODMODE checkoutinitialAPIverifiedwithrealLIVEunpaidSession `cs_live_a1IDz8eTiyxEmXKL7SVy7XiV4L3aKsAsdAWH1TKlgzHMS2MudYsCzJpYMK`, requestUUID `7710dfa4-b13a-49da-88be-370c31bf60d6`, exact3396USD, checkout.stripe.com. GETstatusreturnsunpaid (doesnotcreatepaidreceipt). NOcarddetailsentered/NOlivecharge. Temporarychecks `/tmp/godmode-checkout-check.json`. Testagentmustnotpayliveandshouldexpireonlyitsownabandonedtestcheckoutsafterinspection. Webhookhandlernowfailsclosed503globallywhenmissing/placeholdersecret; neveracceptsunsignedfinancialevents. Checkout/verifiedreturnworkindependently; notificationconfigurationpendinguserapproval.
+
+## Update (June 2026)
+- Removed the two square PLATE/DISC preview cards (CymascopePair) from the scope panel.
+- Scope now defaults to the CHLADNI plate medium.
+- Home scope moved from under the logo into the CODES_LAB frame (testID home-scope-in-lab). Hz signal slider kept.

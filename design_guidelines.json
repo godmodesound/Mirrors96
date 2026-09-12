@@ -1,56 +1,79 @@
 {
-  "project_name": "Sound Lab - CODES Archive Design Extension",
+  "project_title": "MIRRORS 96 Cymascope Settings Live Preview Blueprint",
   "app_type": "mobile_web_app",
   "theme": "dark",
-  "design_archetype": "ARCHETYPE 7: ELECTRIC & NEON (Black / Infrared High-Tech Tactical Archive)",
+  "design_archetype": "ELECTRIC_AND_NEON",
   "instructions_to_main_agent": [
-    "Extend the existing CODES Archive design system (#000000 / #0c0c0e background, #ff0a0a infrared active accents, #f0f0f5 off-white titles, #a0a0b0 monospace metadata) to both Home SoundLab carousel/cards and the /sound dedicated screen.",
-    "Completely remove the word 'FREE' and any 'free access', 'free streaming', 'free' badges/tags/copy from all song rows, album views, cards, and now playing panels across Sound Lab.",
-    "Do NOT alter pricing, access rules, or add paywalls. Sound Lab playback remains available as before, but without 'FREE' labels.",
-    "Preserve the actual six AlbumData entries: 96 MIRRORS (14 tracks with latest white cover), CODES, IN MEMORY OF, PRESENCE, '13, LUCID DREAMS. Do not invent albums or recordings.",
-    "Maintain strict mobile responsiveness fitting 320px–430px viewports (Expo RN / Mobile Web App) with minimum 44px touch targets for play/stop/album select controls.",
-    "Unify Home SoundLab carousel and /sound dedicated page to use the shared compact track row & now-playing readout components while keeping original audio plumbing intact (AudioEngine.playMedia on Home, expo-av/sound player on /sound)."
+    "No code execution required for this task - blueprint specification only.",
+    "Target implementation file structure uses React Native / Web Canvas compatibility in JS/JSX components.",
+    "Implement paired live preview cards inside Scope settings modal/panel without rewriting existing Scope controls.",
+    "Default scope mode remains SOLID unless user taps PLATE or DISC preview card.",
+    "Keep Home logo positioned above the main Scope viewport.",
+    "Ensure all interactive preview cards, readouts, and mode toggles include testable data-testid attributes."
   ],
+  "colors": {
+    "plate_background": "#05060c",
+    "card_border": "rgba(255, 255, 255, 0.12)",
+    "card_border_selected": "#22d3ee",
+    "nodal_glow_red": "#ff3b30",
+    "nodal_glow_teal": "#22d3ee",
+    "nodal_glow_white": "#ffffff",
+    "text_primary": "#f8fafc",
+    "text_secondary": "#94a3b8",
+    "accent_cyan": "#06b6d4",
+    "accent_crimson": "#e11d48",
+    "badge_bg": "rgba(5, 6, 12, 0.85)"
+  },
   "typography": {
-    "title_font": "TerminatorRealNFI, sans-serif",
-    "metadata_font": "Menlo, monospace",
-    "body_font": "System, sans-serif",
-    "scales": {
-      "header_title": "text-2xl sm:text-3xl font-bold tracking-wider color-[#f0f0f5]",
-      "eyebrow_sub": "text-xs font-mono tracking-[0.2em] color-[#ff0a0a] uppercase",
-      "section_heading": "text-base sm:text-lg font-semibold tracking-wide color-[#f0f0f5]",
-      "track_title": "text-sm sm:text-base font-semibold color-[#f0f0f5]",
-      "metadata_mono": "text-xs font-mono color-[#a0a0b0]",
-      "duration_tag": "text-[11px] font-mono color-[#808090]"
+    "font_family_header": "TerminatorRealNFI, SpaceMono-Regular, sans-serif",
+    "font_family_body": "SpaceMono-Regular, monospace",
+    "label_size": "text-xs font-mono uppercase tracking-widest",
+    "readout_size": "text-sm font-mono text-cyan-400"
+  },
+  "visual_enhancers": {
+    "card_shadow": "0 8px 32px rgba(0, 0, 0, 0.6)",
+    "active_glow": "0 0 16px rgba(34, 211, 238, 0.35)",
+    "nodal_line_shadow": "0 0 8px #ff3b30, 0 0 12px #22d3ee",
+    "border_radius": "rounded-xl"
+  },
+  "paired_cards_layout": {
+    "container_style": "flex row gap-3 justify-center items-center my-3 px-2",
+    "card_dimensions": {
+      "width": 140,
+      "height": 140,
+      "aspect_ratio": 1.0
+    },
+    "square_plate": {
+      "label": "PLATE (CHLADNI)",
+      "equation": "|cos(nπx)cos(mπy) - cos(mπx)cos(nπy)|",
+      "data_testid": "cymascope-preview-plate"
+    },
+    "circular_disc": {
+      "label": "DISC (POLAR)",
+      "equation": "cos(k r π)cos(mθ)",
+      "data_testid": "cymascope-preview-disc"
     }
   },
-  "colors": {
-    "background_screen": "#000000",
-    "background_card": "#0c0c0e",
-    "background_active": "#180808",
-    "border_subtle": "#303036",
-    "border_active": "#ff0a0a",
-    "infrared_primary": "#ff0a0a",
-    "infrared_dim": "#ff0a0a55",
-    "text_heading": "#f0f0f5",
-    "text_muted": "#a0a0b0",
-    "text_dark_on_infrared": "#000000"
+  "realtime_audio_mapping": {
+    "analyser_source": "AudioEngine.subscribeScope",
+    "hz_to_modes": "n = clamp(floor(Hz / 60), 1, 12), m = clamp(floor(Hz / 90), 1, 12), k = clamp(floor(Hz / 120), 1, 8)",
+    "rms_to_tightness": "line_width = max(1.0, 3.5 - amplitude * 2.5), glow_intensity = 0.3 + amplitude * 0.7",
+    "idle_state": "Render static reference nodal geometry (e.g. n=3, m=5) at 40% opacity with 'IDLE / READY' indicator when audio session is inactive."
   },
-  "layout_and_hierarchy": {
-    "album_selection": "Horizontal scrollable pill grid or tab bar with 6 albums. Active album has #ff0a0a border and #200909 background with off-white text.",
-    "track_row": "Compact list item with min-height 52px, 44px+ touch area. Left: track index/mono tag. Center: track title + duration. Right: Play/Stop trigger with infrared state highlight when active.",
-    "now_playing": "Sticky or fixed bottom bar (min-height 60px) in deep black/red accent background (#100606) with subtle 1px top border (#ff0a0a55), real-time progress bar in #ff0a0a, track title, elapsed time, and a 44px infrared STOP button.",
-    "removed_elements": ["FREE badges", "Free tag pills", "'Free Stream' subtitle text", "'Free Access' labels"]
+  "readout_bar": {
+    "placement": "Directly above paired preview cards",
+    "elements": [
+      { "id": "hz_readout", "data_testid": "cymascope-readout-hz", "format": "{frequency} Hz" },
+      { "id": "rms_readout", "data_testid": "cymascope-readout-rms", "format": "LEVEL: {rms_dB} dB" },
+      { "id": "status_badge", "data_testid": "cymascope-status-badge", "format": "LIVE ANALYSER / IDLE" }
+    ]
   },
-  "component_structure": {
-    "sound_lab_home": "Nested carousel updated to display dark charcoal cards with fine #303036 borders, white 96 MIRRORS cover, and clean track list without 'FREE' tags.",
-    "sound_lab_page": "Dedicated /sound screen featuring Archive-styled header with Terminator title 'SOUND LAB ARCHIVE', 6-album selector, full 14-track listing for 96 MIRRORS, and bottom audio readout."
-  },
-  "data_testid_convention": {
-    "album_button": "sound-lab-album-[album-id]",
-    "track_item": "sound-lab-track-[track-id]",
-    "play_button": "sound-lab-play-[track-id]",
-    "stop_button": "sound-lab-stop-button",
-    "now_playing_bar": "sound-lab-now-playing"
-  }
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "Always maintain #05060c deep obsidian background for all cymascope surfaces.",
+    "Keep nodal line glow dual-tinted with red (#ff3b30) and teal-white (#22d3ee / #ffffff).",
+    "Tap on either paired preview card updates the active scope mode preference and highlights card with 1.5px cyan border + glow.",
+    "Do not break or remove existing Lab, music streaming, or ScopeNode panel controls.",
+    "Ensure static reference rendering is shown when idle instead of simulated fake live motion.",
+    "All interactive elements MUST include explicit data-testid attributes."
+  ]
 }

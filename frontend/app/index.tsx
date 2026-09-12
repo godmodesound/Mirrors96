@@ -846,11 +846,6 @@ export default function TerminalScreen() {
             </View>
           </View>
 
-          {/* Brand first; the clean scope follows the logo and Library action. */}
-          <View testID="home-scope-below-logo" style={styles.scopeUnderLibrary}>
-            <ScopeNodePanel testID="home-scope" compact frequencies={layers.map(l => l.frequency)} playing={isPlaying} scalarBeatHz={scalarOn || (godMode && isPlaying) ? scalarHz : 0} />
-          </View>
-
           {/* Tone Layers - Analog Style */}
           <View style={[styles.section, styles.t800Frame]}>
             <View style={styles.toneLayerHeaderRow}>
@@ -874,6 +869,10 @@ export default function TerminalScreen() {
                   <Text style={styles.archiveBubbleText}>CODES ARCHIVE</Text>
                 </TouchableOpacity>
               </View>
+            </View>
+            {/* Live scope lives inside CODES LAB */}
+            <View testID="home-scope-in-lab" style={styles.scopeInLab}>
+              <ScopeNodePanel testID="home-scope" compact frequencies={layers.map(l => l.frequency)} playing={isPlaying} scalarBeatHz={scalarOn || (godMode && isPlaying) ? scalarHz : 0} />
             </View>
             <LabMenuBar prefix="home-lab" selected={labMenu} onSelect={setLabMenu} />
             {labMenu === 'modes' && <View testID="home-lab-modes-panel">
@@ -1484,9 +1483,9 @@ const styles = skinStyles({
     fontWeight: '700',
     letterSpacing: 2,
   },
-  scopeUnderLibrary: {
-    marginTop: 18,
-    paddingHorizontal: 20,
+  scopeInLab: {
+    marginTop: 12,
+    marginBottom: 4,
   },
   section: { marginTop: 24, paddingHorizontal: 20 },
   footerLinks: {

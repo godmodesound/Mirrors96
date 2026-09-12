@@ -57,6 +57,12 @@ function startScopeStream() {
       last = ts;
       try {
         analyser.getByteTimeDomainData(scopeBuffer);
+        var energy = 0;
+        for (var ri = 0; ri < scopeBuffer.length; ri++) {
+          var sample = (scopeBuffer[ri] - 128) / 128;
+          energy += sample * sample;
+        }
+        var rms = Math.sqrt(energy / scopeBuffer.length);
         // Downsample to 128 pts to keep payload light
         var out = new Array(128);
         var waveWin = Math.min(1024, scopeBuffer.length);
@@ -101,7 +107,7 @@ function startScopeStream() {
           if (specPeaks.length > 6) specPeaks.length = 6;
         } catch(e) {}
         window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-          type: 'scope', wave: out, peak: peak, measuredHz: measuredHz, peaks: specPeaks,
+          type: 'scope', wave: out, peak: peak, rms: rms, measuredHz: measuredHz, peaks: specPeaks,
         }));
       } catch(e) {}
     }
@@ -588,6 +594,8 @@ const sendToWebView = (msg: object) => {
   }
 };
 
+const stopAllSubscribers = new Set<() => void>();
+
 // Audio Engine API (works on all platforms)
 export const AudioEngine = {
   // Tone layer controls
@@ -618,6 +626,11 @@ export const AudioEngine = {
     } else {
       sendToWebView({ type: 'stopAll' });
     }
+    stopAllSubscribers.forEach(listener => { try { listener(); } catch {} });
+  },
+  subscribeStopAll: (listener: () => void) => {
+    stopAllSubscribers.add(listener);
+    return () => { stopAllSubscribers.delete(listener); };
   },
   updateFreq: (id: number, freq: number) => {
     if (Platform.OS === 'web') {
@@ -1179,7 +1192,7 @@ const webSetTuning = (a: number) => {
 };
 
 // ===== Global scope subscribers (real-time master-bus waveform) =====
-export type ScopeFrame = { wave: number[]; peak: number; measuredHz?: number; peaks?: { hz: number; mag: number }[] };
+export type ScopeFrame = { wave: number[]; peak: number; rms?: number; measuredHz?: number; peaks?: { hz: number; mag: number }[] };
 type ScopeSub = (frame: ScopeFrame) => void;
 let scopeSubs: ScopeSub[] = [];
 let latestFrame: ScopeFrame = { wave: new Array(128).fill(128), peak: 0, measuredHz: 0 };
@@ -1201,6 +1214,12 @@ const startWebScopeLoop = () => {
       last = ts;
       try {
         webAnalyser.getByteTimeDomainData(webScopeBuf);
+        let energy = 0;
+        for (let i = 0; i < webScopeBuf.length; i++) {
+          const sample = (webScopeBuf[i] - 128) / 128;
+          energy += sample * sample;
+        }
+        const rms = Math.sqrt(energy / webScopeBuf.length);
         const out: number[] = new Array(128);
         const step = webScopeBuf.length / 128;
         let peak = 0;
@@ -1244,7 +1263,7 @@ const startWebScopeLoop = () => {
             specPeaks.length = Math.min(specPeaks.length, 6);
           }
         } catch {}
-        dispatchScope({ wave: out, peak, measuredHz, peaks: specPeaks });
+        dispatchScope({ wave: out, peak, rms, measuredHz, peaks: specPeaks });
       } catch {}
     }
     requestAnimationFrame(tick);
@@ -1286,7 +1305,7 @@ export const AudioBridgeProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       // Live master-bus scope frame
       if (data.type === 'scope' && Array.isArray(data.wave)) {
-        dispatchScope({ wave: data.wave, peak: data.peak || 0, measuredHz: data.measuredHz || 0, peaks: Array.isArray(data.peaks) ? data.peaks : [] });
+        dispatchScope({ wave: data.wave, peak: data.peak || 0, rms: typeof data.rms === 'number' ? data.rms : undefined, measuredHz: data.measuredHz || 0, peaks: Array.isArray(data.peaks) ? data.peaks : [] });
       }
       // Native media playback ended
       if (data.mediaEnded && mediaEndCb) {

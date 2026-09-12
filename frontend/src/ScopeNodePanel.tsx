@@ -5,6 +5,8 @@ import { AudioEngine, ScopeFrame } from './AudioEngine';
 import { Ionicons } from '@expo/vector-icons';
 import { chakraForFreq, mapOrbitGeometry, detectBeat } from './OrbitGeometry';
 import { SOLID_SCOPE_JS } from './SolidScope';
+import { CYMATIC_RUNTIME } from './cymatics/cymaticRuntime';
+import { CymaticSignalControl } from './cymatics/CymaticSignalControl';
 
 import { skinStyles, SK, skinHtml } from './skins';
 
@@ -18,7 +20,7 @@ import { skinStyles, SK, skinHtml } from './skins';
 //                real harmonic stack of the base frequency.
 // ═══════════════════════════════════════════════════════════
 
-export const MEDIUMS = ['SOLID', 'STARS', 'CYMASCOPE', 'LASER', 'MIRRORS', 'CODON', 'GENUS', 'E8', 'CHLADNI', 'WATER', 'SAND', 'CYMATICS', 'MERCURY', 'GOLD', 'FIRE'] as const;
+export const MEDIUMS = ['SOLID', 'STARS', 'CYMASCOPE', 'LASER', 'MIRRORS', 'CODON', 'GENUS', 'E8', 'CHLADNI', 'DISC', 'WATER', 'SAND', 'CYMATICS', 'MERCURY', 'GOLD', 'FIRE'] as const;
 export type Medium = typeof MEDIUMS[number];
 
 const MEDIUM_COLORS: Record<Medium, string> = {
@@ -30,7 +32,8 @@ const MEDIUM_COLORS: Record<Medium, string> = {
   CODON: '#9be89b',
   GENUS: '#8fb0ff',
   E8: '#ffd21e',
-  CHLADNI: '#7de87d',
+  CHLADNI: '#c4eceb',
+  DISC: '#84ded5',
   WATER: '#5fc9ff',
   SAND: '#e8c87d',
   CYMATICS: '#8dff9d',
@@ -73,7 +76,10 @@ var W=0,H=0,CX=0,CY=0,R0=0;
 function resize(){W=window.innerWidth;H=window.innerHeight;canvas.width=W;canvas.height=H;CX=W/2;CY=H/2;R0=Math.min(W,H)*0.40;}
 resize();window.addEventListener('resize',resize);
 var cfg={freqs:[432],playing:false,medium:'SOLID',geometries:[],wobble:false,view:'SCOPE',orbs:[],resonating:false,baseFreq:432,pattern:'SEED',orbit:null,beat:0,layers:{darkFx:false,threeField:false,orbit:false,labels:false,waveRing:false}};
-var LIVE={wave:new Array(128).fill(128),peak:0,ts:0,peaks:[]};
+var LIVE={wave:new Array(128).fill(128),peak:0,rms:0,measuredHz:0,ts:0,peaks:[]};
+/*__CYMATIC_RUNTIME__*/
+var cymaticPlateMain=MirrorsCymatics.renderer(200),cymaticDiscMain=MirrorsCymatics.renderer(200);
+window.getCymaticDiagnostics=function(){return {source:'session-analyser',selected:cfg.medium,plate:cymaticPlateMain.state(),disc:cymaticDiscMain.state()};};
 var PAL={
   SOLID:{main:'#bfd8ea',glow:'#8bafc7',dim:'rgba(139,175,199,0.08)'},
   STARS:{main:'#e2b8ff',glow:'#c86aff',dim:'rgba(200,106,255,0.08)'},
@@ -83,7 +89,8 @@ var PAL={
   CODON:{main:'#9be89b',glow:'#3aff6e',dim:'rgba(125,232,125,0.10)'},
   GENUS:{main:'#8fb0ff',glow:'#5b7bff',dim:'rgba(120,150,255,0.10)'},
   E8:{main:'#ffe08a',glow:'#ffd21e',dim:'rgba(255,215,94,0.10)'},
-  CHLADNI:{main:'#9be89b',glow:'#3aff6e',dim:'rgba(125,232,125,0.10)'},
+  CHLADNI:{main:'#c4eceb',glow:'#84ded5',dim:'rgba(132,222,213,0.10)'},
+  DISC:{main:'#c4eceb',glow:'#84ded5',dim:'rgba(132,222,213,0.10)'},
   WATER:{main:'#8fd8ff',glow:'#19b6ff',dim:'rgba(95,201,255,0.10)'},
   SAND:{main:'#eed9a6',glow:'#d9a441',dim:'rgba(232,200,125,0.10)'},
   CYMATICS:{main:'#a8f0a0',glow:'#4dff77',dim:'rgba(141,255,157,0.10)'},
@@ -92,7 +99,7 @@ var PAL={
   FIRE:{main:'#ff9a5a',glow:'#ff2a0a',dim:'rgba(255,90,42,0.10)'}
 };
 window.updateScope=function(c){try{if(typeof c==='string')c=JSON.parse(c);if(c.freqs)cfg.freqs=c.freqs;if(typeof c.playing==='boolean')cfg.playing=c.playing;if(c.medium)cfg.medium=c.medium;if(typeof c.wobble==='boolean')cfg.wobble=c.wobble;if(Array.isArray(c.geometries))cfg.geometries=c.geometries;if(c.view)cfg.view=c.view;if(Array.isArray(c.orbs))cfg.orbs=c.orbs;if(typeof c.resonating==='boolean')cfg.resonating=c.resonating;if(c.baseFreq)cfg.baseFreq=c.baseFreq;if(c.pattern)cfg.pattern=c.pattern;if(c.orbit!==undefined)cfg.orbit=c.orbit;if(typeof c.beat==='number')cfg.beat=c.beat;if(c.layers){cfg.layers.darkFx=!!c.layers.darkFx;cfg.layers.threeField=!!c.layers.threeField;cfg.layers.orbit=!!c.layers.orbit;cfg.layers.labels=!!c.layers.labels;cfg.layers.waveRing=!!c.layers.waveRing;}}catch(e){}};
-window.pushWave=function(w){try{if(typeof w==='string')w=JSON.parse(w);if(w&&w.wave){LIVE.wave=w.wave;LIVE.peak=w.peak||0;LIVE.peaks=Array.isArray(w.peaks)?w.peaks:LIVE.peaks;LIVE.ts=performance.now();}}catch(e){}};
+window.pushWave=function(w){try{if(typeof w==='string')w=JSON.parse(w);if(w&&w.wave){LIVE.wave=w.wave;LIVE.peak=w.peak||0;LIVE.rms=typeof w.rms==='number'?w.rms:undefined;LIVE.measuredHz=w.measuredHz||0;LIVE.peaks=Array.isArray(w.peaks)?w.peaks:LIVE.peaks;LIVE.ts=performance.now();}}catch(e){}};
 window.addEventListener('message',function(e){
   var d=e.data;try{var p=typeof d==='string'?JSON.parse(d):d;if(p&&p.__wave){window.pushWave(p);return;}}catch(_){}
   window.updateScope(d);
@@ -882,6 +889,7 @@ function drawStars(t,env,R){
 ${SOLID_SCOPE_JS}
 function drawScopeFace(t,envSmooth){
   var now2=performance.now();
+  var isModalCymatic=cfg.medium==='CHLADNI'||cfg.medium==='DISC';
   var isSolid=cfg.medium==='SOLID';
   var isStars=cfg.medium==='STARS';
   var isCyma=cfg.medium==='CYMASCOPE';
@@ -892,7 +900,7 @@ function drawScopeFace(t,envSmooth){
   var isE8=cfg.medium==='E8';
   // "One display at a time" — cyma-family mediums render exclusively (no polar grid, particles, FFT ring or stacked geometries)
   var exclusive=isStars||isCyma||isLaser||isMirrors||isCodon||isGenus||isE8;
-  if(exclusive||isSolid){ctx.fillStyle='#010409';ctx.fillRect(0,0,W,H);}
+  if(exclusive||isSolid||isModalCymatic){ctx.fillStyle=isModalCymatic?MirrorsCymatics.background:'#010409';ctx.fillRect(0,0,W,H);}
   else{ctx.fillStyle='rgba(0,0,0,0.22)';ctx.fillRect(0,0,W,H);}
   var p=PAL[cfg.medium]||PAL.CYMATICS;
   // Pure cymatics — no instrument grid over the scope
@@ -907,7 +915,10 @@ function drawScopeFace(t,envSmooth){
   var R=R0;
   var med=cfg.medium;
   var fresh=(performance.now()-LIVE.ts)<700;
-  if(isSolid){
+  if(isModalCymatic){
+    var modalSignal=MirrorsCymatics.signal(LIVE,now2),modalSize=Math.min(W,H)*0.96;
+    (cfg.medium==='DISC'?cymaticDiscMain:cymaticPlateMain).draw(ctx,cfg.medium==='DISC'?'disc':'plate',modalSignal,CX-modalSize/2,CY-modalSize/2,modalSize);
+  } else if(isSolid){
     drawSolidField(R,p,envSmooth);
   } else if(isStars){
     drawStars(t,envSmooth,R);
@@ -932,8 +943,7 @@ function drawScopeFace(t,envSmooth){
     var wsAmp=Math.abs(LIVE.wave[wsIdx]-128)/128;
     I=Math.min(1,I*(0.55+wsAmp*1.6));
     var hit=false,size=1.4,alpha=0;
-    if(med==='CHLADNI'){hit=I<0.14;alpha=0.5+Math.random()*0.4;size=1.2;}
-    else if(med==='SAND'){hit=I<0.20;alpha=0.35+Math.random()*0.35;size=1.0;}
+    if(med==='SAND'){hit=I<0.20;alpha=0.35+Math.random()*0.35;size=1.0;}
     else if(med==='WATER'){var w=Math.abs(Math.sin(m*Math.PI*r-(audioActive?t*0.004:0)));hit=w>0.9;alpha=0.30+0.4*w;size=1.6+envSmooth*2;
       if(!hit&&RIPPLES.length){var px3=CX+Math.cos(th)*r*R,py3=CY+Math.sin(th)*r*R;var rb=rippleBoost(px3,py3,now2);if(rb>0.30&&Math.random()<rb){hit=true;alpha=0.35+0.55*rb;size=1.8+rb*2;}}}
     else if(med==='FIRE'){hit=I>0.55;alpha=0.35+0.5*I;size=1.5+I+envSmooth*2;}
@@ -989,6 +999,9 @@ function drawScopeFace(t,envSmooth){
     ctx.restore();
     ctx.globalAlpha=1;
   }
+  // Preserve explicitly selected geometry overlays, but never add a circular rim
+  // or time-based particle/orbit decoration to the analytic Plate/Disc field.
+  if(isModalCymatic)return;
   // ═══ ORBIT — planet marker locked to the carrier's cosmic-octave orbit tone ═══
   if(cfg.orbit && cfg.layers.orbit){
     var oc=cfg.orbit;
@@ -1250,7 +1263,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0,
   const [optionsOpen, setOptionsOpen] = useState(!compact);
   const [wobble, setWobble] = useState(false);
   const [view, setView] = useState<'SCOPE' | 'NODE'>('SCOPE');
-  const [medium, setMedium] = useState<Medium>('SOLID');
+  const [medium, setMedium] = useState<Medium>('CHLADNI');
   const [geometries, setGeometries] = useState<Set<Geometry>>(new Set());
   // Visual movement, orbit and geometry are all opt-in.
   const [autoOrbit, setAutoOrbit] = useState(false);
@@ -1284,7 +1297,8 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0,
 
   // ═══ ORBIT GEOMETRY — exact Tone + Orbit pair for the current preset/codes ═══
   // Canvas markup re-colored for the active skin (tree remounts on skin change)
-  const skinnedHtml = useMemo(() => skinHtml(PANEL_HTML), []);
+  // Inject after skin mapping: the specified #05060c/red/teal-white material is fixed.
+  const skinnedHtml = useMemo(() => skinHtml(PANEL_HTML).replace('/*__CYMATIC_RUNTIME__*/', CYMATIC_RUNTIME), []);
   const orbitInfo = useMemo(() => mapOrbitGeometry(baseFreq), [baseFreq]);
   const beatHz = useMemo(() => detectBeat(frequencies, scalarBeatHz), [frequencies, scalarBeatHz]);
 
@@ -1385,7 +1399,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0,
   const pushWave = useCallback((frame: ScopeFrame) => {
     if (Platform.OS === 'web') {
       // Iframe on web: direct function call, negligible cost — push every frame
-      const payload = JSON.stringify({ __wave: true, wave: frame.wave, peak: frame.peak, peaks: frame.peaks || [] });
+      const payload = JSON.stringify({ __wave: true, wave: frame.wave, peak: frame.peak, rms: frame.rms, measuredHz: frame.measuredHz, peaks: frame.peaks || [] });
       try { iframeRef.current?.contentWindow?.pushWave?.(payload); } catch {}
       return;
     }
@@ -1397,7 +1411,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0,
     if (!isTransient && now - lastPushTs.current < 33) return;
     lastPushTs.current = now;
     const trimmedPeaks = (frame.peaks || []).slice(0, 4);
-    const payload = JSON.stringify({ __wave: true, wave: frame.wave, peak: frame.peak, peaks: trimmedPeaks });
+    const payload = JSON.stringify({ __wave: true, wave: frame.wave, peak: frame.peak, rms: frame.rms, measuredHz: frame.measuredHz, peaks: trimmedPeaks });
     const safe = payload.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     webRef.current?.injectJavaScript(`window.pushWave&&window.pushWave('${safe}');true;`);
   }, []);
@@ -1537,7 +1551,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0,
           </TouchableOpacity>
           <TouchableOpacity testID={`${scopeId}-medium`} onPress={cycleMedium} style={[st.cycler, { borderColor: `${color}60` }]} activeOpacity={0.7}>
             <Text style={st.cyclerLabel}>MED</Text>
-            <Text testID={`${scopeId}-medium-value`} style={[st.cyclerVal, { color }]}>{medium}</Text>
+            <Text testID={`${scopeId}-medium-value`} style={[st.cyclerVal, { color }]}>{medium === 'CHLADNI' ? 'PLATE' : medium}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             testID={`${scopeId}-geometry-picker`}
@@ -1657,6 +1671,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0,
         )}
         {compact && <TouchableOpacity testID={`${scopeId}-options`} accessibilityRole="button" accessibilityLabel={optionsOpen ? 'Close scope settings' : 'Open scope settings'} accessibilityState={{ expanded: optionsOpen }} onPress={() => setOptionsOpen(on => !on)} style={st.scopeSettings}><Ionicons name={optionsOpen ? 'close' : 'options-outline'} size={18} color={SK('#a6bac9')} /></TouchableOpacity>}
       </View>
+      {view === 'SCOPE' && <CymaticSignalControl prefix={scopeId} />}
     </View>
   );
 }
