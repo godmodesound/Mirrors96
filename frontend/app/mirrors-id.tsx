@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/AuthContext';
 import GoogleSignInButton from '../src/GoogleSignInButton';
+import AppleSignInButton from '../src/AppleSignInButton';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import LandingScope from '../src/LandingScope';
 
@@ -284,6 +285,7 @@ export default function MirrorsIdScreen() {
         {/* Google Sign-In (optional) */}
         <View style={{ marginBottom: 20 }}>
           <GoogleSignInButton />
+          <AppleSignInButton />
         </View>
 
         <Text style={styles.subtitle}>

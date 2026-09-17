@@ -195,6 +195,12 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - Scope now defaults to the CHLADNI plate medium.
 - Home scope moved from under the logo into the CODES_LAB frame (testID home-scope-in-lab). Hz signal slider kept.
 
+## Latest update — Sign in with Apple (iOS only)
+- User request: "Add the Apple sign-in integration to my app." → "ios only".
+- Backend `POST /api/auth/apple` (server.py, next to Google auth): PyJWT `PyJWKClient` verifies identityToken against https://appleid.apple.com/auth/keys (RS256, issuer, `APPLE_AUDIENCES` env = `app.emergent.binauralpreview2d067bc8,host.exp.Exponent`). Users keyed on `apple_sub` in the existing `google_users` collection (new sparse-unique index, `provider: 'apple'`); name/email persisted only on first sign-in; sessions in existing `user_sessions` (7d) so `/api/auth/me` + `/api/auth/logout` are shared with Google. Tests: `backend/tests/test_apple_auth.py` — 5/5 pass (first sign-in, repeat sign-in no-overwrite, Expo Go aud, wrong aud 401, expired 401, garbage 401).
+- Frontend: `expo-apple-authentication@~8.0.8` installed; `app.json` → `ios.usesAppleSignIn: true` + plugin. `src/AppleSignInButton.tsx` = native white Apple button (gated by `isAvailableAsync`, iOS only, hidden when signed in); `signInWithApple()` added to `GoogleAuthContext` (FULL_NAME+EMAIL scopes, cancel handled silently, token saved to SecureStore before state update). Mounted under Google button in `chirpconnect.tsx` Settings → ACCOUNT and `mirrors-id.tsx`.
+- Verification: backend tests pass; web smoke screenshot shows CODES I.D. Settings intact with Apple button correctly absent on web. Real Apple ID flow can only be validated on a physical iPhone (Expo Go or build).
+
 ## Latest update — CYMASCOPE default and remove standalone Hz panel
 - User request: "default cymascope + remove hz slider to expose signals/ codes lab directly under scope", followed by "remove this" with the standalone Hz / LEVEL / play / 20Hz–2kHz slider card pictured.
 - Supersedes the preceding CHLADNI default and retained slider: `ScopeNodePanel.tsx` now starts on CYMASCOPE in both React state and initial canvas configuration. Removed the `CymaticSignalControl` import/render from the shared scope, so the entire pictured panel is absent on every scope instance. The existing Lab frequency/gain controls and EXECUTE remain unchanged.

@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const AUTH_URL = 'https://auth.emergentagent.com/';
@@ -15,6 +16,7 @@ export interface GoogleUser {
   name: string;
   picture: string;
   mirrors_id?: string | null;
+  provider?: 'google' | 'apple';
 }
 
 const saveToken = async (t: string) => {
@@ -39,6 +41,8 @@ interface GoogleAuthState {
   googleUser: GoogleUser | null;
   googleLoading: boolean;
   signInWithGoogle: (mirrorsId?: string) => Promise<void>;
+  /** iOS only. Resolves to 'ok' | 'cancelled' | 'error'. */
+  signInWithApple: (mirrorsId?: string) => Promise<'ok' | 'cancelled' | 'error'>;
   signOutGoogle: () => Promise<void>;
 }
 
@@ -46,6 +50,7 @@ const Ctx = createContext<GoogleAuthState>({
   googleUser: null,
   googleLoading: true,
   signInWithGoogle: async () => {},
+  signInWithApple: async () => 'error',
   signOutGoogle: async () => {},
 });
 
@@ -146,6 +151,48 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, [processSessionId]);
 
+  const signInWithApple = useCallback(async (mirrorsId?: string): Promise<'ok' | 'cancelled' | 'error'> => {
+    if (Platform.OS !== 'ios') return 'error';
+    let credential: AppleAuthentication.AppleAuthenticationCredential;
+    try {
+      credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+    } catch (e: any) {
+      if (e?.code === 'ERR_REQUEST_CANCELED') return 'cancelled';
+      console.log('Apple sign-in error:', e);
+      return 'error';
+    }
+    if (!credential.identityToken) return 'error';
+    const fullName = [credential.fullName?.givenName, credential.fullName?.familyName]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/apple`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identity_token: credential.identityToken,
+          full_name: fullName || null,
+          email: credential.email || null,
+          mirrors_id: mirrorsId || null,
+        }),
+      });
+      if (!res.ok) return 'error';
+      const data = await res.json();
+      await saveToken(data.session_token);
+      setGoogleUser(data.user);
+      return 'ok';
+    } catch (e) {
+      console.log('Apple session error:', e);
+      return 'error';
+    }
+  }, []);
+
   const signOutGoogle = useCallback(async () => {
     try {
       const token = await getToken();
@@ -161,7 +208,7 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   return (
-    <Ctx.Provider value={{ googleUser, googleLoading, signInWithGoogle, signOutGoogle }}>
+    <Ctx.Provider value={{ googleUser, googleLoading, signInWithGoogle, signInWithApple, signOutGoogle }}>
       {children}
     </Ctx.Provider>
   );

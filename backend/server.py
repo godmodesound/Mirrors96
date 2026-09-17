@@ -1745,10 +1745,89 @@ async def google_logout(request: Request):
         await db.user_sessions.delete_one({"session_token": auth.split(" ", 1)[1]})
     return {"status": "logged_out"}
 
+# ═══════════════════════════════════════════════════════════
+# SIGN IN WITH APPLE (iOS only) — shares google_users / user_sessions
+# ═══════════════════════════════════════════════════════════
+APPLE_JWKS_URL = "https://appleid.apple.com/auth/keys"
+APPLE_ISSUER = "https://appleid.apple.com"
+APPLE_AUDIENCES = [a.strip() for a in os.environ.get("APPLE_AUDIENCES", "").split(",") if a.strip()]
+_apple_jwks_client = jwt.PyJWKClient(APPLE_JWKS_URL, cache_keys=True, lifespan=3600)
+
+class AppleSessionRequest(BaseModel):
+    identity_token: str
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    mirrors_id: Optional[str] = None
+
+def verify_apple_identity_token(identity_token: str) -> dict:
+    if not APPLE_AUDIENCES:
+        raise HTTPException(status_code=503, detail="Apple Sign-In not configured")
+    try:
+        signing_key = _apple_jwks_client.get_signing_key_from_jwt(identity_token)
+        return jwt.decode(
+            identity_token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=APPLE_AUDIENCES,
+            issuer=APPLE_ISSUER,
+        )
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Apple token expired")
+    except jwt.InvalidAudienceError:
+        raise HTTPException(status_code=401, detail="Apple token audience mismatch")
+    except jwt.PyJWTError as e:
+        raise HTTPException(status_code=401, detail=f"Invalid Apple token: {e}")
+
+@api_router.post("/auth/apple")
+async def apple_create_session(req: AppleSessionRequest):
+    """Verify an Apple identityToken and issue a 7-day session (same session model as Google)."""
+    claims = verify_apple_identity_token(req.identity_token)
+    apple_sub = claims["sub"]
+    token_email = claims.get("email")
+    mirrors_link = req.mirrors_id.strip().upper() if req.mirrors_id else None
+    now = datetime.now(timezone.utc)
+
+    existing = await db.google_users.find_one({"apple_sub": apple_sub}, {"_id": 0})
+    if existing:
+        user_id = existing["user_id"]
+        update = {}
+        # Apple only returns name/email on FIRST sign-in — never overwrite with blanks
+        if req.full_name and not existing.get("name"):
+            update["name"] = req.full_name
+        if (req.email or token_email) and not existing.get("email"):
+            update["email"] = req.email or token_email
+        if mirrors_link:
+            update["mirrors_id"] = mirrors_link
+        if update:
+            await db.google_users.update_one({"user_id": user_id}, {"$set": update})
+    else:
+        user_id = f"user_{uuid.uuid4().hex[:12]}"
+        await db.google_users.insert_one({
+            "user_id": user_id,
+            "apple_sub": apple_sub,
+            "provider": "apple",
+            "email": req.email or token_email or f"{apple_sub}@privaterelay.appleid.com",
+            "name": req.full_name or "",
+            "picture": "",
+            "mirrors_id": mirrors_link,
+            "created_at": now,
+        })
+
+    session_token = uuid.uuid4().hex + uuid.uuid4().hex
+    await db.user_sessions.insert_one({
+        "session_token": session_token,
+        "user_id": user_id,
+        "created_at": now,
+        "expires_at": now + timedelta(days=7),
+    })
+    user = await db.google_users.find_one({"user_id": user_id}, {"_id": 0})
+    return {"user": user, "session_token": session_token}
+
 @app.on_event("startup")
 async def create_google_auth_indexes():
     await db.google_users.create_index("email", unique=True)
     await db.google_users.create_index("user_id", unique=True)
+    await db.google_users.create_index("apple_sub", unique=True, sparse=True)
     await db.user_sessions.create_index("session_token", unique=True)
     await db.user_sessions.create_index("user_id")
     await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)

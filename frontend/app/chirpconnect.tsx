@@ -34,6 +34,7 @@ import Constants from 'expo-constants';
 import { FREQUENCY_ARCHIVE } from '../src/FrequencyArchiveData';
 import { AudioEngine } from '../src/AudioEngine';
 import GoogleSignInButton from '../src/GoogleSignInButton';
+import AppleSignInButton from '../src/AppleSignInButton';
 
 import { skinStyles, SK } from '../src/skins';
 
@@ -1281,7 +1282,8 @@ export default function ChirpConnect() {
           <View style={styles.settingSection}>
             <Text style={styles.settingLabel}>ACCOUNT</Text>
             <GoogleSignInButton mirrorsId={mirrorsId || undefined} />
-            <Text style={styles.settingInfo}>Optional — link your Google account to your MIRRORS I.D.</Text>
+            <AppleSignInButton mirrorsId={mirrorsId || undefined} />
+            <Text style={styles.settingInfo}>Optional — link your Google or Apple account to your MIRRORS I.D.</Text>
           </View>
           <View style={styles.settingSection}>
             <Text style={styles.settingLabel}>IDENTITY</Text>
