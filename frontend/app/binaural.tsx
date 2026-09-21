@@ -13,6 +13,7 @@ import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import { WebView } from 'react-native-webview';
 import { AudioEngine } from '../src/AudioEngine';
 import ScopeNodePanel from '../src/ScopeNodePanel';
+import DiagnosticBodyMap from '../src/DiagnosticBodyMap';
 
 import { skinStyles, SK, skinHtml } from '../src/skins';
 
@@ -871,6 +872,9 @@ export default function BinauralScreen() {
               ))}
             </View>
           </View>
+
+          {/* ═══ DIAGNOSTIC BODY MAP ═══ */}
+          <DiagnosticBodyMap testID="binaural-body-map" />
 
           {/* ═══ GUIDE ═══ */}
           <View style={styles.guideSection}>
