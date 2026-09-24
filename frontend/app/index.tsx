@@ -40,6 +40,7 @@ import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
 import ScopeNodePanel from '../src/ScopeNodePanel';
 import LatticeFramework from '../src/LatticeFramework';
 import SendCodesModal from '../src/SendCodesModal';
+import HomeAnatomyModules from '../src/HomeAnatomyModules';
 
 import { skinStyles, SK, useSkin } from '../src/skins';
 
@@ -1295,6 +1296,9 @@ export default function TerminalScreen() {
             />
           </View>
 
+
+          {/* ══════ EMF HARMONIZER · CSF SPINE · 206 BONE MAP ══════ */}
+          <HomeAnatomyModules />
 
           {/* Quick Archive Access */}
           <View style={styles.section}>

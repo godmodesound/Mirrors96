@@ -195,6 +195,15 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - Scope now defaults to the CHLADNI plate medium.
 - Home scope moved from under the logo into the CODES_LAB frame (testID home-scope-in-lab). Hz signal slider kept.
 
+## Latest update — Home tab: EMF HARMONIZER · CSF/KUNDALINI SPINE · 206 BONE MAP
+- User request: "Add interactive features mirroring these images to Home tab" (3 refs: EMF Harmonizer Map, CSF flow/Kundalini chakra spine, Number of Bones 206 chart).
+- Mounted via ONE line in `app/index.tsx` (`<HomeAnatomyModules />` after PARTICLE_LAB, before VIEW FULL ARCHIVE) → `src/HomeAnatomyModules.tsx`.
+- `src/EmfHarmonizerMap.tsx`: 8 EMF source cards (50/60 Hz power, 100 kHz electronics, 900 MHz/1.8 GHz cellular, 2.4/5/6 GHz Wi-Fi) with `harmonicMatch()` octave reduction — RF band 10–20 kHz reproduces reference values exactly (12.5k/13.7k/13.7k/18.3k/19.1k/11.4k); MID band 216–432 Hz alt; tap = play/stop match tone (AudioEngine ids 700/701, live retune on band change); optional +432 anchor; custom source input (Hz/kHz/MHz/GHz).
+- `src/CanvasBridge.tsx`: shared WebView/iframe canvas host (call(fn,payload), tagged messages back, optional live analyser pushWave). Used by the two modules below.
+- `src/CsfSpineFlow.tsx` + `src/spineHtml.ts`: side-profile CNS canvas — vertebrae (cervical/thoracic/lumbar/sacrum coloured), brain, CSF loop with ascending particles (rate 6/8/10/12 CPM, speeds up with audio env), 7 chakras (tap on canvas or buttons → tone id 720, CHAKRA_7 432-lattice Hz), KUNDALINI RISE sequence (root→crown 2.2 s each, ida/pingala serpents rise, crown lotus at 100%), RESET.
+- `src/BoneMap.tsx` + `src/boneHtml.ts`: front-view skeleton canvas with leader-line labels; 10 regions (skull 22, ossicles 6, hyoid 1, vertebral 26, ribs 24, sternum 1, pectoral 4, upper 60, pelvic 2, lower 60 = 206) tappable on canvas or chips; ALL/AXIAL 80/APPENDICULAR 126 modes highlight; breakdown panel; BONE RESONANCE list = archive `bone` codes (region-filtered) played via archiveSession (syncs with Body Map/Lab).
+- Verified: testing_agent `/app/test_reports/iteration_18.json` 26/26 PASS (values, toggles, sequence, canvas taps, no overflow 390/320, no new console errors).
+
 ## Latest update — DIAGNOSTIC BODY MAP (BI-NAURAL tab)
 - User request: interactive diagnostic map on the human body (green phosphor CRT style from reference images) highlighting areas excited by frequencies from the Codes Archive; "use the archive library to sync"; lives as a new section on the BI-NAURAL tab; live FFT drive + node table animation.
 - `src/bodyMapData.ts`: 24 node points (crown→feet, dx/y in body-height units), CATEGORY_POINTS (every archive category → nodes), chakra note→column node, `pointsForCode/pointsForFrequencies`, `codesForPoint` (reverse index), `signatureFor` (deterministic NUM. SIGNATURE + hex rows).

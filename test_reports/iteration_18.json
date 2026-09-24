@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend-only UI verification of the 3 new Home-tab anatomy modules (EMF Harmonizer, CSF/Kundalini Spine, 206 Bone Map). All 26 assertions passed at 390px viewport. EMF: 8 source cards render with correct RF-band MATCH values (50/60 Hz, 12.5 kHz, 13.7 kHz x2, 18.3/19.1/11.4 kHz); tapping a card shows '▶' in pill and reveals emf-map-stop, tap-again hides it; MID-band toggle re-computes match into the 216-432 Hz window (w24 -> 286.1 Hz); +432 anchor toggle works; custom 3.5 GHz input with GHz unit yields '▶ PLAY MATCH 13.4 kHz (÷2^18)' and toggles to '■ STOP...' on tap. Spine: canvas iframe visible, FLOW ON/OFF toggles, all 4 CPM chips clickable, chakra idx 3 readout = 'HEART · ANAHATA · 512 Hz · C', tap-again resets to 'TAP A CHAKRA...', rise sequence starts (button becomes '■ STOP RISE') and readout shows 'KUNDALINI RISING · n/7 CENTRES'. Bones: counter shows 206 BONES; AXIAL->80, APPENDICULAR->126, ALL->206; skull region tap opens SKULL panel with '22 · AXIAL' + cranial/facial breakdown and 'BONE RESONANCE · 3 CODES FOR SKULL'; sum of all 10 region chip counts = 206; code row tap flips '▶' -> '■' and back. Regression: hero, CODES_LAB and '[ VIEW FULL ARCHIVE → ]' still render; no horizontal overflow at 390px or 320px. Only console noise: 12 pre-existing 'Unknown event handler property onResponder*' warnings from AnalogDial PanResponder (not introduced by these modules).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/test_reports/anatomy_test.py"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "EmfHarmonizerMap.tsx / CsfSpineFlow.tsx / BoneMap.tsx are clean, use testIDs on every interactive element, hit ≥44px touch targets, and wrap all text in <Text>. No hardcoded URLs; audio routed through AudioEngine.",
+    "HomeAnatomyModules.tsx is a thin composition (~26 lines) — good separation.",
+    "Pre-existing (out of scope for this iteration): app/index.tsx still imports Audio from expo-av — should migrate to expo-audio per Expo SDK deprecation, but explicitly ignored per review request."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Home '/' at 390px has 3 new modules (testIDs: emf-map, spine, bones) inside home-anatomy, positioned after PARTICLE_LAB and before VIEW FULL ARCHIVE. All match values, panels, sums, and toggles verified. Iframe-based canvases (spine-canvas, bones-canvas) can't be interacted with directly via Playwright but their internal message bus was covered by external chakra/region chip taps. Audio playback itself is not verifiable in web preview — only UI state changes are asserted.",
+  "rca_of_issue": "N/A — no issues found."
+}
