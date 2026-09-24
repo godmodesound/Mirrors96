@@ -195,6 +195,14 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - Scope now defaults to the CHLADNI plate medium.
 - Home scope moved from under the logo into the CODES_LAB frame (testID home-scope-in-lab). Hz signal slider kept.
 
+## Latest update — HUMAN ATLAS (Humanome-style) + PINEAL VORTEX + 15-D TIME MATRIX (Home tab)
+- User request: "https://humanome.co/?view=color make a more accurate skeleton mirroring the link and turning images to interactive features" (refs: Humanome layered body, Pineal 9-Phase Vortex Protocol card, 15-Dimensional Time Matrix chart).
+- `src/HumanAtlas.tsx` + `src/atlasHtml.ts` + `src/atlasData.ts` REPLACE BoneMap/boneHtml (deleted). Layered front-view canvas: SKELETON (translucent ivory, anatomical proportions, orbits, 12 ribs+cartilage, scapulae, carpals/phalanges, pelvis, patella, tarsals) · CARDIOVASCULAR (heart, aorta, red arterial + blue venous trees) · NERVOUS (brain under skull, spinal cord, yellow nerve plexuses) · ORGANS (trachea, thyroid, lungs, diaphragm, liver, stomach, spleen, pancreas, kidneys, adrenals, intestines, bladder). ALL/NONE + per-layer toggles; bone modes ALL 206 / AXIAL 80 / APPENDICULAR 126; 29 structures with Humanome-style descriptions; tap on canvas or chips → panel + RESONANCE CODES (archive categories per structure) played via archiveSession. testIDs `atlas[-canvas|-layer-<SYS>|-layers-all|-layers-none|-mode-<M>|-tab-<SYS>|-part-<id>|-panel|-code-<id>]`.
+- `src/PinealVortexProtocol.tsx`: 9 phases in 3 trinities (174/285/396 · 417/528 · 639/741/852/963) with digital-root codes 3·6·9, continuous 7.83 Hz Schumann sub-layer toggle (tone ids 730/731), phase duration 6/3/1 min/30 s, auto-advance timer, tap-to-jump, next 3/6/9 AM Tesla window countdown. testIDs `vortex[-phase-n|-dur-s|-baseline|-start]`.
+- `src/TimeMatrix.tsx` + `src/matrixHtml.ts`: 15 concentric rings D1–D15 (image colours, mind names, DU-1..5 EARTH/TARA/GAIA/ARAMATENA/ECKASHA bands, Eckatic/Polaric/Triadic outer fields), tone per dimension = 174+(d−1)·111 Hz (id 740), tap ring/button, ASCEND D1→D15 sequence (1.6 s), RESET. testIDs `matrix[-canvas|-d-n|-ascend|-reset]`.
+- `HomeAnatomyModules.tsx` order: EMF_HARMONIZER → CSF_FLOW → HUMAN_ATLAS → PINEAL_VORTEX → TIME_MATRIX.
+- Verified: testing_agent `/app/test_reports/iteration_19.json` — all assertions PASS (layers, counts, canvas hotspots, codes play, vortex timer/jump, matrix Hz/ascend, no overflow 390/320, 0 page errors).
+
 ## Latest update — Home tab: EMF HARMONIZER · CSF/KUNDALINI SPINE · 206 BONE MAP
 - User request: "Add interactive features mirroring these images to Home tab" (3 refs: EMF Harmonizer Map, CSF flow/Kundalini chakra spine, Number of Bones 206 chart).
 - Mounted via ONE line in `app/index.tsx` (`<HomeAnatomyModules />` after PARTICLE_LAB, before VIEW FULL ARCHIVE) → `src/HomeAnatomyModules.tsx`.
