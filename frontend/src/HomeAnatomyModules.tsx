@@ -5,13 +5,16 @@ import CsfSpineFlow from './CsfSpineFlow';
 import HumanAtlas from './HumanAtlas';
 import PinealVortexProtocol from './PinealVortexProtocol';
 import TimeMatrix from './TimeMatrix';
+import HarmonyLab from './HarmonyLab';
 import { skinStyles } from './skins';
 
 /** Home-tab anatomy + environment modules. */
 export default function HomeAnatomyModules() {
   return (
     <View testID="home-anatomy" style={st.wrap}>
-      <Text style={st.sectionTitle}>&gt; EMF_HARMONIZER</Text>
+      <Text style={st.sectionTitle}>&gt; HARMONY_LAB // LISSAJOUS</Text>
+      <HarmonyLab />
+      <Text style={[st.sectionTitle, st.gap]}>&gt; EMF_HARMONIZER</Text>
       <EmfHarmonizerMap />
       <Text style={[st.sectionTitle, st.gap]}>&gt; CSF_FLOW // KUNDALINI</Text>
       <CsfSpineFlow />
