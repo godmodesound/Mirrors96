@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, TextInput, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform, ScrollView } from 'react-native';
 
 import { skinStyles, SK, skinHtml } from './skins';
 
@@ -9,7 +9,6 @@ if (Platform.OS !== 'web') {
   WebView = require('react-native-webview').default;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ════════════════════════════════════════════════════════════
 // WEB IFRAME COMPONENT — renders iframes on web platform
@@ -679,6 +678,7 @@ export const ParticleLab = forwardRef<any, ParticleLabProps>(
   const [isPaused, setIsPaused] = useState(false);
   const [localSound, setLocalSound] = useState(soundEnabled);
   const [speedVal, setSpeedVal] = useState(1.0);
+  const trackW = useRef(0); // measured slider width — reflows on fold/unfold
   const [chaosVal, setChaosVal] = useState(10);
 
   const sendMsg = (data: object) => {
@@ -848,16 +848,17 @@ export const ParticleLab = forwardRef<any, ParticleLabProps>(
           <Text style={styles.sliderLabel}>SPEED: {speedVal.toFixed(1)}x</Text>
           <View
             style={styles.sliderTrack}
+            onLayout={e => { trackW.current = e.nativeEvent.layout.width; }}
             onStartShouldSetResponder={() => true}
             onMoveShouldSetResponder={() => true}
             onResponderGrant={(e) => {
-              const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / (SCREEN_WIDTH * 0.4)));
+              const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / (trackW.current || 1)));
               const v = Math.round(ratio * 30) / 10;
               setSpeedVal(Math.max(0.1, Math.min(3, v)));
               sendMsg({ speed: Math.max(0.1, Math.min(3, v)) });
             }}
             onResponderMove={(e) => {
-              const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / (SCREEN_WIDTH * 0.4)));
+              const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / (trackW.current || 1)));
               const v = Math.round(ratio * 30) / 10;
               setSpeedVal(Math.max(0.1, Math.min(3, v)));
               sendMsg({ speed: Math.max(0.1, Math.min(3, v)) });
@@ -871,16 +872,17 @@ export const ParticleLab = forwardRef<any, ParticleLabProps>(
           <Text style={styles.sliderLabel}>CHAOS: {chaosVal}%</Text>
           <View
             style={styles.sliderTrack}
+            onLayout={e => { trackW.current = e.nativeEvent.layout.width; }}
             onStartShouldSetResponder={() => true}
             onMoveShouldSetResponder={() => true}
             onResponderGrant={(e) => {
-              const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / (SCREEN_WIDTH * 0.4)));
+              const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / (trackW.current || 1)));
               const v = Math.round(ratio * 100);
               setChaosVal(v);
               sendMsg({ chaos: v });
             }}
             onResponderMove={(e) => {
-              const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / (SCREEN_WIDTH * 0.4)));
+              const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / (trackW.current || 1)));
               const v = Math.round(ratio * 100);
               setChaosVal(v);
               sendMsg({ chaos: v });

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { AudioEngine, ScopeFrame } from './AudioEngine';
 import { Ionicons } from '@expo/vector-icons';
@@ -1259,6 +1259,8 @@ interface Props {
 export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0, testID, compact = false }: Props) {
   const generatedId = React.useId().replace(/[^a-zA-Z0-9]/g, '');
   const scopeId = testID || `scope-${generatedId}`;
+  const { width: winW } = useWindowDimensions();
+  const scopeH = winW >= 700 ? (compact ? 260 : 440) : compact ? 170 : 300; // taller scope on the unfolded panel
   const [optionsOpen, setOptionsOpen] = useState(!compact);
   const [wobble, setWobble] = useState(false);
   const [view, setView] = useState<'SCOPE' | 'NODE'>('SCOPE');
@@ -1650,7 +1652,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0,
       )}
 
       {/* ── Shared flip canvas ── */}
-      <View testID={`${scopeId}-canvas`} style={[st.scope, compact && st.compactScope, { borderColor: view === 'NODE' ? SK('#3a4450') : `${color}40` }]}>
+      <View testID={`${scopeId}-canvas`} style={[st.scope, compact && st.compactScope, { height: scopeH, borderColor: view === 'NODE' ? SK('#3a4450') : `${color}40` }]}>
         {Platform.OS === 'web' ? (
           React.createElement('iframe', {
             ref: iframeRef,

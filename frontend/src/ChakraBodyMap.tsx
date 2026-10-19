@@ -1,10 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Path, Line, G, Text as SvgText } from 'react-native-svg';
 import { AudioEngine } from './AudioEngine';
 import { skinStyles, SK } from './skins';
 
-const { width: SCREEN_W } = Dimensions.get('window');
 
 // ═══ 13-KEY CHROMATIC SCALE ⟷ 13 CHAKRA BODY MAP — UNIVERSAL TUNING 432 Hz ═══
 // Frequencies = THE MUSICAL SPIRAL (C 252 → C 504). Colours follow the
@@ -88,7 +87,8 @@ export default function ChakraBodyMap() {
   }, []);
 
   const sel = CHAKRA_13.find(c => c.key === active) || null;
-  const svgW = Math.min(180, SCREEN_W - 206);
+  const { width: SCREEN_W } = useWindowDimensions();
+  const svgW = Math.min(SCREEN_W >= 700 ? 260 : 180, SCREEN_W - 206);
   const svgH = (svgW / BODY_W) * BODY_H;
 
   return (

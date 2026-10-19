@@ -6,6 +6,7 @@ import NinetySixGuide from '../src/NinetySixGuide';
 import LandingScope from '../src/LandingScope';
 
 import { skinStyles, SK } from '../src/skins';
+import { useLayout } from '../src/useLayout';
 
 // Chakra Colors
 const C = {
@@ -20,11 +21,12 @@ const C = {
 
 export default function HowScreen() {
   const insets = useSafeAreaInsets();
+  const layout = useLayout();
   const [a11yOpen, setA11yOpen] = useState(false);
   return (
     <View style={styles.container}>
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={[{ paddingBottom: insets.bottom + 90 }, layout.frame]}>
           <LandingScope testID="how-scope" />
           <MirrorsIdBanner />
 

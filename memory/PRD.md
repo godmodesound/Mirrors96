@@ -195,6 +195,14 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - Scope now defaults to the CHLADNI plate medium.
 - Home scope moved from under the logo into the CODES_LAB frame (testID home-scope-in-lab). Hz signal slider kept.
 
+## Latest update — iPhone Duo / foldable adaptive layout
+- User request: "Optimize MIRRORS 96 for full iPhone Duo (adaptive full-screen layouts, clean fold/unfold reflow, no black bars) while preserving the audio engine, frequencies, cymatics visuals and session flow." No audio/engine code touched.
+- `src/useLayout.ts`: live `useWindowDimensions` hook → `isWide` (≥700 pt), `contentWidth` (max 820), `canvasSize` (≤520 unfolded / ≤360 phone), `frame` (centre + max-width for ScrollView contentContainerStyle).
+- `app.json`: `orientation: "default"` (unfolded landscape allowed) + `ios.requireFullScreen: true` (no letterboxing / split-view black bars).
+- Removed every module-level `Dimensions.get('window')` snapshot (index, binaural, codes, moods, chirpconnect, ChakraBodyMap, GodmodeFeatures, SendCodesModal) — these froze the phone width and broke reflow after unfold. Replaced with hook values / percentage widths.
+- Reflow specifics: BI-NAURAL head model HTML is now `headModelHtml(size)` memoised on `layout.canvasSize` with `onLoadEnd` re-sync of carrier/beat/playing after the canvas re-renders; ScopeNodePanel scope height 300→440 (compact 170→260) on wide; ChakraBodyMap SVG 180→260 on wide; ParticleLab sliders use measured track width (`onLayout`) instead of `SCREEN_WIDTH*0.4`; modals use % + maxWidth; moods cards 48% grid; every tab ScrollView gets `layout.frame`.
+- Verified on web by live viewport resize 390→820/1100→390: Home/BI-NAURAL re-layout without reload, canvases resize (head 358→520→358, scope 170→260→170), scrollWidth == viewport (no horizontal overflow), background full-bleed. Real fold hinge behaviour needs an iOS build on device.
+
 ## Latest update — HARMONY LAB (Home) + COSMIC VIBRATIONS upgrade
 - User request: "Implement an interactive feature for determining harmonies and/or dissonance feedback" (refs: Lissajous ratio gallery, C+E+G HARMONY 3D figure, C+Db+D DISSONANCE) → then "upgrade new feature within harmony lab including all this information" (AMORC Cosmic Vibrations octave chart, Man's Response to Vibrations ring, Table of Vibrations / seconds pendulum, bio-resonance HUD).
 - `src/harmonyMath.ts`: JI_NOTES (13 just-intonation ratios C…C' with colours), `approxRatio` (continued fractions ≤64), Tenney height, `verdictFor(freqs)` → UNISON/HARMONY/CONSONANT/TENSION/DISSONANCE + 0–100 consonance score + pairwise ratios (cents-off and 5–25 Hz beating add roughness; thresholds tuned so C+E+G = HARMONY 61%, C+Db+D = DISSONANCE, C+F# 45:32 = DISSONANCE, C+E+G+B = CONSONANT, C+B 15:8 = TENSION). `LISS_HTML` canvas: 2 tones → 2D Lissajous, 3+ → rotating 3D Lissajous, trace density from ratio LCM (irrational → dense web), colour = verdict.

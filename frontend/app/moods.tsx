@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
@@ -19,8 +18,8 @@ import MusicalSpiral from '../src/MusicalSpiral';
 import LandingScope from '../src/LandingScope';
 
 import { skinStyles } from '../src/skins';
+import { useLayout } from '../src/useLayout';
 
-const { width } = Dimensions.get('window');
 
 interface MoodState {
   name: string;
@@ -119,6 +118,7 @@ export default function MoodsScreen() {
   // Live temporal-resonator feed: Mirror Cube emissions → Time Travel Dial
   const [emission, setEmission] = useState<ResonatorEmission | null>(null);
   const insets = useSafeAreaInsets();
+  const layout = useLayout();
 
   // Audio persists across pages for universal sync (harmonic layering).
 
@@ -136,7 +136,7 @@ export default function MoodsScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={[{ paddingBottom: insets.bottom + 90 }, layout.frame]}>
           <LandingScope testID="brain-scope" />
           <MirrorsIdBanner />
 
@@ -176,7 +176,6 @@ export default function MoodsScreen() {
   );
 }
 
-const cardWidth = (width - 48) / 2;
 
 const styles = skinStyles({
   container: { flex: 1, backgroundColor: '#000000' },
@@ -195,7 +194,7 @@ const styles = skinStyles({
   toggleTextActive: { color: '#ff0a0a' },
 
   brainImageWrap: { alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#0a2a0a', padding: 8, backgroundColor: '#020a02' },
-  brainImage: { width: width - 64, height: (width - 64) * 0.75, borderRadius: 4 },
+  brainImage: { width: '100%', aspectRatio: 4 / 3, borderRadius: 4 },
   brainCaption: { color: '#00aa44', fontSize: 7, fontFamily: 'TerminatorRealNFI', letterSpacing: 2, marginTop: 8, textAlign: 'center' },
 
   activeDisplay: { marginTop: 12 },
@@ -211,7 +210,7 @@ const styles = skinStyles({
   transmitBrain: { color: '#00ff88' },
 
   moodGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
-  moodCard: { width: cardWidth, borderWidth: 1, borderColor: '#2a0a0a', padding: 12, backgroundColor: '#0a0505', minHeight: 100 },
+  moodCard: { width: '48%', flexGrow: 1, borderWidth: 1, borderColor: '#2a0a0a', padding: 12, backgroundColor: '#0a0505', minHeight: 100 },
   moodCardActive: { borderColor: '#ff0a0a', backgroundColor: '#150505' },
   brainCard: { borderColor: '#0a2a0a', backgroundColor: '#020a02' },
   brainCardActive: { borderColor: '#00ff88', backgroundColor: '#041a08' },

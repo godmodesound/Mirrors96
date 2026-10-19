@@ -11,7 +11,6 @@ import {
   Linking,
   Modal,
   ActivityIndicator,
-  Dimensions,
   TextInput,
   ScrollView,
   Alert,
@@ -21,6 +20,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLayout } from '../src/useLayout';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -38,7 +38,6 @@ import AppleSignInButton from '../src/AppleSignInButton';
 
 import { skinStyles, SK } from '../src/skins';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // ═══════════════════════════════════════════════════════════
 // CONSTANTS
@@ -102,6 +101,7 @@ import LandingScope from '../src/LandingScope';
 
 export default function ChirpConnect() {
   const insets = useSafeAreaInsets();
+  const layout = useLayout();
   const router = useRouter();
 
   // Core State
@@ -1033,7 +1033,7 @@ export default function ChirpConnect() {
             <View style={styles.recordingArea}>
               {/* Video Camera Preview */}
               {chirpMode === 'video' && hasCameraPermission && (
-                <View style={styles.cameraContainer}>
+                <View style={[styles.cameraContainer, { width: layout.contentWidth - 64 }]}>
                   <CameraView
                     ref={cameraRef}
                     style={styles.cameraPreview}
@@ -1240,7 +1240,7 @@ export default function ChirpConnect() {
       {/* CONTACTS TAB */}
       {/* ═══════════════════════════════════════════════════════════ */}
       {activeTab === 'contacts' && (
-        <ScrollView style={styles.contactsContainer} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+        <ScrollView style={styles.contactsContainer} contentContainerStyle={[{ paddingBottom: insets.bottom + 100 }, layout.frame]}>
           <TouchableOpacity
             style={[styles.contactItem, !selectedContact && styles.contactItemSelected]}
             onPress={() => selectContact(null)}
@@ -1278,7 +1278,7 @@ export default function ChirpConnect() {
       {/* SETTINGS TAB */}
       {/* ═══════════════════════════════════════════════════════════ */}
       {activeTab === 'settings' && (
-        <ScrollView style={styles.settingsContainer} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+        <ScrollView style={styles.settingsContainer} contentContainerStyle={[{ paddingBottom: insets.bottom + 100 }, layout.frame]}>
           <View style={styles.settingSection}>
             <Text style={styles.settingLabel}>ACCOUNT</Text>
             <GoogleSignInButton mirrorsId={mirrorsId || undefined} />
@@ -1639,7 +1639,7 @@ const styles = skinStyles({
   recordingArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   // Camera
-  cameraContainer: { width: SCREEN_WIDTH - 64, height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 20, backgroundColor: '#0a0505' },
+  cameraContainer: { height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 20, backgroundColor: '#0a0505' },
   cameraPreview: { flex: 1 },
   flipCameraBtn: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.5)', padding: 8, borderRadius: 20 },
   flipCameraText: { color: '#fff', fontSize: 20 },
@@ -1778,7 +1778,7 @@ const styles = skinStyles({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
 
   // Preview Modal
-  previewModal: { width: SCREEN_WIDTH - 48, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a', borderRadius: 12, padding: 24, alignItems: 'center' },
+  previewModal: { width: '88%', maxWidth: 440, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a', borderRadius: 12, padding: 24, alignItems: 'center' },
   previewTitle: { color: '#ff0a0a', fontSize: 16, fontWeight: '700', letterSpacing: 2 },
   previewDuration: { color: '#fff', fontSize: 48, fontWeight: '200', marginVertical: 16 },
   previewTo: { color: '#5a1a1a', fontSize: 11, letterSpacing: 2, marginBottom: 24 },
@@ -1789,7 +1789,7 @@ const styles = skinStyles({
   previewCancelBtnText: { color: '#5a1a1a', fontSize: 12, letterSpacing: 2 },
 
   // Add Contact Modal
-  addContactModal: { width: SCREEN_WIDTH - 48, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a', borderRadius: 12, padding: 24 },
+  addContactModal: { width: '88%', maxWidth: 440, backgroundColor: '#0a0505', borderWidth: 1, borderColor: '#ff0a0a', borderRadius: 12, padding: 24 },
   addContactTitle: { color: '#ff0a0a', fontSize: 16, fontWeight: '700', letterSpacing: 2, textAlign: 'center', marginBottom: 20 },
   addContactInput: { backgroundColor: '#050202', borderWidth: 1, borderColor: '#2a0a0a', borderRadius: 8, padding: 16, color: '#ff0a0a', fontSize: 16, textAlign: 'center', letterSpacing: 4 },
   addContactLookupBtn: { backgroundColor: '#ff0a0a', paddingVertical: 14, borderRadius: 8, marginTop: 12, alignItems: 'center' },

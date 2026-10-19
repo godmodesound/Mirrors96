@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Platform,
   ActivityIndicator,
-  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
@@ -15,7 +14,6 @@ import * as Sharing from 'expo-sharing';
 
 import { skinStyles, SK } from './skins';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface FrequencyLayer {
   id: number;
@@ -158,7 +156,7 @@ const styles = skinStyles({
     alignItems: 'center',
   },
   modalContainer: {
-    width: SCREEN_WIDTH - 32,
+    width: '92%',
     maxWidth: 400,
     backgroundColor: '#0a0505',
     borderWidth: 1,

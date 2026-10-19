@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform,
   Animated, Easing, ActivityIndicator, Vibration, TextInput, Modal,
-  Dimensions, FlatList, KeyboardAvoidingView,
+  FlatList, KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
@@ -13,12 +13,12 @@ import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 
 import { skinStyles, SK } from '../src/skins';
+import { useLayout } from '../src/useLayout';
 
 const API_URL =
   Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL ||
   process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
 
 // ═══ TYPES ═══
 type ChannelType = 'group' | 'private' | 'broadcast';
@@ -68,6 +68,7 @@ const playChirp = async (type: 'connect' | 'disconnect' | 'transmit' | 'receive'
 
 export default function CodesScreen() {
   const insets = useSafeAreaInsets();
+  const layout = useLayout();
   const router = useRouter();
   const { user, token } = useAuth();
 
@@ -583,7 +584,7 @@ export default function CodesScreen() {
       </View>
 
       {/* Channel Cards */}
-      <ScrollView style={styles.channelScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+      <ScrollView style={styles.channelScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[{ paddingBottom: insets.bottom + 100 }, layout.frame]}>
         {filteredChannels.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyGlyph}>◎</Text>
@@ -856,7 +857,7 @@ export default function CodesScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.createForm} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+      <ScrollView style={styles.createForm} showsVerticalScrollIndicator={false} contentContainerStyle={[{ paddingBottom: insets.bottom + 100 }, layout.frame]}>
         <Text style={styles.createLabel}>CHANNEL NAME</Text>
         <TextInput
           style={styles.createInput}

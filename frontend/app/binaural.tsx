@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
-  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
@@ -14,11 +13,11 @@ import { WebView } from 'react-native-webview';
 import { AudioEngine } from '../src/AudioEngine';
 import ScopeNodePanel from '../src/ScopeNodePanel';
 import DiagnosticBodyMap from '../src/DiagnosticBodyMap';
+import { useLayout } from '../src/useLayout';
 
 import { skinStyles, SK, skinHtml } from '../src/skins';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const CANVAS_SIZE = Math.min(SCREEN_WIDTH - 32, 360);
+// Canvas size is resolved live inside the screen (fold/unfold reflow) via useLayout().
 
 interface BinauralPreset {
   name: string;
@@ -42,7 +41,7 @@ const BINAURAL_PRESETS: BinauralPreset[] = [
 // Interactive 3D-like head with Eye of Horus pineal gland
 // Dolby Atmos spatial frequency node placement
 // ═══════════════════════════════════════════════════════
-const HEAD_MODEL_HTML = `
+const headModelHtml = (CANVAS_SIZE: number) => `
 <!DOCTYPE html>
 <html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
@@ -583,7 +582,14 @@ export default function BinauralScreen() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const webViewRef = useRef<WebView | null>(null);
   const insets = useSafeAreaInsets();
+  const layout = useLayout();
+  const CANVAS_SIZE = layout.canvasSize;
+  const HEAD_MODEL_HTML = useMemo(() => skinHtml(headModelHtml(CANVAS_SIZE)), [CANVAS_SIZE]);
 
+  // Re-sync head model after a reload (fold/unfold re-renders the canvas at the new size)
+  const syncHeadModel = useCallback(() => {
+    webViewRef.current?.injectJavaScript(`try{carrier=${carrierFreq};beat=${beatFreq};nodes[0].freq=${carrierFreq};nodes[1].freq=${carrierFreq + beatFreq};playing=${isPlaying};}catch(e){}true;`);
+  }, [carrierFreq, beatFreq, isPlaying]);
   useEffect(() => {
     return () => {
       // Audio persists across pages for universal sync (harmonic layering).
@@ -687,7 +693,7 @@ export default function BinauralScreen() {
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+          contentContainerStyle={[{ paddingBottom: insets.bottom + 100 }, layout.frame]}
         >
           <View style={styles.scopeSection}><ScopeNodePanel testID="binaural-scope" compact frequencies={[carrierFreq, carrierFreq + beatFreq]} playing={isPlaying} scalarBeatHz={isPlaying ? beatFreq : 0} /></View>
           <MirrorsIdBanner />
@@ -705,7 +711,7 @@ export default function BinauralScreen() {
           <View style={[styles.canvasContainer, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}>
             {Platform.OS === 'web' ? (
               <iframe
-                srcDoc={skinHtml(HEAD_MODEL_HTML)}
+                srcDoc={HEAD_MODEL_HTML}
                 style={{
                   width: CANVAS_SIZE,
                   height: CANVAS_SIZE,
@@ -717,10 +723,11 @@ export default function BinauralScreen() {
             ) : (
               <WebView
                 ref={webViewRef}
-                source={{ html: skinHtml(HEAD_MODEL_HTML) }}
+                source={{ html: HEAD_MODEL_HTML }}
                 style={{ width: CANVAS_SIZE, height: CANVAS_SIZE, backgroundColor: SK('#000') }}
                 scrollEnabled={false}
                 bounces={false}
+                onLoadEnd={syncHeadModel}
                 onMessage={handleWebViewMessage}
                 javaScriptEnabled
                 originWhitelist={['*']}

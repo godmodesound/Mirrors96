@@ -8,7 +8,6 @@ import {
   Platform,
   Image,
   Linking,
-  Dimensions,
   Modal,
   TextInput,
   PanResponder,
@@ -41,10 +40,10 @@ import ScopeNodePanel from '../src/ScopeNodePanel';
 import LatticeFramework from '../src/LatticeFramework';
 import SendCodesModal from '../src/SendCodesModal';
 import HomeAnatomyModules from '../src/HomeAnatomyModules';
+import { useLayout } from '../src/useLayout';
 
 import { skinStyles, SK, useSkin } from '../src/skins';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const API_URL =
   Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL ||
   process.env.EXPO_PUBLIC_BACKEND_URL || '';
@@ -770,11 +769,12 @@ export default function TerminalScreen() {
   const BANDS = ['SUB', 'LOW', 'MID', 'HIGH', 'ULTRA'];
 
   const insets = useSafeAreaInsets();
+  const layout = useLayout();
 
   return (
     <View style={styles.container}>
       <View style={[styles.safeArea, { paddingTop: insets.top }]}>
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={[{ paddingBottom: insets.bottom + 90 }, layout.frame]}>
           {/* ══════ TOP NAV BAR ══════ */}
           <View style={styles.topNav}>
             {/* LEFT — MIRRORS ID Logo */}
