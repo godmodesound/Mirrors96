@@ -76,7 +76,7 @@ export default function GodmodeSlider({
   ).current;
 
   const ratio = clamp((value - minimumValue) / (maximumValue - minimumValue), 0, 1);
-  const fillWidth = `${ratio * 100}%`;
+  const fillWidth = `${ratio * 100}%` as `${number}%`;
 
   return (
     <View style={[styles.container, style]}>

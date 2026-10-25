@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Audio } from 'expo-av';
+import { Audio, type AudioSound } from '../src/audioCompat';
 import Constants from 'expo-constants';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import { resolveAlbumMediaUrl } from '../src/AlbumData';
@@ -62,7 +62,7 @@ export default function StoreScreen() {
   const [adminPass, setAdminPass] = useState('');
   const [adminAlbums, setAdminAlbums] = useState<any[]>([]);
   const [adminPurchases, setAdminPurchases] = useState<any[]>([]);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const soundRef = useRef<AudioSound | null>(null);
 
   useEffect(() => {
     fetchAlbums();

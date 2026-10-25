@@ -38,7 +38,7 @@ export default function HarmonyLab({ testID = 'harmony' }: { testID?: string }) 
   const active = isWide ? side : tab;
 
   const tabBar = (
-    <View style={st.tabBar} testID={`${testID}-tabs`}>
+    <View style={st.tabBar} testID={`${testID}-tabs`} accessibilityRole="tablist">
       {tabs.map(t => {
         const on = active === t.id;
         return (
@@ -202,7 +202,7 @@ const st = skinStyles({
   tabBar: { flexDirection: 'row', gap: 6, marginBottom: 10 },
   tab: { flex: 1, minHeight: 52, borderWidth: 1, borderColor: '#2a2a3a', borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#050508', overflow: 'hidden' },
   tabLabel: { color: '#7a7a8a', fontSize: 11, fontWeight: '900', letterSpacing: 2.5 },
-  tabSub: { color: '#5a5a6a', fontSize: 7.5, letterSpacing: 1.2, marginTop: 3 },
+  tabSub: { color: '#8a8a9a', fontSize: 9, letterSpacing: 1.2, marginTop: 3 },
   tabLine: { position: 'absolute', bottom: 0, left: 12, right: 12, height: 2, borderRadius: 1 },
   hidden: { display: 'none' },
   wideRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },

@@ -5,7 +5,7 @@ import {
   FlatList, KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Audio } from 'expo-av';
+import { Audio, type AudioSound, type AudioRecording } from '../src/audioCompat';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { useAuth } from '../src/AuthContext';
@@ -100,12 +100,12 @@ export default function CodesScreen() {
   const [adminLoading, setAdminLoading] = useState(false);
 
   // Refs
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const recordingRef = useRef<AudioRecording | null>(null);
+  const soundRef = useRef<AudioSound | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messagesEndRef = useRef<ScrollView | null>(null);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Animations
   const pulseRing1 = useRef(new Animated.Value(0)).current;

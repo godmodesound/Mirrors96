@@ -15,7 +15,7 @@
       "backgroundColor": "#000000",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Transmit voice instantly via Direct Connect",
-        "NSCameraUsageDescription": "Record video chirps to share with contacts",
+        "NSCameraUsageDescription": "Record video Mirrors to share with contacts",
         "NSPhotoLibraryUsageDescription": "Upload a photo to customize your CODES I.D.",
         "UIBackgroundModes": [
           "audio"
@@ -29,7 +29,6 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000000"
       },
-      "edgeToEdgeEnabled": true,
       "permissions": [
         "RECORD_AUDIO",
         "VIBRATE",
@@ -56,7 +55,12 @@
       "expo-web-browser",
       "expo-font",
       "expo-secure-store",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      "expo-image",
+      "expo-sharing",
+      "expo-status-bar",
+      "expo-audio",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true

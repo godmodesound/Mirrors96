@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import ViewShot from 'react-native-view-shot';
+import ViewShot, { type ViewShotRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 
 import { skinStyles, SK } from './skins';
@@ -31,7 +31,7 @@ interface SendCodesModalProps {
 
 export default function SendCodesModal({ visible, onClose, layers, loadedArchiveName }: SendCodesModalProps) {
   const insets = useSafeAreaInsets();
-  const viewShotRef = useRef<ViewShot>(null);
+  const viewShotRef = useRef<ViewShotRef>(null);
   const [isSharing, setIsSharing] = useState(false);
 
   const activeFrequencies = layers.filter(l => l.frequency > 0).map(l => l.frequency);

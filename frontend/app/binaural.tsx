@@ -579,7 +579,7 @@ export default function BinauralScreen() {
   const [activePreset, setActivePreset] = useState<string | null>('CALM_ALPHA_432');
   const [duration, setDuration] = useState(10);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const webViewRef = useRef<WebView | null>(null);
   const insets = useSafeAreaInsets();
   const layout = useLayout();

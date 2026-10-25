@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AudioEngine } from './AudioEngine';
 import { skinStyles, SK } from './skins';
@@ -121,13 +121,11 @@ export default function EmfHarmonizerMap({ testID = 'emf-map' }: { testID?: stri
 
       <View style={st.custom}>
         <Text style={st.customLabel}>CUSTOM SOURCE → HARMONIC MATCH</Text>
-        <View style={st.customRow}>
-          <TextInput testID={`${testID}-custom-input`} style={st.input} value={custom} onChangeText={setCustom} keyboardType="decimal-pad" placeholder="e.g. 3.5" placeholderTextColor={SK('#5a1a1a')} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.units}>
-            {(['Hz', 'kHz', 'MHz', 'GHz'] as const).map(u => (
-              <TouchableOpacity key={u} style={[st.unit, unit === u && st.unitOn]} onPress={() => setUnit(u)}><Text style={[st.unitText, unit === u && st.unitTextOn]}>{u}</Text></TouchableOpacity>
-            ))}
-          </ScrollView>
+        <TextInput testID={`${testID}-custom-input`} style={st.input} value={custom} onChangeText={setCustom} keyboardType="decimal-pad" placeholder="e.g. 3.5" placeholderTextColor={SK('#5a1a1a')} />
+        <View style={st.units}>
+          {(['Hz', 'kHz', 'MHz', 'GHz'] as const).map(u => (
+            <TouchableOpacity key={u} testID={`${testID}-unit-${u}`} style={[st.unit, unit === u && st.unitOn]} onPress={() => setUnit(u)}><Text style={[st.unitText, unit === u && st.unitTextOn]}>{u}</Text></TouchableOpacity>
+          ))}
         </View>
         <TouchableOpacity testID={`${testID}-custom-play`} disabled={!(customHz > 0)} style={[st.customPlay, !(customHz > 0) && st.customPlayOff, activeId === 'custom' && st.customPlayOn]} onPress={() => play('custom', customHz)}>
           <Text style={st.customPlayText}>
@@ -162,10 +160,9 @@ const st = skinStyles({
   cardDesc: { color: '#a89a7a', fontSize: 9, textAlign: 'center', marginTop: 5, lineHeight: 12 },
   custom: { marginTop: 12, borderTopWidth: 1, borderTopColor: '#3a2a10', paddingTop: 10 },
   customLabel: { color: '#8a7a4a', fontSize: 8, letterSpacing: 1.5, fontWeight: '800', marginBottom: 6 },
-  customRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  input: { flex: 1, borderWidth: 1, borderColor: '#3a2a10', color: '#ffd76a', fontSize: 14, fontWeight: '800', paddingHorizontal: 10, minHeight: 44, borderRadius: 6, backgroundColor: '#000' },
-  units: { gap: 4 },
-  unit: { borderWidth: 1, borderColor: '#3a2a10', minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 6 },
+  input: { borderWidth: 1, borderColor: '#3a2a10', color: '#ffd76a', fontSize: 14, fontWeight: '800', paddingHorizontal: 10, minHeight: 44, borderRadius: 6, backgroundColor: '#000' },
+  units: { flexDirection: 'row', gap: 6, marginTop: 8 },
+  unit: { flex: 1, borderWidth: 1, borderColor: '#3a2a10', minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 6 },
   unitOn: { borderColor: '#ffd76a', backgroundColor: '#1a1305' },
   unitText: { color: '#8a7a4a', fontSize: 9, fontWeight: '800' },
   unitTextOn: { color: '#ffd76a' },

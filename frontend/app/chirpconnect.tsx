@@ -27,9 +27,10 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Audio, Video, ResizeMode } from 'expo-av';
+import { Audio, type AudioSound, type AudioRecording } from '../src/audioCompat';
+import ChirpVideo from '../src/ChirpVideo';
 import { Camera, CameraView, CameraType } from 'expo-camera';
-import ViewShot from 'react-native-view-shot';
+import ViewShot, { type ViewShotRef } from 'react-native-view-shot';
 import Constants from 'expo-constants';
 import { FREQUENCY_ARCHIVE } from '../src/FrequencyArchiveData';
 import { AudioEngine } from '../src/AudioEngine';
@@ -165,15 +166,15 @@ export default function ChirpConnect() {
   // Message playback
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [videoPlayback, setVideoPlayback] = useState<ChirpMessage | null>(null);
-  const playbackSoundRef = useRef<Audio.Sound | null>(null);
+  const playbackSoundRef = useRef<AudioSound | null>(null);
 
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const recordingRef = useRef<AudioRecording | null>(null);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cameraRef = useRef<CameraView>(null);
-  const viewShotRef = useRef<ViewShot>(null);
+  const viewShotRef = useRef<ViewShotRef>(null);
 
   // Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -1222,13 +1223,7 @@ export default function ChirpConnect() {
       <Modal visible={!!videoPlayback} transparent animationType="fade" onRequestClose={() => setVideoPlayback(null)}>
         <View style={styles.videoModalOverlay}>
           {videoPlayback?.media_uri && (
-            <Video
-              source={{ uri: videoPlayback.media_uri }}
-              style={styles.videoPlayer}
-              useNativeControls
-              resizeMode={ResizeMode.CONTAIN}
-              shouldPlay
-            />
+            <ChirpVideo uri={videoPlayback.media_uri} style={styles.videoPlayer} />
           )}
           <TouchableOpacity style={styles.videoCloseBtn} onPress={() => setVideoPlayback(null)}>
             <Text style={styles.videoCloseText}>CLOSE</Text>

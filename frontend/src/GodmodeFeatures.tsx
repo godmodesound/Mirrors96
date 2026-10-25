@@ -1345,7 +1345,7 @@ const styles = skinStyles({
     fontWeight: '700',
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#000',
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
-import { Audio } from 'expo-av';
+import { Audio, type AudioSound } from '../audioCompat';
 import { Album, Track } from '../AlbumData';
 import { trackKey } from './SoundTrack';
 
 export function useSoundPlayback() {
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const soundRef = useRef<AudioSound | null>(null);
   const request = useRef(0);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend-only test after Expo SDK 54->57 upgrade (expo 57.0.31, RN 0.86.3, React 19.2.3; `expo install --check` = up to date) and the merge of Pineal Vortex + EMF Harmonizer into Harmony Lab. PASS: Home loads with no red screen and no page errors (only the known onResponder* web warnings). Phone 390px: harmony-suite/harmony-tabs show 3 tabs. HARMONY is the default and shows the Lissajous canvas plus the verdict 'HARMONY'; the C+F# preset gives 'DISSONANCE'; harmony-play toggles to '■ STOP CHORD'. PINEAL shows 'YOUR PINEAL CAN ACTIVATE ITSELF' and vortex-phase-1; vortex-start gives '■ STOP PROTOCOL' / 'PHASE 1 — 174 Hz' / 'CODE 3' / '5:58 LEFT'. EMF shows 'EMF HARMONIZER MAP'; emf-map-src-p50, emf-map-band-MID and emf-map-custom-input work (2.4 MHz -> 'PLAY MATCH 18.8 kHz (÷2^7)'). The protocol keeps running across tab switches: 5:58 -> 5:49 after EMF -> 5:44 after HARMONY, and the stop button restores the start label. Only the active panel is visible; the others stay mounted and hidden. Wide 900px: Harmony is in the left column (x=60) and the right column (x=456) has only PINEAL/EMF tabs (harmony-tab-harmony absent). PINEAL is the default there and switching between PINEAL and EMF works. The 700/699px breakpoint is correct. No horizontal overflow at 320, 390 or 900. Pineal and EMF no longer appear as separate Home sections (one vortex and one emf-map instance, no PINEAL_VORTEX/EMF_HARMONIZER headers). All bottom tabs (sound, binaural, moods/Brain, mirrors-id, how, library, index) render with no page errors. Sound tab: a 96 MIRRORS full-length MP3 plays through the new audioCompat (expo-audio) on web (elapsed 0:07 after 8s) and stop clears the readout. A CODES iTunes .m4a preview did not play in headless Chromium, which lacks the AAC codec. The real issue is that the error is swallowed: the page error 'Failed to load because no supported source was found' was raised but no sound-playback-error was shown, and the UI stuck at '0:00'. No deprecated packages found (expo-av, expo-barcode-scanner and expo-background-fetch are absent; only code comments mention expo-av).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EMF custom source unit selector", "issue": "At 320-390px the TextInput (flex:1) squeezes the horizontal unit ScrollView: at 320px only part of 'Hz' is visible, and at 390px the default-selected 'MHz' chip is cut off, so users cannot see which unit is active. Reference: src/EmfHarmonizerMap.tsx:124-130, styles at :165-168", "testID": "emf-map-custom-input", "priority": "MEDIUM"},
+      {"component": "EMF source cards at 320px", "issue": "MATCH pill text is truncated ('MATCH: 13.7 k…', 'MATCH: 19.1 k…')", "testID": "emf-map-src-*", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Sound track preview error handling (audioCompat)", "issue": "Sound.playAsync() calls player.play() without surfacing load or play failures, so the catch in useSoundPlayback never runs. When the source fails to load (seen with iTunes .m4a in Chromium without AAC), the UI shows the stop button and '0:00' forever with no error message, and an unhandled page error is raised. Reference: src/audioCompat.ts:24-31, src/sound/useSoundPlayback.ts:32-42", "affected_testIDs": ["sound-play-codes-1", "sound-playback-error", "sound-music-elapsed"]}
+    ],
+    "design_issues": [
+      {"screen": "Home > Harmony Lab tabs", "issues": ["tabSub text is 7.5px in #5a5a6a on #050508, which is low contrast and very small", "accessibilityState.selected is not rendered as aria-selected on web, so the active tab has no a11y state there"]},
+      {"screen": "Bottom tab bar", "issues": ["'ID' tab label/icon (dark purple) has low contrast on black when inactive"]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_20.json"],
+  "action_items": [
+    "EMF custom unit row: give the unit chips their own row (or a fixed width for the input) so all 4 units, including the selected MHz, are visible at 320-390px. Also add testIDs to the unit chips (e.g. emf-map-unit-MHz).",
+    "audioCompat.Sound: make playAsync/createAsync reject or report failures, e.g. listen to playbackStatusUpdate/error, or wait for isLoaded with a timeout and throw. useSoundPlayback can then show 'This recording could not load' instead of a stuck 0:00.",
+    "audioCompat.ts imports createRecordingOptions from the private path 'expo-audio/build/utils/options'. This is fragile across SDK updates; prefer the public useAudioRecorder or AudioModule API with RecordingPresets directly.",
+    "Optional: src/MirrorOfTheDay.tsx:23 uses entry.freq, which does not exist on FrequencyEntry (it has frequencies[]). This is the only tsc error; the file is currently unused (dead code)."
+  ],
+  "critical_code_review_comments": [
+    "HarmonyLab keeps all 3 panels mounted and hides them with display:none. This is correct for keeping the protocol running, but the hidden HARMONY CanvasBridge iframe and the EMF map stay mounted on phone (acceptable).",
+    "In wide mode, `side` maps the default HARMONY tab to PINEAL, and resizing back to phone keeps the last selected tab. This is fine.",
+    "app.json still has newArchEnabled:true. It is harmless on SDK 55+ (new arch is mandatory) but redundant.",
+    "Dev LogBox #error-toast ('Unknown event handler property') covers the bottom-left tab bar on web dev builds and blocks clicks on the Home/Codes tabs in automation. It is dev-only."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not requested)", "frontend": "95% - all requested flows pass; 1 medium UI bug, 1 error-handling integration gap"},
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Web-dev LogBox #error-toast intercepts clicks on bottom tabs; inject CSS '#error-toast{display:none}' before clicking nav-tab-*. Use normal (non-force) clicks on harmony-tab-*; force clicks did not register in one run. Album select testIDs: sound-select-mirrors|codes|in-memory-of|presence|13|lucid-dreams; the mirrors album is MP3 (plays in headless Chromium), the codes album is iTunes m4a (does not play in headless Chromium, which lacks AAC). The wide breakpoint is isWide at >=700px.",
+  "rca_of_issue": "Stuck '0:00' on a failed preview: expo-audio web player.play() returns void and the underlying HTMLAudio play() promise rejection is not propagated. The audioCompat Sound.playAsync wrapper therefore resolves successfully, setLoading(false) runs, and the catch branch that sets the error text is never reached."
+}

@@ -30,7 +30,7 @@ import { ss as soundStyles } from '../src/sound/soundStyles';
 import { Ionicons } from '@expo/vector-icons';
 import LabMenuBar, { LabMenu } from '../src/LabMenuBar';
 import { PLAYABLE_ALBUMS, ALBUMS, Album, Track, MIRRORS_COVER_URL } from '../src/AlbumData';
-import { Audio } from 'expo-av';
+import { Audio, type AudioSound } from '../src/audioCompat';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
@@ -226,7 +226,7 @@ export default function TerminalScreen() {
   const [plIsPlaying, setPlIsPlaying] = useState(false);
   const [plAlbumDropdownOpen, setPlAlbumDropdownOpen] = useState(false);
   const [plTrackDropdownOpen, setPlTrackDropdownOpen] = useState(false);
-  const plSoundRef = useRef<Audio.Sound | null>(null);
+  const plSoundRef = useRef<AudioSound | null>(null);
 
   const plPlayTrack = async (track: Track) => {
     try {
@@ -272,7 +272,7 @@ export default function TerminalScreen() {
 
   // ═══ Sound Lab State ═══
   const [slPlayingTrack, setSlPlayingTrack] = useState<string | null>(null);
-  const slSoundRef = useRef<Audio.Sound | null>(null);
+  const slSoundRef = useRef<AudioSound | null>(null);
   const [slCheckoutLoading, setSlCheckoutLoading] = useState(false);
 
   const slPlayPreview = async (track: Track, albumName: string) => {
