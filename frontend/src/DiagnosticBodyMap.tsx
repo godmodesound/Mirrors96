@@ -17,7 +17,8 @@ const fmtHz = (f: number) => (Number.isInteger(f) ? String(f) : f.toFixed(2).rep
  */
 export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: string }) {
   const { width } = useWindowDimensions();
-  const W = Math.min(width - 32, 520);
+  const [boxW, setBoxW] = useState(0); // measured inner width → identical fit in every host (Home / BI-NAURAL / fold states)
+  const W = Math.min(boxW || width - 52, 520);
   const H = Math.round(W * 1.12);
   const session = useArchiveSession();
   const [category, setCategory] = useState(COLLECTIONS[0]?.id || 'schumann');
@@ -106,7 +107,7 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
   };
 
   return (
-    <View testID={testID} style={st.wrap}>
+    <View testID={testID} style={st.wrap} onLayout={e => setBoxW(Math.floor(e.nativeEvent.layout.width - 22))}>
       <View style={st.titleRow}>
         <Text style={st.title}>◉ DIAGNOSTIC BODY MAP</Text>
         <Text style={[st.status, mapState.playing && st.statusOn]}>{mapState.playing ? '● SCAN ACTIVE' : '○ STANDBY'}</Text>

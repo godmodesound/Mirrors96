@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import EmfHarmonizerMap from './EmfHarmonizerMap';
 import CsfSpineFlow from './CsfSpineFlow';
-import HumanAtlas from './HumanAtlas';
+import DiagnosticBodyMap from './DiagnosticBodyMap';
 import PinealVortexProtocol from './PinealVortexProtocol';
 import TimeMatrix from './TimeMatrix';
 import HarmonyLab from './HarmonyLab';
@@ -18,8 +18,8 @@ export default function HomeAnatomyModules() {
       <EmfHarmonizerMap />
       <Text style={[st.sectionTitle, st.gap]}>&gt; CSF_FLOW // KUNDALINI</Text>
       <CsfSpineFlow />
-      <Text style={[st.sectionTitle, st.gap]}>&gt; HUMAN_ATLAS // 206</Text>
-      <HumanAtlas />
+      <Text style={[st.sectionTitle, st.gap]}>&gt; DIAGNOSTIC_BODY_MAP</Text>
+      <DiagnosticBodyMap testID="home-body-map" />
       <Text style={[st.sectionTitle, st.gap]}>&gt; PINEAL_VORTEX // 3·6·9</Text>
       <PinealVortexProtocol />
       <Text style={[st.sectionTitle, st.gap]}>&gt; TIME_MATRIX // 15D</Text>

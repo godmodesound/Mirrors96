@@ -195,6 +195,13 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - Scope now defaults to the CHLADNI plate medium.
 - Home scope moved from under the logo into the CODES_LAB frame (testID home-scope-in-lab). Hz signal slider kept.
 
+## Latest update — Home: HUMAN ATLAS replaced by a second DIAGNOSTIC BODY MAP
+- User request: replace Human Atlas with a second instance of the Diagnostic Body Map, visuals identical to BI-NAURAL, single shared archive.
+- `HomeAnatomyModules.tsx` now renders `<DiagnosticBodyMap testID="home-body-map" />` (same component/HTML/data as BI-NAURAL — `src/DiagnosticBodyMap.tsx`, `bodyMapHtml.ts`, `bodyMapData.ts`). Deleted `HumanAtlas.tsx`, `atlasHtml.ts`, `atlasData.ts`.
+- Shared archive: both maps read `archive/archiveData` (COLLECTIONS/ARCHIVE_CODES) and the global `archiveSession` — playing a code in one map lights the other and the Codes Lab.
+- Fit fix: DiagnosticBodyMap now measures its wrapper (`onLayout`) for the canvas width, so it fits exactly in any host/padding/fold state (Home 328 px @390).
+- Verified on web: Home map renders, KIDNEY → BRIGHTS SYNDROME plays, SCAN ACTIVE, nodes lit; "HUMAN ATLAS" text gone.
+
 ## Latest update — iPhone Duo / foldable adaptive layout
 - User request: "Optimize MIRRORS 96 for full iPhone Duo (adaptive full-screen layouts, clean fold/unfold reflow, no black bars) while preserving the audio engine, frequencies, cymatics visuals and session flow." No audio/engine code touched.
 - `src/useLayout.ts`: live `useWindowDimensions` hook → `isWide` (≥700 pt), `contentWidth` (max 820), `canvasSize` (≤520 unfolded / ≤360 phone), `frame` (centre + max-width for ScrollView contentContainerStyle).
