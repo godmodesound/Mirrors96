@@ -258,3 +258,6 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - Harmony Lab now hosts HARMONY / PINEAL (Vortex 3·6·9) / EMF (Harmonizer) tabs; wide (>=700px, unfolded iPhone Duo) shows Harmony left + PINEAL/EMF tabs right. All panels stay mounted so protocols keep sounding across tabs. Haptic tick on tab change (native).
 - Upgraded Expo 54 -> 57 (RN 0.86, React 19.2). expo-av removed -> expo-audio adapter (src/audioCompat.ts) + expo-video (src/ChirpVideo.tsx). Removed unused expo-blur/symbols/location/contacts/notifications. app.json: dropped edgeToEdgeEnabled, camera text says "Mirrors".
 - Pending: backend deployment loop check, index.tsx refactor, Stripe vs Apple IAP decision, native device QA on new SDK (new build required).
+
+## Harmony Lab removed (June 2026)
+- User request: "remove the harmony lab". `HarmonyLab.tsx`, `harmonyMath.ts`, `CosmicOctave.tsx`, `PinealVortexProtocol.tsx`, `EmfHarmonizerMap.tsx` moved to `/app/.trash/` (recoverable). `HomeAnatomyModules` now starts at CSF_FLOW.

@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { svgPress } from './svgPress';
 import { View, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Path, Line, G, Text as SvgText } from 'react-native-svg';
 import { AudioEngine } from './AudioEngine';
@@ -130,7 +131,7 @@ export default function MusicalSpiral() {
           // rotate Hz label along the ray (readable left→right)
           const rot = r.angle <= 90 ? -r.angle : 180 - r.angle;
           return (
-            <G key={i} onPress={() => toggle(r.freq, `${r.note} · ${r.deg}°`, r.color)}>
+            <G key={i} {...svgPress(() => toggle(r.freq, `${r.note} · ${r.deg}°`, r.color))}>
               <Line x1={HUB_X} y1={HUB_Y} x2={p.x} y2={p.y}
                 stroke={r.color} strokeWidth={on ? 3 : 1.4} opacity={on ? 1 : 0.85} />
               {on && <Line x1={HUB_X} y1={HUB_Y} x2={p.x} y2={p.y} stroke={r.color} strokeWidth={9} opacity={0.25} />}
@@ -163,7 +164,7 @@ export default function MusicalSpiral() {
           const p = { x: HUB_X + Math.cos(a) * R_IN, y: HUB_Y + Math.sin(a) * R_IN };
           const l = { x: HUB_X + Math.cos(a) * (R_IN + 9), y: HUB_Y + Math.sin(a) * (R_IN + 9) };
           return (
-            <G key={`o2-${i}`} onPress={() => toggle(f2, `${r.note} · 2ND OCTAVE`, r.color)}>
+            <G key={`o2-${i}`} {...svgPress(() => toggle(f2, `${r.note} · 2ND OCTAVE`, r.color))}>
               <Line x1={HUB_X} y1={HUB_Y} x2={p.x} y2={p.y} stroke={r.color} strokeWidth={on ? 2.2 : 0.9} opacity={on ? 1 : 0.8} />
               <SvgText x={l.x} y={l.y + 2.5} fontSize={on ? 9 : 7} fill={r.color} textAnchor="middle" fontWeight="800">
                 {r.note}

@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useId } from 'react';
+import { svgPress } from './svgPress';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { skinStyles, SK } from './skins';
 import { MirrorDefs, MirrorRing, MirrorNode, MirrorSurface } from './MirrorFinish';
@@ -316,7 +317,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           const labelR = (middleRadius + outerRadius) / 2;
           
           return (
-            <G key={`outer-${num}`} testID={`mirrors-key-${keyId}`} onPress={() => key && onKeyPress(key)} accessibilityLabel={`${keyId}, ${key?.note}, ${key?.freq} hertz`}>
+            <G key={`outer-${num}`} testID={`mirrors-key-${keyId}`} {...svgPress(() => key && onKeyPress(key))} accessibilityLabel={`${keyId}, ${key?.note}, ${key?.freq} hertz`}>
               <Path d={describeArc(CX, CY, middleRadius, outerRadius, startAngle, endAngle)} fill={`url(#${chromeId}-panel)`} stroke={`url(#${chromeId}-chrome)`} strokeWidth={2} />
               {/* Segment background — chakra-color tinted */}
               <Path
@@ -390,7 +391,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           const labelR = (innerRadius + middleRadius) / 2;
           
           return (
-            <G key={`inner-${num}`} testID={`mirrors-key-${keyId}`} onPress={() => key && onKeyPress(key)} accessibilityLabel={`${keyId}, ${key?.note}, ${key?.freq} hertz`}>
+            <G key={`inner-${num}`} testID={`mirrors-key-${keyId}`} {...svgPress(() => key && onKeyPress(key))} accessibilityLabel={`${keyId}, ${key?.note}, ${key?.freq} hertz`}>
               <Path d={describeArc(CX, CY, innerRadius, middleRadius, startAngle, endAngle)} fill={`url(#${chromeId}-panel)`} stroke={`url(#${chromeId}-chrome)`} strokeWidth={2} />
               {/* Segment background — chakra-tinted */}
               <Path
@@ -594,7 +595,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           const isPrimary = level === 'primary';
           const nodeR = isActive ? 18 : p.r;
           return (
-            <G key={`o-${i}`} testID={`mirrors-key-${p.key.id}`} onPress={() => onKeyPress(p.key)}>
+            <G key={`o-${i}`} testID={`mirrors-key-${p.key.id}`} {...svgPress(() => onKeyPress(p.key))}>
               <SvgCircle cx={p.x} cy={p.y} r={22} fill="transparent" />
               <SvgCircle cx={p.x} cy={p.y} r={isActive ? nodeR * 2.5 : isPrimary ? nodeR * 1.8 : nodeR * 1.5} fill={`url(#ng-${i})`} opacity={isActive ? 1 : isPrimary ? 0.7 : 0.3} />
               <MirrorNode id={chromeId} x={p.x} y={p.y} r={nodeR - 2} color={p.key.color} active={isActive} />
@@ -612,7 +613,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           const isPrimary = level === 'primary';
           const nodeR = isActive ? 15 : p.r;
           return (
-            <G key={`i-${idx}`} testID={`mirrors-key-${p.key.id}`} onPress={() => onKeyPress(p.key)}>
+            <G key={`i-${idx}`} testID={`mirrors-key-${p.key.id}`} {...svgPress(() => onKeyPress(p.key))}>
               <SvgCircle cx={p.x} cy={p.y} r={22} fill="transparent" />
               <SvgCircle cx={p.x} cy={p.y} r={isActive ? nodeR * 2.2 : nodeR * 1.4} fill={`url(#ng-${i})`} opacity={isActive ? 1 : isPrimary ? 0.6 : 0.25} />
               <MirrorNode id={chromeId} x={p.x} y={p.y} r={nodeR - 2} color={p.key.color} active={isActive} />

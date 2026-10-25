@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useId } from 'react';
+import { svgPress } from './svgPress';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import Svg, {
   Circle as SvgCircle,
@@ -1027,7 +1028,7 @@ export function FrequencyMap({ onFrequencySelect, showBrainMirror = true }: Prop
             const labelX = Math.max(56, Math.min(MAP_W - 56, node.x));
             const labelY = node.y > MAP_H * 0.82 ? node.y - nodeR - 19 : node.y + nodeR + 17;
             return (
-              <G key={node.id} testID={`frequency-node-${node.id}`} onPress={() => handleNodePress(node)} accessibilityLabel={`${node.name}, ${node.freq} hertz`}>
+              <G key={node.id} testID={`frequency-node-${node.id}`} {...svgPress(() => handleNodePress(node))} accessibilityLabel={`${node.name}, ${node.freq} hertz`}>
                 <SvgCircle cx={node.x} cy={node.y} r={24} fill="transparent" />
                 {/* Glow */}
                 <SvgCircle

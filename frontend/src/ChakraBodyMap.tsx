@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { svgPress } from './svgPress';
 import { View, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Path, Line, G, Text as SvgText } from 'react-native-svg';
 import { AudioEngine } from './AudioEngine';
@@ -163,7 +164,7 @@ export default function ChakraBodyMap() {
               const on = active === n.key;
               const r = on ? 7.2 : 5.8;
               return (
-                <G key={n.key} onPress={() => sound(n)}>
+                <G key={n.key} {...svgPress(() => sound(n))}>
                   <Circle cx={n.cx} cy={n.cy} r={12} fill="transparent" />
                   {on && <Circle cx={n.cx} cy={n.cy} r={10.5} fill={n.colors[0]} opacity={0.3} />}
                   {n.colors.length === 1 ? (
