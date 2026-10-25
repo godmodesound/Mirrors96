@@ -596,10 +596,32 @@ const sendToWebView = (msg: object) => {
 
 const stopAllSubscribers = new Set<() => void>();
 
+// ═══ ACTIVE FREQUENCY REGISTRY — the exact Hz the engine is sounding right now,
+//     by source. Drives realtime body-map excitation without FFT guesswork
+//     (sub-20 Hz beats, binaural offsets and chords are reported exactly). ═══
+export type ActiveFreq = { hz: number; source: 'tone' | 'multi' | 'binaural' | 'beat' | 'soundscape' | 'camelot'; gain?: number };
+const activeFreqMap = new Map<string, ActiveFreq[]>();
+let activeFreqSubs: ((list: ActiveFreq[]) => void)[] = [];
+const activeFreqSnapshot = (): ActiveFreq[] => {
+  const k = tuningState / 432;
+  return [...activeFreqMap.values()].flat().map(f => ({ ...f, hz: f.source === 'beat' ? f.hz : Math.round(f.hz * k * 100) / 100 }));
+};
+const setActiveFreqs = (key: string, list: ActiveFreq[] | null) => {
+  if (list && list.length) activeFreqMap.set(key, list); else activeFreqMap.delete(key);
+  const snap = activeFreqSnapshot();
+  activeFreqSubs.forEach(cb => { try { cb(snap); } catch {} });
+};
+const clearActiveFreqs = (prefix: string) => {
+  [...activeFreqMap.keys()].filter(k => k.startsWith(prefix)).forEach(k => activeFreqMap.delete(k));
+  const snap = activeFreqSnapshot();
+  activeFreqSubs.forEach(cb => { try { cb(snap); } catch {} });
+};
+
 // Audio Engine API (works on all platforms)
 export const AudioEngine = {
   // Tone layer controls
   startTone: (id: number, freq: number, gain: number, wave?: string) => {
+    setActiveFreqs(`tone:${id}`, [{ hz: freq, source: 'tone', gain }]);
     if (Platform.OS === 'web') {
       webStartTone(id, freq, gain, wave);
     } else {
@@ -614,6 +636,7 @@ export const AudioEngine = {
     }
   },
   stopTone: (id: number) => {
+    setActiveFreqs(`tone:${id}`, null);
     if (Platform.OS === 'web') {
       webStopTone(id);
     } else {
@@ -621,6 +644,7 @@ export const AudioEngine = {
     }
   },
   stopAll: () => {
+    clearActiveFreqs('tone:');
     if (Platform.OS === 'web') {
       webStopAll();
     } else {
@@ -633,6 +657,8 @@ export const AudioEngine = {
     return () => { stopAllSubscribers.delete(listener); };
   },
   updateFreq: (id: number, freq: number) => {
+    const cur = activeFreqMap.get(`tone:${id}`);
+    if (cur) setActiveFreqs(`tone:${id}`, [{ ...cur[0], hz: freq }]);
     if (Platform.OS === 'web') {
       webUpdateFreq(id, freq);
     } else {
@@ -640,6 +666,8 @@ export const AudioEngine = {
     }
   },
   updateGain: (id: number, gain: number) => {
+    const cur = activeFreqMap.get(`tone:${id}`);
+    if (cur) setActiveFreqs(`tone:${id}`, [{ ...cur[0], gain }]);
     if (Platform.OS === 'web') {
       webUpdateGain(id, gain);
     } else {
@@ -659,6 +687,7 @@ export const AudioEngine = {
   getGodMode: () => godModeFlag,
   // Multi-frequency (library/moods)
   playMulti: (freqs: number[], gain: number = 0.3) => {
+    setActiveFreqs('multi', freqs.map(hz => ({ hz, source: 'multi' as const, gain })));
     if (Platform.OS === 'web') {
       webPlayMulti(freqs, gain);
     } else {
@@ -666,6 +695,7 @@ export const AudioEngine = {
     }
   },
   stopMulti: () => {
+    setActiveFreqs('multi', null);
     if (Platform.OS === 'web') {
       webStopMulti();
     } else {
@@ -674,6 +704,7 @@ export const AudioEngine = {
   },
   // Binaural
   startBinaural: (carrier: number, beat: number) => {
+    setActiveFreqs('binaural', [{ hz: carrier, source: 'binaural' }, { hz: carrier + beat, source: 'binaural' }, { hz: beat, source: 'beat' }]);
     if (Platform.OS === 'web') {
       webStartBinaural(carrier, beat);
     } else {
@@ -681,6 +712,7 @@ export const AudioEngine = {
     }
   },
   stopBinaural: () => {
+    setActiveFreqs('binaural', null);
     if (Platform.OS === 'web') {
       webStopBinaural();
     } else {
@@ -688,6 +720,7 @@ export const AudioEngine = {
     }
   },
   updateBinaural: (carrier: number, beat: number) => {
+    setActiveFreqs('binaural', [{ hz: carrier, source: 'binaural' }, { hz: carrier + beat, source: 'binaural' }, { hz: beat, source: 'beat' }]);
     if (Platform.OS === 'web') {
       webUpdateBinaural(carrier, beat);
     } else {
@@ -696,6 +729,7 @@ export const AudioEngine = {
   },
   // Soundscape
   playSoundscape: (baseFreq: number, harmonics: number[], includeNoise: boolean, noiseLevel: number, volume: number) => {
+    setActiveFreqs('soundscape', harmonics.map((h, i) => ({ hz: baseFreq * h, source: 'soundscape' as const, gain: 0.3 / (i + 1) })));
     if (Platform.OS === 'web') {
       webPlaySoundscape(baseFreq, harmonics, includeNoise, noiseLevel, volume);
     } else {
@@ -703,6 +737,7 @@ export const AudioEngine = {
     }
   },
   stopSoundscape: () => {
+    setActiveFreqs('soundscape', null);
     if (Platform.OS === 'web') {
       webStopSoundscape();
     } else {
@@ -718,6 +753,7 @@ export const AudioEngine = {
   },
   // Camelot
   playCamelot: (freq: number) => {
+    setActiveFreqs('camelot', [{ hz: freq, source: 'camelot' }, { hz: freq * 2, source: 'camelot', gain: 0.4 }]);
     if (Platform.OS === 'web') {
       webPlayCamelot(freq);
     } else {
@@ -725,12 +761,20 @@ export const AudioEngine = {
     }
   },
   stopCamelot: () => {
+    setActiveFreqs('camelot', null);
     if (Platform.OS === 'web') {
       webStopCamelot();
     } else {
       sendToWebView({ type: 'stopCamelot' });
     }
   },
+  // Exact sounding frequencies by source (see ACTIVE FREQUENCY REGISTRY)
+  subscribeActiveFreqs: (cb: (list: ActiveFreq[]) => void) => {
+    activeFreqSubs.push(cb);
+    try { cb(activeFreqSnapshot()); } catch {}
+    return () => { activeFreqSubs = activeFreqSubs.filter(s => s !== cb); };
+  },
+  getActiveFreqs: (): ActiveFreq[] => activeFreqSnapshot(),
   // iOS hardening: unlock audio explicitly from user gesture
   unlockAudio: () => {
     if (Platform.OS === 'web') {
@@ -788,6 +832,8 @@ export const AudioEngine = {
     if (Platform.OS === 'web') webSetTuning(a);
     else sendToWebView({ type: 'setTuning', a });
     tuningSubsRN.forEach(cb => { try { cb(a); } catch {} });
+    const snap = activeFreqSnapshot();
+    activeFreqSubs.forEach(cb => { try { cb(snap); } catch {} });
   },
   getTuning: (): 432 | 440 => tuningState,
   subscribeTuning: (cb: (a: 432 | 440) => void) => {

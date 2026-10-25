@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Platform, useWindowDimensions } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { AudioEngine, ScopeFrame } from './AudioEngine';
+import { AudioEngine, ScopeFrame, ActiveFreq } from './AudioEngine';
 import { COLLECTIONS, ArchiveCode } from './archive/archiveData';
 import { useArchiveSession, playArchiveCode, stopArchive } from './archive/archiveSession';
 import { BODY_POINTS, ExcitedPoint, pointsForCode, pointsForFrequencies, codesForPoint, signatureFor } from './bodyMapData';
@@ -10,10 +10,24 @@ import { skinStyles, SK, skinHtml } from './skins';
 
 const fmtHz = (f: number) => (Number.isInteger(f) ? String(f) : f.toFixed(2).replace(/0+$/, '').replace(/\.$/, ''));
 
+const SOURCE_LABEL: Record<ActiveFreq['source'], string> = { tone: 'GENERATOR', multi: 'CODES', binaural: 'BI-NAURAL', beat: 'BEAT', soundscape: 'SOUNDSCAPE', camelot: 'MIRRORS WHEEL' };
+
+/** Engine registry → map state: exact Hz per source, intensity from relative gain. */
+function engineMapState(list: ActiveFreq[]) {
+  const freqs = list.map(f => Math.round(f.hz * 100) / 100);
+  const maxGain = Math.max(0.05, ...list.map(f => f.gain ?? 0.3));
+  const weights = list.map(f => 0.6 + 0.4 * ((f.gain ?? 0.3) / maxGain));
+  const sources = [...new Set(list.map(f => f.source === 'beat' ? 'binaural' : f.source))] as ActiveFreq['source'][];
+  const { sig, hex } = signatureFor(freqs);
+  return { name: sources.map(s => SOURCE_LABEL[s]).join(' + '), code: `LIVE-${sources[0].slice(0, 3).toUpperCase()}`, freqs, points: pointsForFrequencies(freqs, undefined, weights), playing: true, sig, hex };
+}
+
 /**
  * DIAGNOSTIC BODY MAP — phosphor CRT canvas synced to the Codes Archive.
- * Any archive code playing (here or from the Archive tab) excites its mapped
- * body nodes; node intensity + waveforms follow the live AudioEngine analyser.
+ * Priority: archive code playing → its mapped regions; else whatever the
+ * AudioEngine is sounding right now (generator layers, Mirrors Wheel, bi-naural,
+ * soundscapes) → regions resolved per exact Hz; else live FFT peaks (media).
+ * Node intensity + waveforms follow the live analyser in realtime.
  */
 export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: string }) {
   const { width } = useWindowDimensions();
@@ -24,6 +38,7 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
   const [category, setCategory] = useState(COLLECTIONS[0]?.id || 'schumann');
   const [selectedPt, setSelectedPt] = useState(0);
   const [livePoints, setLivePoints] = useState<{ freqs: number[]; points: ExcitedPoint[] } | null>(null);
+  const [engineFreqs, setEngineFreqs] = useState<ActiveFreq[]>([]);
   const webRef = useRef<WebView>(null);
   const iframeRef = useRef<any>(null);
   const html = useMemo(() => skinHtml(BODY_MAP_HTML), []);
@@ -37,19 +52,28 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
     }
   }, []);
 
-  // Active code (archive session) → excited points; else live FFT peaks → chakra column nodes
+  // Exact sounding frequencies from the engine registry (deduped by value so slider drags don't thrash)
+  useEffect(() => AudioEngine.subscribeActiveFreqs(list => {
+    setEngineFreqs(prev => {
+      const key = (l: ActiveFreq[]) => l.map(f => `${f.source}:${f.hz.toFixed(2)}:${(f.gain ?? 0).toFixed(2)}`).join('|');
+      return key(prev) === key(list) ? prev : list;
+    });
+  }), []);
+
+  // Active code (archive session) → excited points; else engine registry → exact regions; else live FFT peaks
   const active = session.active;
   const mapState = useMemo(() => {
     if (active) {
       const { sig, hex } = signatureFor(active.frequencies);
       return { name: active.name.toUpperCase(), code: `${active.category.slice(0, 3).toUpperCase()}-${String(active.index).padStart(3, '0')}`, freqs: active.frequencies, points: pointsForCode(active), playing: true, sig, hex };
     }
+    if (engineFreqs.length) return engineMapState(engineFreqs);
     if (livePoints) {
       const { sig, hex } = signatureFor(livePoints.freqs);
       return { name: 'LIVE SIGNAL', code: 'LIVE-FFT', freqs: livePoints.freqs, points: livePoints.points, playing: true, sig, hex };
     }
     return { name: 'STANDBY', code: '', freqs: [] as number[], points: [] as ExcitedPoint[], playing: false, sig: [] as string[], hex: [] as string[] };
-  }, [active, livePoints]);
+  }, [active, engineFreqs, livePoints]);
 
   const fullConfig = useCallback(() => ({ ...mapState, selected: selectedPt }), [mapState, selectedPt]);
   useEffect(() => { push('updateMap', fullConfig()); }, [fullConfig, push]);
@@ -65,12 +89,14 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
     if (now - lastLive.current < 450) return;
     lastLive.current = now;
     const audible = frame.peak > 1.5;
-    const freqs = (frame.peaks || []).filter(p => p.hz > 1).slice(0, 4).map(p => Math.round(p.hz * 10) / 10);
+    const top = (frame.peaks || []).filter(p => p.hz > 1).slice(0, 4);
+    const freqs = top.map(p => Math.round(p.hz * 10) / 10);
+    const maxMag = Math.max(1e-6, ...top.map(p => p.mag || 0));
     setLivePoints(prev => {
       if (!audible || !freqs.length) return prev ? null : prev;
       const key = freqs.join(',');
       if (prev && prev.freqs.join(',') === key) return prev;
-      return { freqs, points: pointsForFrequencies(freqs) };
+      return { freqs, points: pointsForFrequencies(freqs, undefined, top.map(p => 0.5 + 0.5 * ((p.mag || 0) / maxMag))) };
     });
   }), [push]);
 
@@ -153,7 +179,7 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
             </Text>
           </>
         ) : (
-          <Text style={st.readoutMeta}>SELECT A CODE BELOW OR TAP A BODY NODE. ANY CODE PLAYING FROM THE ARCHIVE SYNCS HERE.</Text>
+          <Text style={st.readoutMeta}>SELECT A CODE BELOW OR TAP A BODY NODE. ANY FREQUENCY SOUNDING IN THE APP — GENERATOR, MIRRORS WHEEL, BI-NAURAL, ARCHIVE — MAPS HERE IN REALTIME.</Text>
         )}
       </View>
 

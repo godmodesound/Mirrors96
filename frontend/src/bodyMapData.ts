@@ -64,12 +64,60 @@ const NOTE_POINT: Record<string, number> = {
 
 export type ExcitedPoint = { id: number; w: number };
 
-export function pointsForFrequencies(frequencies: number[], category?: string): ExcitedPoint[] {
+/**
+ * Physiological band → node regions for frequencies with no archive category.
+ * Brainwave bands (δ θ α β γ) land on the cranial nodes; Schumann on the ground
+ * line; the audible 432-lattice falls onto the chakra column (see NOTE_POINT);
+ * the upper spectrum excites the auditory + cranial nodes.
+ */
+const BAND_POINTS: { lo: number; hi: number; ids: number[] }[] = [
+  { lo: 0.1, hi: 4, ids: [1, 2] },                 // delta — crown / pineal
+  { lo: 4, hi: 8, ids: [2, 1, 10] },               // theta — pineal, crown, heart
+  { lo: 8, hi: 13, ids: [2, 1, 10, 13] },          // alpha
+  { lo: 13, hi: 30, ids: [1, 2, 6] },              // beta — crown, pineal, throat
+  { lo: 30, hi: 100, ids: [1, 2, 6, 13] },         // gamma / low
+  { lo: 100, hi: 180, ids: [19, 18, 16, 17, 24] }, // pelvic / renal resonance
+  { lo: 1000, hi: 4000, ids: [3, 4, 6] },          // speech band — ears, throat
+  { lo: 4000, hi: 30000, ids: [3, 4, 1] },         // upper spectrum — ears, crown
+];
+const SCHUMANN = [7.83, 14.3, 20.8, 27.3, 33.8];
+
+/** Archive codes containing a frequency within ±0.6% (or ±0.25 Hz) of `hz`, with closeness 0..1. */
+function archiveMatches(hz: number): { code: ArchiveCode; close: number }[] {
+  const tol = Math.max(0.25, hz * 0.006);
+  const out: { code: ArchiveCode; close: number }[] = [];
+  for (const code of ARCHIVE_CODES) {
+    let best = Infinity;
+    for (const f of code.frequencies) { const d = Math.abs(f - hz); if (d < best) best = d; }
+    if (best <= tol) out.push({ code, close: 1 - best / tol });
+  }
+  return out.sort((a, b) => b.close - a.close).slice(0, 6);
+}
+
+/**
+ * Nodes excited by a set of sounding frequencies. `weights` (0..1, per frequency)
+ * scale intensity so louder / more energetic tones light their nodes harder.
+ * With an archive `category`, the category's regions are excited first (legacy
+ * archive path); otherwise each frequency is resolved three ways —
+ * matching archive codes → their body regions, physiological band → region,
+ * and 432-lattice note → chakra column node.
+ */
+export function pointsForFrequencies(frequencies: number[], category?: string, weights?: number[]): ExcitedPoint[] {
   const out = new Map<number, number>();
-  const bump = (id: number, w: number) => out.set(id, Math.max(out.get(id) || 0, w));
+  const bump = (id: number, w: number) => out.set(id, Math.max(out.get(id) || 0, Math.min(1, w)));
   (category ? CATEGORY_POINTS[category] || [] : []).forEach((id, i) => bump(id, i < 2 ? 1 : 0.7));
-  frequencies.forEach(f => bump(NOTE_POINT[chakraForFreq(f).name] || 13, 0.8));
-  return [...out.entries()].map(([id, w]) => ({ id, w }));
+  frequencies.forEach((f, idx) => {
+    if (!f || f <= 0) return;
+    const amp = weights?.[idx] ?? 1;
+    if (category) { bump(NOTE_POINT[chakraForFreq(f).name] || 13, 0.8 * amp); return; }
+    archiveMatches(f).forEach(({ code, close }) =>
+      (CATEGORY_POINTS[code.category] || []).forEach((id, i) => bump(id, (i < 2 ? 0.95 : 0.6) * close * amp)));
+    if (SCHUMANN.some(s => Math.abs(s - f) < 0.3)) [24, 22, 23, 2].forEach((id, i) => bump(id, (i < 1 ? 1 : 0.7) * amp));
+    const band = BAND_POINTS.find(b => f >= b.lo && f < b.hi);
+    band?.ids.forEach((id, i) => bump(id, (i < 2 ? 0.85 : 0.55) * amp));
+    if (f >= 20) bump(NOTE_POINT[chakraForFreq(f).name] || 13, 0.8 * amp);
+  });
+  return [...out.entries()].map(([id, w]) => ({ id, w: Math.round(w * 100) / 100 }));
 }
 
 export const pointsForCode = (code: ArchiveCode) => pointsForFrequencies(code.frequencies, code.category);

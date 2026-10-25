@@ -5,9 +5,9 @@ ARTIFACTS = "https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-86
 NEW_ARTIFACTS = "https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/"
 
 PUBLIC_MIRRORS_TRACKS = {
-    "mirror-world": {"title": "MIRROR WORLD", "duration": 240, "original_url": NEW_ARTIFACTS + "13nmcsgk_10A%20-%20120%20-%20Mirror%20Worlds.wav"},
-    "mind-sync": {"title": "MIND SYNC", "duration": 200, "original_url": NEW_ARTIFACTS + "mfpz1gp1_8A%20-%2096%20-%203Drifting%20Mind%20Drift.wav"},
-    "interlude-flip": {"title": "INTERLUDE FLIP", "duration": 35, "original_url": NEW_ARTIFACTS + "dui0r9z0_2nd%20INTERLUDE.wav"},
+    "mirror-world": {"title": "MIRROR WORLD", "duration": 240, "original_url": NEW_ARTIFACTS + "83911930a00fbaaa_10A%20-%20120%20-%20Mirror%20Worlds.wav"},
+    "i-in-mirror": {"title": "I IN MIRROR", "duration": 171, "original_url": NEW_ARTIFACTS + "843628a7fb00a57a_8B%20-%2090%20-%20I%20in%20Mirror.wav"},
+    "glowing": {"title": "GLOWING", "duration": 200, "original_url": NEW_ARTIFACTS + "fddf4c7c63dc614d_8A%20-%2096%20-%20GLOWING.mp3"},
 }
 
 _ORIGINAL_TRACKS = [
@@ -27,8 +27,8 @@ _ORIGINAL_TRACKS = [
 MIRRORS_RELEASE = {
     "name": "96 MIRRORS",
     "cover_url": MIRRORS_COVER,
-    "description": "96 MIRRORS — 14 full tracks by VINCE SINNOTT. Includes MIRROR WORLD, MIND SYNC and INTERLUDE FLIP.",
+    "description": "96 MIRRORS — 14 full tracks by VINCE SINNOTT. Includes MIRROR WORLD, I IN MIRROR and GLOWING.",
     "tracklist": [name for name, _ in _ORIGINAL_TRACKS] + [t["title"] for t in PUBLIC_MIRRORS_TRACKS.values()],
     "preview_urls": [ARTIFACTS + path for _, path in _ORIGINAL_TRACKS] + [f"/api/music/mirrors/{slug}.mp3" for slug in PUBLIC_MIRRORS_TRACKS],
-    "catalog_revision": "mirrors-14-white-chrome-v1",
+    "catalog_revision": "mirrors-14-white-chrome-v2",
 }

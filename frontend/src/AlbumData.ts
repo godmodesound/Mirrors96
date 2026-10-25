@@ -42,9 +42,9 @@ export const ALBUMS: Album[] = [
       { number: 9, name: 'Grateful', duration: 0, previewUrl: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/vqa0bq5r_12A%20-%2090%20-%20Grateful%20mp3' },
       { number: 10, name: 'UNCLE MAJIC', duration: 0, previewUrl: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/6nk2vnna_1A%20-%20123%20-%20UNCLE%20MAJIC.mp3' },
       { number: 11, name: 'RED Magick', duration: 0, previewUrl: 'https://customer-assets.emergentagent.com/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/nlohe1ei_6A%20-%2090%20-%20RED%20Magick.mp3' },
-      { number: 12, name: 'MIRROR WORLD', duration: 240, previewUrl: resolveAlbumMediaUrl('/api/music/mirrors/mirror-world.mp3'), originalUrl: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/13nmcsgk_10A%20-%20120%20-%20Mirror%20Worlds.wav' },
-      { number: 13, name: 'MIND SYNC', duration: 200, previewUrl: resolveAlbumMediaUrl('/api/music/mirrors/mind-sync.mp3'), originalUrl: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/mfpz1gp1_8A%20-%2096%20-%203Drifting%20Mind%20Drift.wav' },
-      { number: 14, name: 'INTERLUDE FLIP', duration: 35, previewUrl: resolveAlbumMediaUrl('/api/music/mirrors/interlude-flip.mp3'), originalUrl: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/dui0r9z0_2nd%20INTERLUDE.wav' },
+      { number: 12, name: 'MIRROR WORLD', duration: 240, previewUrl: resolveAlbumMediaUrl('/api/music/mirrors/mirror-world.mp3'), originalUrl: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/83911930a00fbaaa_10A%20-%20120%20-%20Mirror%20Worlds.wav' },
+      { number: 13, name: 'I IN MIRROR', duration: 171, previewUrl: resolveAlbumMediaUrl('/api/music/mirrors/i-in-mirror.mp3'), originalUrl: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/843628a7fb00a57a_8B%20-%2090%20-%20I%20in%20Mirror.wav' },
+      { number: 14, name: 'GLOWING', duration: 200, previewUrl: resolveAlbumMediaUrl('/api/music/mirrors/glowing.mp3'), originalUrl: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/fddf4c7c63dc614d_8A%20-%2096%20-%20GLOWING.mp3' },
     ],
   },
   {
