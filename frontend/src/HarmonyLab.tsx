@@ -1,6 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { AudioEngine, ScopeFrame } from './AudioEngine';
+import PinealVortexProtocol from './PinealVortexProtocol';
+import EmfHarmonizerMap from './EmfHarmonizerMap';
+import { useLayout } from './useLayout';
 import CanvasBridge, { CanvasBridgeHandle } from './CanvasBridge';
 import { JI_NOTES, LISS_HTML, approxRatio, verdictFor } from './harmonyMath';
 import CosmicOctave from './CosmicOctave';
@@ -15,10 +19,68 @@ const PRESETS = [
 const lcm = (a: number, b: number) => { const g = (x: number, y: number): number => (y ? g(y, x % y) : x); return (a * b) / g(a, b); };
 const fmt = (f: number) => (Number.isInteger(f) ? String(f) : f.toFixed(1));
 
-/** HARMONY LAB — pick notes (just intonation over a root) or listen LIVE; Lissajous figure + HARMONY/DISSONANCE verdict. */
+type Tab = 'HARMONY' | 'PINEAL' | 'EMF';
+const TABS: { id: Tab; label: string; sub: string; color: string }[] = [
+  { id: 'HARMONY', label: 'HARMONY', sub: 'RATIO SCOPE', color: '#f2d27a' },
+  { id: 'PINEAL', label: 'PINEAL', sub: 'VORTEX 3·6·9', color: '#c9a84a' },
+  { id: 'EMF', label: 'EMF', sub: 'HARMONIZER', color: '#ffd76a' },
+];
+
+/** HARMONY LAB suite — Harmony scope + Pineal Vortex + EMF Harmonizer. Phone: tabs. Unfolded (iPhone Duo / tablet): Harmony left, PINEAL/EMF tabs right.
+ *  All three stay mounted so a running protocol keeps sounding while you switch tabs. */
 export default function HarmonyLab({ testID = 'harmony' }: { testID?: string }) {
-  const { width } = useWindowDimensions();
-  const W = Math.min(width - 40, 480);
+  const { isWide, contentWidth } = useLayout();
+  const [tab, setTab] = useState<Tab>('HARMONY');
+  const side: Tab = isWide && tab === 'HARMONY' ? 'PINEAL' : tab;
+  const colW = isWide ? (contentWidth - 40 - 12) / 2 : contentWidth - 40;
+  const pick = (t: Tab) => { if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {}); setTab(t); };
+  const tabs = isWide ? TABS.filter(t => t.id !== 'HARMONY') : TABS;
+  const active = isWide ? side : tab;
+
+  const tabBar = (
+    <View style={st.tabBar} testID={`${testID}-tabs`}>
+      {tabs.map(t => {
+        const on = active === t.id;
+        return (
+          <TouchableOpacity key={t.id} testID={`${testID}-tab-${t.id.toLowerCase()}`} accessibilityRole="tab" accessibilityState={{ selected: on }} style={[st.tab, on && { borderColor: SK(t.color), backgroundColor: '#100e06' }]} onPress={() => pick(t.id)}>
+            <Text style={[st.tabLabel, on && { color: SK(t.color) }]}>{t.label}</Text>
+            <Text style={st.tabSub}>{t.sub}</Text>
+            {on && <View style={[st.tabLine, { backgroundColor: SK(t.color) }]} />}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
+  const harmony = <HarmonyScope testID={testID} canvasW={Math.min(colW - 30, 480)} />;
+  const pineal = <PinealVortexProtocol testID="vortex" />;
+  const emf = <EmfHarmonizerMap testID="emf-map" />;
+
+  if (isWide) {
+    return (
+      <View testID={`${testID}-suite`} style={st.wideRow}>
+        <View style={st.col}>{harmony}</View>
+        <View style={st.col}>
+          {tabBar}
+          <View style={side === 'PINEAL' ? null : st.hidden}>{pineal}</View>
+          <View style={side === 'EMF' ? null : st.hidden}>{emf}</View>
+        </View>
+      </View>
+    );
+  }
+  return (
+    <View testID={`${testID}-suite`}>
+      {tabBar}
+      <View style={tab === 'HARMONY' ? null : st.hidden}>{harmony}</View>
+      <View style={tab === 'PINEAL' ? null : st.hidden}>{pineal}</View>
+      <View style={tab === 'EMF' ? null : st.hidden}>{emf}</View>
+    </View>
+  );
+}
+
+/** Harmony scope — pick notes (just intonation over a root) or listen LIVE; Lissajous figure + HARMONY/DISSONANCE verdict. */
+function HarmonyScope({ testID, canvasW }: { testID: string; canvasW: number }) {
+  const W = canvasW;
   const bridge = useRef<CanvasBridgeHandle>(null);
   const [root, setRoot] = useState(432);
   const [sel, setSel] = useState<number[]>([0, 4, 7]);
@@ -137,6 +199,14 @@ export default function HarmonyLab({ testID = 'harmony' }: { testID?: string }) 
 }
 
 const st = skinStyles({
+  tabBar: { flexDirection: 'row', gap: 6, marginBottom: 10 },
+  tab: { flex: 1, minHeight: 52, borderWidth: 1, borderColor: '#2a2a3a', borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#050508', overflow: 'hidden' },
+  tabLabel: { color: '#7a7a8a', fontSize: 11, fontWeight: '900', letterSpacing: 2.5 },
+  tabSub: { color: '#5a5a6a', fontSize: 7.5, letterSpacing: 1.2, marginTop: 3 },
+  tabLine: { position: 'absolute', bottom: 0, left: 12, right: 12, height: 2, borderRadius: 1 },
+  hidden: { display: 'none' },
+  wideRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  col: { flex: 1, minWidth: 0 },
   wrap: { borderWidth: 1, borderColor: '#2a2a3a', backgroundColor: '#050508', borderRadius: 10, padding: 14 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   title: { color: '#fff', fontSize: 15, fontWeight: '900', letterSpacing: 2 },

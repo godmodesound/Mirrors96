@@ -1,27 +1,21 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import EmfHarmonizerMap from './EmfHarmonizerMap';
 import CsfSpineFlow from './CsfSpineFlow';
 import DiagnosticBodyMap from './DiagnosticBodyMap';
-import PinealVortexProtocol from './PinealVortexProtocol';
 import TimeMatrix from './TimeMatrix';
 import HarmonyLab from './HarmonyLab';
 import { skinStyles } from './skins';
 
-/** Home-tab anatomy + environment modules. */
+/** Home-tab anatomy + environment modules. Pineal Vortex + EMF Harmonizer live inside Harmony Lab tabs. */
 export default function HomeAnatomyModules() {
   return (
     <View testID="home-anatomy" style={st.wrap}>
-      <Text style={st.sectionTitle}>&gt; HARMONY_LAB // LISSAJOUS</Text>
+      <Text style={st.sectionTitle}>&gt; HARMONY_LAB // HARMONY · PINEAL · EMF</Text>
       <HarmonyLab />
-      <Text style={[st.sectionTitle, st.gap]}>&gt; EMF_HARMONIZER</Text>
-      <EmfHarmonizerMap />
       <Text style={[st.sectionTitle, st.gap]}>&gt; CSF_FLOW // KUNDALINI</Text>
       <CsfSpineFlow />
       <Text style={[st.sectionTitle, st.gap]}>&gt; DIAGNOSTIC_BODY_MAP</Text>
       <DiagnosticBodyMap testID="home-body-map" />
-      <Text style={[st.sectionTitle, st.gap]}>&gt; PINEAL_VORTEX // 3·6·9</Text>
-      <PinealVortexProtocol />
       <Text style={[st.sectionTitle, st.gap]}>&gt; TIME_MATRIX // 15D</Text>
       <TimeMatrix />
     </View>
