@@ -1,8 +1,8 @@
-import React, { useMemo, useState, useId } from 'react';
+import React, { useId } from 'react';
 import { svgPress } from './svgPress';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text } from 'react-native';
 import { skinStyles, SK } from './skins';
-import { MirrorDefs, MirrorRing, MirrorNode, MirrorSurface } from './MirrorFinish';
+import { MirrorDefs, MirrorRing, MirrorNode } from './MirrorFinish';
 
 import Svg, {
   Circle as SvgCircle,
@@ -15,7 +15,6 @@ import Svg, {
   Path,
   Rect,
   Line,
-  Ellipse,
 } from 'react-native-svg';
 
 export interface CamelotKey {
@@ -129,67 +128,6 @@ const MAP_H = MAP_W * 1.0;
 const CX = MAP_W / 2;
 const CY = MAP_H / 2;
 
-// Generate infinity/butterfly attractor paths
-function generateAttractorPaths(cx: number, cy: number, scale: number) {
-  const paths: string[] = [];
-  for (let layer = 0; layer < 12; layer++) {
-    const layerScale = scale * (0.5 + layer * 0.08);
-    const offset = layer * 2;
-    let path = '';
-    for (let t = 0; t <= 360; t += 2) {
-      const rad = (t + offset) * (Math.PI / 180);
-      const r = Math.exp(Math.cos(rad)) - 2 * Math.cos(4 * rad) + Math.pow(Math.sin(rad / 12), 5);
-      const x = cx + Math.sin(rad) * r * layerScale * 0.6;
-      const y = cy - Math.cos(rad) * r * layerScale * 0.45;
-      if (t === 0) {
-        path = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
-      } else {
-        path += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
-      }
-    }
-    path += ' Z';
-    paths.push(path);
-  }
-  return paths;
-}
-
-// Generate spiral lobes
-function generateLobeSpiral(cx: number, cy: number, startAngle: number, radius: number, turns: number = 2) {
-  let path = '';
-  const steps = 60;
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const angle = startAngle + t * Math.PI * turns;
-    const r = radius * (1 - t * 0.7);
-    const x = cx + Math.cos(angle) * r;
-    const y = cy + Math.sin(angle) * r;
-    if (i === 0) {
-      path = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
-    } else {
-      path += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
-    }
-  }
-  return path;
-}
-
-// Generate infinity core
-function generateInfinityCore(cx: number, cy: number, width: number, height: number) {
-  let path = '';
-  for (let t = 0; t <= 360; t += 3) {
-    const rad = t * (Math.PI / 180);
-    const denom = 1 + Math.sin(rad) * Math.sin(rad);
-    const x = cx + (width * Math.cos(rad)) / denom;
-    const y = cy + (height * Math.sin(rad) * Math.cos(rad)) / denom;
-    if (t === 0) {
-      path = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
-    } else {
-      path += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
-    }
-  }
-  path += ' Z';
-  return path;
-}
-
 // Generate arc path for wheel segments
 function describeArc(cx: number, cy: number, innerR: number, outerR: number, startAngle: number, endAngle: number): string {
   const startRad = (startAngle - 90) * Math.PI / 180;
@@ -206,32 +144,6 @@ function describeArc(cx: number, cy: number, innerR: number, outerR: number, sta
   return `M ${x1} ${y1} L ${x2} ${y2} A ${outerR} ${outerR} 0 ${largeArc} 1 ${x3} ${y3} L ${x4} ${y4} A ${innerR} ${innerR} 0 ${largeArc} 0 ${x1} ${y1} Z`;
 }
 
-// Positions for keys in butterfly view (chakra-aligned: num=12 top, num=6 bottom)
-function getKeyPositions() {
-  const outerKeys: { key: CamelotKey; x: number; y: number; r: number }[] = [];
-  const innerKeys: { key: CamelotKey; x: number; y: number; r: number }[] = [];
-  const outerR = MAP_W * 0.44;
-  const innerR = MAP_W * 0.28;
-
-  for (let i = 0; i < 12; i++) {
-    // CAMELOT_KEYS[0..11] are 1A..12A → num = i+1. Position by chakra-aligned angle.
-    const key = CAMELOT_KEYS[i];
-    const num = key.num;
-    const midAngle = (num % 12) * 30; // 12→0, 1→30, ..., 6→180
-    const angle = (midAngle - 90) * (Math.PI / 180);
-    outerKeys.push({ key, x: CX + Math.cos(angle) * outerR, y: CY + Math.sin(angle) * outerR, r: 14 });
-  }
-  for (let i = 0; i < 12; i++) {
-    // CAMELOT_KEYS[12..23] are 1B..12B. Inner ring offset by half-segment (15°).
-    const key = CAMELOT_KEYS[12 + i];
-    const num = key.num;
-    const midAngle = (num % 12) * 30 + 15;
-    const angle = (midAngle - 90) * (Math.PI / 180);
-    innerKeys.push({ key, x: CX + Math.cos(angle) * innerR, y: CY + Math.sin(angle) * innerR, r: 11 });
-  }
-  return { outerKeys, innerKeys };
-}
-
 interface Props {
   activeKey: string | null;
   onKeyPress: (key: CamelotKey) => void;
@@ -240,34 +152,7 @@ interface Props {
 
 export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
   const chromeId = `wheel-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
-  // DEFAULT to 'camelot' (MIRRORS 96 WHEEL) - shows first
-  const [viewMode, setViewMode] = useState<'mirrors' | 'camelot'>('camelot');
-  
-  const { outerKeys, innerKeys } = useMemo(() => getKeyPositions(), []);
-  const allPositions = useMemo(() => [...outerKeys, ...innerKeys], [outerKeys, innerKeys]);
-  const attractorPaths = useMemo(() => generateAttractorPaths(CX, CY, MAP_W * 0.5), []);
-  
-  const lobeSpirals = useMemo(() => {
-    const lobeRadius = MAP_W * 0.22;
-    const lobeOffset = MAP_W * 0.25;
-    return [
-      generateLobeSpiral(CX - lobeOffset, CY - lobeOffset * 0.6, Math.PI, lobeRadius, 2.5),
-      generateLobeSpiral(CX + lobeOffset, CY - lobeOffset * 0.6, 0, lobeRadius, 2.5),
-      generateLobeSpiral(CX - lobeOffset, CY + lobeOffset * 0.6, Math.PI, lobeRadius, 2.5),
-      generateLobeSpiral(CX + lobeOffset, CY + lobeOffset * 0.6, 0, lobeRadius, 2.5),
-    ];
-  }, []);
-
-  const infinityPaths = useMemo(() => {
-    const paths = [];
-    for (let i = 0; i < 8; i++) {
-      paths.push(generateInfinityCore(CX, CY, MAP_W * (0.35 + i * 0.02), MAP_H * (0.2 + i * 0.015)));
-    }
-    return paths;
-  }, []);
-
-  const activePos = allPositions.find(p => p.key.id === activeKey);
-  const activeColor = activePos?.key.color || SK('#ff0a0a');
+  const activeKeyData = CAMELOT_KEYS.find(k => k.id === activeKey);
 
   // ═══════════════════════════════════════════════════════════════
   // MIRRORS 96 WHEEL VIEW (Dark Infrared Design - DEFAULT)
@@ -494,194 +379,34 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
     );
   };
 
-  // ═══════════════════════════════════════════════════════════════
-  // BUTTERFLY ATTRACTOR VIEW (Original MIRRORS view)
-  // ═══════════════════════════════════════════════════════════════
-  const renderButterflyWheel = () => {
-    return (
-      <Svg testID="mirrors-wheel-butterfly" width="100%" height="100%" viewBox={`0 0 ${MAP_W} ${MAP_H}`}>
-        <MirrorDefs id={chromeId} />
-        <Defs>
-          <RadialGradient id="bg-grad" cx="50%" cy="50%" r="70%">
-            <Stop offset="0%" stopColor={SK('#0a0000')} stopOpacity="1" />
-            <Stop offset="100%" stopColor={SK('#000000')} stopOpacity="1" />
-          </RadialGradient>
-          <RadialGradient id="center-glow" cx="50%" cy="50%" r="20%">
-            <Stop offset="0%" stopColor={SK('#ffffff')} stopOpacity={isEmitting ? '1' : '0.8'} />
-            <Stop offset="30%" stopColor={SK('#ff6060')} stopOpacity={isEmitting ? '0.6' : '0.3'} />
-            <Stop offset="60%" stopColor={SK('#ff0a0a')} stopOpacity={isEmitting ? '0.3' : '0.1'} />
-            <Stop offset="100%" stopColor={SK('#ff0a0a')} stopOpacity="0" />
-          </RadialGradient>
-          <RadialGradient id="attractor-glow" cx="50%" cy="50%" r="60%">
-            <Stop offset="0%" stopColor={SK('#ff0a0a')} stopOpacity="0" />
-            <Stop offset="40%" stopColor={SK('#ff0a0a')} stopOpacity={isEmitting ? '0.15' : '0.05'} />
-            <Stop offset="100%" stopColor={SK('#ff0000')} stopOpacity="0" />
-          </RadialGradient>
-          <LinearGradient id="h-beam" x1="0%" y1="50%" x2="100%" y2="50%">
-            <Stop offset="0%" stopColor={SK('#ff0a0a')} stopOpacity="0" />
-            <Stop offset="40%" stopColor={SK('#ffffff')} stopOpacity={isEmitting ? '0.4' : '0.2'} />
-            <Stop offset="50%" stopColor={SK('#ffffff')} stopOpacity={isEmitting ? '0.8' : '0.4'} />
-            <Stop offset="60%" stopColor={SK('#ffffff')} stopOpacity={isEmitting ? '0.4' : '0.2'} />
-            <Stop offset="100%" stopColor={SK('#ff0a0a')} stopOpacity="0" />
-          </LinearGradient>
-          <LinearGradient id="v-beam" x1="50%" y1="0%" x2="50%" y2="100%">
-            <Stop offset="0%" stopColor={SK('#ff0a0a')} stopOpacity="0" />
-            <Stop offset="40%" stopColor={SK('#ffffff')} stopOpacity={isEmitting ? '0.3' : '0.15'} />
-            <Stop offset="50%" stopColor={SK('#ffffff')} stopOpacity={isEmitting ? '0.6' : '0.3'} />
-            <Stop offset="60%" stopColor={SK('#ffffff')} stopOpacity={isEmitting ? '0.3' : '0.15'} />
-            <Stop offset="100%" stopColor={SK('#ff0a0a')} stopOpacity="0" />
-          </LinearGradient>
-          {allPositions.map((p, i) => (
-            <RadialGradient key={`ng-${i}`} id={`ng-${i}`} cx="50%" cy="50%" r="50%">
-              <Stop offset="0%" stopColor={p.key.color} stopOpacity={activeKey === p.key.id ? '1' : '0.6'} />
-              <Stop offset="50%" stopColor={p.key.color} stopOpacity={activeKey === p.key.id ? '0.4' : '0.15'} />
-              <Stop offset="100%" stopColor={p.key.color} stopOpacity="0" />
-            </RadialGradient>
-          ))}
-        </Defs>
-
-        <Rect x="0" y="0" width={MAP_W} height={MAP_H} fill="url(#bg-grad)" />
-        <Ellipse cx={CX} cy={CY} rx={MAP_W * 0.48} ry={MAP_H * 0.35} fill="url(#attractor-glow)" />
-
-        {attractorPaths.map((path, i) => (
-          <Path key={`attractor-${i}`} d={path} fill="none" stroke={`url(#${chromeId}-chrome)`} strokeWidth={i < 3 ? 0.5 : 0.8 + (i - 3) * 0.1} opacity={0.15 + i * 0.035} />
-        ))}
-        {infinityPaths.map((path, i) => (
-          <Path key={`infinity-${i}`} d={path} fill="none" stroke={`url(#${chromeId}-chrome)`} strokeWidth={1.5 + i * 0.2} opacity={isEmitting ? 0.45 + i * 0.05 : 0.25 + i * 0.05} />
-        ))}
-        {lobeSpirals.map((path, i) => (
-          <G key={`lobe-group-${i}`}>
-            <Path d={path} fill="none" stroke={SK('#ff0a0a')} strokeWidth={4} opacity={isEmitting ? 0.15 : 0.05} strokeLinecap="round" />
-            <Path d={path} fill="none" stroke={`url(#${chromeId}-chrome)`} strokeWidth={3} opacity={isEmitting ? 1 : 0.7} strokeLinecap="round" />
-            <Path d={path} fill="none" stroke={`url(#${chromeId}-edge)`} strokeWidth={0.6} opacity={0.8} strokeLinecap="round" />
-          </G>
-        ))}
-        {[0, 1, 2, 3].map((lobeIdx) => {
-          const lobeOffset = MAP_W * 0.25;
-          const centers = [
-            { x: CX - lobeOffset, y: CY - lobeOffset * 0.6 },
-            { x: CX + lobeOffset, y: CY - lobeOffset * 0.6 },
-            { x: CX - lobeOffset, y: CY + lobeOffset * 0.6 },
-            { x: CX + lobeOffset, y: CY + lobeOffset * 0.6 },
-          ];
-          const c = centers[lobeIdx];
-          return [0.15, 0.1, 0.06].map((r, ri) => (
-            <SvgCircle key={`lobe-circle-${lobeIdx}-${ri}`} cx={c.x} cy={c.y} r={MAP_W * r} fill="none" stroke={SK('#ff0a0a')} strokeWidth={0.5} opacity={isEmitting ? 0.2 - ri * 0.05 : 0.08 - ri * 0.02} />
-          ));
-        })}
-        <Rect x={0} y={CY - 2} width={MAP_W} height={4} fill="url(#h-beam)" />
-        <Rect x={CX - 2} y={0} width={4} height={MAP_H} fill="url(#v-beam)" />
-        {[0, 45, 90, 135].map((angle) => (
-          <Line key={`ray-${angle}`} x1={CX - Math.cos(angle * Math.PI / 180) * MAP_W * 0.5} y1={CY - Math.sin(angle * Math.PI / 180) * MAP_H * 0.4} x2={CX + Math.cos(angle * Math.PI / 180) * MAP_W * 0.5} y2={CY + Math.sin(angle * Math.PI / 180) * MAP_H * 0.4} stroke={SK('#ff0a0a')} strokeWidth={0.5} opacity={isEmitting ? 0.15 : 0.05} />
-        ))}
-        <SvgCircle cx={CX} cy={CY} r={MAP_W * 0.12} fill="url(#center-glow)" />
-        <SvgCircle cx={CX} cy={CY} r={isEmitting ? 8 : 5} fill={SK('#ffffff')} opacity={isEmitting ? 1 : 0.9} />
-        <SvgCircle cx={CX} cy={CY} r={isEmitting ? 4 : 2} fill={SK('#ffffff')} />
-
-        {activeKey && activePos && (
-          <Line x1={activePos.x} y1={activePos.y} x2={CX} y2={CY} stroke={activeColor} strokeWidth={1.5} opacity={0.5} strokeDasharray="4,4" />
-        )}
-        {activeKey && allPositions.map((p, i) => {
-          const level = getHarmonicLevel(activeKey, p.key.id);
-          if (level === 'none' || level === 'selected') return null;
-          return (
-            <Line key={`harm-${i}`} x1={activePos?.x ?? CX} y1={activePos?.y ?? CY} x2={p.x} y2={p.y} stroke={p.key.color} strokeWidth={level === 'primary' ? 1.2 : 0.5} opacity={level === 'primary' ? 0.5 : 0.2} />
-          );
-        })}
-
-        {outerKeys.map((p, i) => {
-          const level = getHarmonicLevel(activeKey, p.key.id);
-          const isActive = level === 'selected';
-          const isPrimary = level === 'primary';
-          const nodeR = isActive ? 18 : p.r;
-          return (
-            <G key={`o-${i}`} testID={`mirrors-key-${p.key.id}`} {...svgPress(() => onKeyPress(p.key))}>
-              <SvgCircle cx={p.x} cy={p.y} r={22} fill="transparent" />
-              <SvgCircle cx={p.x} cy={p.y} r={isActive ? nodeR * 2.5 : isPrimary ? nodeR * 1.8 : nodeR * 1.5} fill={`url(#ng-${i})`} opacity={isActive ? 1 : isPrimary ? 0.7 : 0.3} />
-              <MirrorNode id={chromeId} x={p.x} y={p.y} r={nodeR - 2} color={p.key.color} active={isActive} />
-              <SvgCircle cx={p.x} cy={p.y} r={nodeR * 0.5} fill={p.key.color} opacity={isActive ? 1 : isPrimary ? 0.7 : 0.4} />
-              <SvgCircle cx={p.x} cy={p.y} r={isActive ? 3 : 1.5} fill={SK('#ffffff')} opacity={isActive ? 1 : 0.4} />
-              <SvgText x={p.x} y={p.y - nodeR - 4} fill={isActive ? SK('#ffffff') : p.key.color} fontSize={isActive ? 7 : 6} fontWeight="800" textAnchor="middle" opacity={isActive ? 1 : 0.8}>{p.key.id}</SvgText>
-              <SvgText x={p.x} y={p.y + 3} fill={SK('#ffffff')} fontSize={isActive ? 7 : 5} fontWeight="800" textAnchor="middle" opacity={isActive ? 1 : 0.7}>{p.key.note}</SvgText>
-            </G>
-          );
-        })}
-        {innerKeys.map((p, idx) => {
-          const i = idx + 12;
-          const level = getHarmonicLevel(activeKey, p.key.id);
-          const isActive = level === 'selected';
-          const isPrimary = level === 'primary';
-          const nodeR = isActive ? 15 : p.r;
-          return (
-            <G key={`i-${idx}`} testID={`mirrors-key-${p.key.id}`} {...svgPress(() => onKeyPress(p.key))}>
-              <SvgCircle cx={p.x} cy={p.y} r={22} fill="transparent" />
-              <SvgCircle cx={p.x} cy={p.y} r={isActive ? nodeR * 2.2 : nodeR * 1.4} fill={`url(#ng-${i})`} opacity={isActive ? 1 : isPrimary ? 0.6 : 0.25} />
-              <MirrorNode id={chromeId} x={p.x} y={p.y} r={nodeR - 2} color={p.key.color} active={isActive} />
-              <SvgCircle cx={p.x} cy={p.y} r={nodeR * 0.45} fill={p.key.color} opacity={isActive ? 1 : 0.4} />
-              <SvgCircle cx={p.x} cy={p.y} r={isActive ? 2 : 1} fill={SK('#ffffff')} opacity={isActive ? 1 : 0.3} />
-              <SvgText x={p.x} y={p.y - nodeR - 3} fill={isActive ? SK('#ffffff') : p.key.color} fontSize={isActive ? 6 : 5} fontWeight="800" textAnchor="middle" opacity={isActive ? 1 : 0.7}>{p.key.id}</SvgText>
-              <SvgText x={p.x} y={p.y + 2.5} fill={SK('#ffffff')} fontSize={isActive ? 6 : 4.5} fontWeight="800" textAnchor="middle" opacity={isActive ? 1 : 0.6}>{p.key.note}</SvgText>
-            </G>
-          );
-        })}
-        <SvgText x={6} y={MAP_H - 6} fill={SK('#ff0a0a')} fontSize={5} opacity={0.15} letterSpacing={1}>96 MIRRORS</SvgText>
-        <SvgText x={MAP_W - 6} y={MAP_H - 6} fill={SK('#ff0a0a')} fontSize={5} opacity={0.15} letterSpacing={1} textAnchor="end">432Hz TUNED</SvgText>
-      </Svg>
-    );
-  };
-
   return (
     <View testID="mirrors-wheel" style={st.container}>
-      {/* Reserved control space keeps SPIN and readout off every playable key. */}
-      <View pointerEvents="none" style={st.toolbar} />
-      {/* SPIN Toggle Button */}
-      <TouchableOpacity 
-        testID="mirrors-wheel-spin-button"
-        style={st.spinButton} 
-        onPress={() => setViewMode(viewMode === 'mirrors' ? 'camelot' : 'mirrors')}
-      >
-        <MirrorSurface radius={0} />
-        <Text style={st.spinButtonText}>◎ SPIN</Text>
-      </TouchableOpacity>
-
-      {/* Render appropriate wheel - CAMELOT (MIRRORS 96) is default */}
-      <View style={st.drawing}>
-        {viewMode === 'camelot' ? renderMirrors96Wheel() : renderButterflyWheel()}
+      {/* Reserved readout space keeps the selection badge off every playable key. */}
+      <View style={st.toolbar} pointerEvents="none">
+        {activeKeyData && (
+          <View testID="mirrors-wheel-selection" style={[st.infoBadge, { borderColor: activeKeyData.color }]}>
+            <Text style={[st.infoKey, { color: activeKeyData.color }]}>{activeKeyData.id}</Text>
+            <Text style={st.infoNote}>{activeKeyData.note}</Text>
+            <Text testID="mirrors-wheel-frequency" style={st.infoFreq}>{activeKeyData.freq} Hz</Text>
+          </View>
+        )}
       </View>
 
-      {/* Active key info overlay */}
-      {activeKey && activePos && (
-        <View pointerEvents="none" testID="mirrors-wheel-selection" style={st.infoOverlay}>
-          <View style={[st.infoBadge, { borderColor: activePos.key.color }]}>
-            <Text style={[st.infoKey, { color: activePos.key.color }]}>{activePos.key.id}</Text>
-            <Text style={st.infoNote}>{activePos.key.note}</Text>
-            <Text testID="mirrors-wheel-frequency" style={st.infoFreq}>{activePos.key.freq} Hz</Text>
-          </View>
-        </View>
-      )}
+      <View style={st.drawing}>
+        {renderMirrors96Wheel()}
+      </View>
 
-      {/* Legend */}
       <View style={st.legend}>
-        {viewMode === 'camelot' ? (
-          <>
-            <Text style={st.legendItem}>INNER = MINOR (A)</Text>
-            <Text style={st.legendItem}>OUTER = MAJOR (B)</Text>
-            <Text style={st.legendItem}>TAP TO EMIT</Text>
-          </>
-        ) : (
-          <>
-            <Text style={st.legendItem}>◯ OUTER = MINOR (A)</Text>
-            <Text style={st.legendItem}>● INNER = MAJOR (B)</Text>
-            <Text style={st.legendItem}>TAP TO EMIT</Text>
-          </>
-        )}
+        <Text style={st.legendItem}>INNER = MINOR (A)</Text>
+        <Text style={st.legendItem}>OUTER = MAJOR (B)</Text>
+        <Text style={st.legendItem}>TAP TO EMIT</Text>
       </View>
     </View>
   );
 }
 
 const st = skinStyles({
-  toolbar: { height: 64, borderBottomWidth: 1, borderBottomColor: '#657c9040' },
+  toolbar: { minHeight: 64, borderBottomWidth: 1, borderBottomColor: '#657c9040', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10 },
   drawing: { width: '100%', aspectRatio: 1 },
   container: {
     borderWidth: 1,
@@ -689,30 +414,6 @@ const st = skinStyles({
     borderRadius: 0,
     overflow: 'hidden',
     backgroundColor: '#000',
-  },
-  spinButton: {
-    position: 'absolute',
-    top: 10,
-    right: 8,
-    zIndex: 10,
-    backgroundColor: '#0a0505',
-    borderWidth: 1,
-    borderColor: '#687d90',
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  spinButtonText: {
-    color: '#e5f1fa',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  infoOverlay: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
   },
   infoBadge: {
     backgroundColor: '#000000ee',

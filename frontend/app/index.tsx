@@ -34,7 +34,6 @@ import { Audio, type AudioSound } from '../src/audioCompat';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
-import { FrequencyMap } from '../src/FrequencyMap';
 import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
 import ScopeNodePanel from '../src/ScopeNodePanel';
 import LatticeFramework from '../src/LatticeFramework';
@@ -1160,17 +1159,6 @@ export default function TerminalScreen() {
             <TouchableOpacity testID="home-open-discography" style={soundStyles.browseButton} onPress={() => { slStopPreview(); router.push('/sound'); }}>
               <Text style={soundStyles.browseText}>OPEN SOUND LAB</Text><Ionicons name="arrow-forward" size={18} color={SK('#bdc3ce')} />
             </TouchableOpacity>
-          </View>
-
-          {/* ══════ FREQUENCY LAB / MERKABA ══════ */}
-          <View style={styles.section}>
-            <FrequencyMap
-              onFrequencySelect={(freq) => {
-                console.log('Frequency selected from map:', freq);
-                updateLayerFrequency(layers[0].id, freq);
-              }}
-              showBrainMirror={false}
-            />
           </View>
 
           {/* ══════ MIRRORS WHEEL ══════ */}

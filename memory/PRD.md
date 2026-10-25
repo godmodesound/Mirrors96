@@ -261,3 +261,6 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 
 ## Harmony Lab removed (June 2026)
 - User request: "remove the harmony lab". `HarmonyLab.tsx`, `harmonyMath.ts`, `CosmicOctave.tsx`, `PinealVortexProtocol.tsx`, `EmfHarmonizerMap.tsx` moved to `/app/.trash/` (recoverable). `HomeAnatomyModules` now starts at CSF_FLOW.
+- Frequency Lab removed from Home (`FrequencyMap` no longer rendered in `app/index.tsx`; still used in `moods.tsx`).
+- Mirrors Wheel: SPIN view-toggle and the Butterfly attractor view removed; only the MIRRORS 96 wheel remains. Selection badge now lives in the top toolbar strip.
+- BUG FIX `src/svgPress.ts`: react-native-svg/web `prepare()` runs `if (onPress !== null) clean.onClick = onPress`, which wiped our web `onClick` (undefined onPress) → every svg tap (Mirrors Wheel, Chakra map, Spiral) was dead on web. Fix: pass `{ onClick: fn, onPress: null }` on web.
