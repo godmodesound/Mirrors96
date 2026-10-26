@@ -828,7 +828,7 @@ export default function TerminalScreen() {
               testID="hero-logo"
             >
               <Image
-                source={{ uri: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/aw1xtg9j_Screenshot%202026-08-02%20at%2012.36.59%E2%80%AFAM.png' }}
+                source={{ uri: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/e01d5a8edeb0da3d_new%20logo%2026.jpeg' }}
                 style={styles.heroImage}
                 resizeMode="contain"
               />
@@ -1410,7 +1410,7 @@ const styles = skinStyles({
   },
   heroImage: {
     width: '100%',
-    height: 200,
+    height: 300,
   },
   heroLogoPress: {
     width: '100%',
