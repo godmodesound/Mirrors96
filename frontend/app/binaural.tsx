@@ -13,6 +13,7 @@ import { WebView } from 'react-native-webview';
 import { AudioEngine } from '../src/AudioEngine';
 import ScopeNodePanel from '../src/ScopeNodePanel';
 import DiagnosticBodyMap from '../src/DiagnosticBodyMap';
+import BrainStructureMap, { BrainRegion, regionForCarrier } from '../src/BrainStructureMap';
 import { useLayout } from '../src/useLayout';
 
 import { skinStyles, SK, skinHtml } from '../src/skins';
@@ -655,6 +656,22 @@ export default function BinauralScreen() {
     if (isPlaying) AudioEngine.updateBinaural(v, beatFreq);
   };
 
+  // Brain Structure (432 musical key) → carrier on the structure's note + its suggested entrainment beat
+  const handleRegion = (r: BrainRegion) => {
+    setCarrierFreq(r.hz);
+    setBeatFreq(r.beat);
+    setActivePreset(null);
+    if (isPlaying) AudioEngine.updateBinaural(r.hz, r.beat);
+    webViewRef.current?.injectJavaScript(`
+      carrier=${r.hz};beat=${r.beat};
+      nodes[0].freq=${r.hz};nodes[1].freq=${r.hz + r.beat};
+      nodes[0].color='${r.color}';nodes[1].color='${r.color}';
+      true;
+    `);
+  };
+  const activeRegion = regionForCarrier(carrierFreq);
+  const fmtHz = (v: number) => (Number.isInteger(v) ? v.toFixed(0) : v.toFixed(2));
+
   const handleBeatChange = (v: number) => {
     setBeatFreq(v);
     setActivePreset(null);
@@ -746,7 +763,7 @@ export default function BinauralScreen() {
           <View style={styles.freqDisplay}>
             <View style={styles.freqChannel}>
               <Text style={styles.freqChLabel}>L CHANNEL</Text>
-              <Text style={styles.freqChValue}>{carrierFreq.toFixed(0)} Hz</Text>
+              <Text style={styles.freqChValue}>{fmtHz(carrierFreq)} Hz</Text>
             </View>
             <View style={styles.freqCenter}>
               <Text style={styles.freqBeatLabel}>BEAT</Text>
@@ -755,9 +772,15 @@ export default function BinauralScreen() {
             </View>
             <View style={styles.freqChannel}>
               <Text style={styles.freqChLabel}>R CHANNEL</Text>
-              <Text style={styles.freqChValue}>{(carrierFreq + beatFreq).toFixed(0)} Hz</Text>
+              <Text style={styles.freqChValue}>{fmtHz(carrierFreq + beatFreq)} Hz</Text>
             </View>
           </View>
+          {activeRegion && (
+            <View testID="binaural-region-tag" style={[styles.regionTag, { borderColor: activeRegion.color }]}>
+              <View style={[styles.regionDot, { backgroundColor: activeRegion.color }]} />
+              <Text style={styles.regionTagText}>{activeRegion.name} · {activeRegion.note} · {activeRegion.band}</Text>
+            </View>
+          )}
 
           {/* Timer */}
           {isPlaying && (
@@ -773,7 +796,7 @@ export default function BinauralScreen() {
           <View style={styles.controlsSection}>
             <View style={styles.sliderRow}>
               <Text style={styles.sliderLabel}>CARRIER</Text>
-              <Text style={styles.sliderValue}>{carrierFreq.toFixed(0)} Hz</Text>
+              <Text style={styles.sliderValue}>{fmtHz(carrierFreq)} Hz</Text>
             </View>
             <View style={styles.sliderTrack}>
               <TouchableOpacity
@@ -880,6 +903,9 @@ export default function BinauralScreen() {
             </View>
           </View>
 
+          {/* ═══ BRAIN STRUCTURE · 432 MUSICAL KEY ═══ */}
+          <BrainStructureMap testID="brain-structure" carrierHz={carrierFreq} onSelect={handleRegion} />
+
           {/* ═══ DIAGNOSTIC BODY MAP ═══ */}
           <DiagnosticBodyMap testID="binaural-body-map" />
 
@@ -936,6 +962,10 @@ const styles = skinStyles({
   },
 
   // Freq Display
+  regionTag: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'center', borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5, marginTop: 8, backgroundColor: '#0a0a0a' },
+  regionDot: { width: 6, height: 6, borderRadius: 3 },
+  regionTagText: { color: '#ddd', fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
+
   freqDisplay: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginTop: 12, padding: 12, borderWidth: 1,
