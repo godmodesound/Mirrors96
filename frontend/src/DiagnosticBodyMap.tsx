@@ -7,6 +7,11 @@ import { useArchiveSession, playArchiveCode, stopArchive } from './archive/archi
 import { BODY_POINTS, ExcitedPoint, pointsForCode, pointsForFrequencies, codesForPoint, signatureFor } from './bodyMapData';
 import { BODY_MAP_HTML } from './bodyMapHtml';
 import { skinStyles, SK, skinHtml } from './skins';
+import { FieldState, LIGHT_BODIES, MOOD_AXES, ACTIVATION_SECONDS, initialFieldState, stepField, moodLabel } from './biofield';
+
+/** Djed Pillar — "The Spine of Osiris" diagram, infused as a faint goal overlay behind the figure. */
+const GOAL_OVERLAY_URL = 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/f7b3f812ca8df9ed_IMG_5877.jpeg';
+const TICK_MS = 500;
 
 const fmtHz = (f: number) => (Number.isInteger(f) ? String(f) : f.toFixed(2).replace(/0+$/, '').replace(/\.$/, ''));
 
@@ -75,7 +80,32 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
     return { name: 'STANDBY', code: '', freqs: [] as number[], points: [] as ExcitedPoint[], playing: false, sig: [] as string[], hex: [] as string[] };
   }, [active, engineFreqs, livePoints]);
 
-  const fullConfig = useCallback(() => ({ ...mapState, selected: selectedPt }), [mapState, selectedPt]);
+  // ── biofield / mood integration: nodes warm & cool around their resting baseline, mood + light bodies integrate exposure ──
+  const [field, setField] = useState<FieldState>(initialFieldState);
+  const mapRef = useRef(mapState);
+  mapRef.current = mapState;
+  useEffect(() => {
+    let last = Date.now();
+    const id = setInterval(() => {
+      const now = Date.now(); const dt = Math.min(2, (now - last) / 1000); last = now;
+      setField(f => stepField(f, mapRef.current.freqs, mapRef.current.points, dt, now));
+    }, TICK_MS);
+    return () => clearInterval(id);
+  }, []);
+  const mood = useMemo(() => moodLabel(field.mood), [field.mood]);
+  const smoothedPoints = useMemo(() => field.nodes.map(n => ({ id: n.id, rest: n.rest, level: Math.round(n.level * 1000) / 1000, w: Math.max(0, Math.round(((n.level - n.rest) / (1 - n.rest)) * 100) / 100) })), [field.nodes]);
+  const settling = !mapState.playing && smoothedPoints.some(p => p.w > 0.01);
+  const recentNod = field.bodies.find(b => b.achieved && Date.now() - b.achievedAt < 6000);
+
+  const fullConfig = useCallback(() => ({
+    ...mapState,
+    playing: mapState.playing || settling,
+    points: smoothedPoints,
+    bodies: field.bodies.map(b => ({ id: b.id, exposure: Math.round(b.exposure * 10) / 10, active: b.active, achieved: b.achieved, achievedAt: b.achievedAt })),
+    mood: mood.axis ? `${mood.axis} ${mood.pct >= 0 ? '+' : ''}${mood.pct}` : 'RESTING STATE',
+    overlay: GOAL_OVERLAY_URL,
+    selected: selectedPt,
+  }), [mapState, settling, smoothedPoints, field.bodies, mood, selectedPt]);
   useEffect(() => { push('updateMap', fullConfig()); }, [fullConfig, push]);
 
   const lastPush = useRef(0);
@@ -179,7 +209,50 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
             </Text>
           </>
         ) : (
-          <Text style={st.readoutMeta}>SELECT A CODE BELOW OR TAP A BODY NODE. ANY FREQUENCY SOUNDING IN THE APP — GENERATOR, MIRRORS WHEEL, BI-NAURAL, ARCHIVE — MAPS HERE IN REALTIME.</Text>
+          <Text style={st.readoutMeta}>{settling ? 'SIGNAL OFF · NODES RETURNING TO RESTING BASELINE' : 'SELECT A CODE BELOW OR TAP A BODY NODE. ANY FREQUENCY SOUNDING IN THE APP — GENERATOR, MIRRORS WHEEL, BI-NAURAL, ARCHIVE — MAPS HERE IN REALTIME.'}</Text>
+        )}
+
+        {/* mood — resting baseline vs. effect of the selected frequencies */}
+        <View testID={`${testID}-mood`} style={st.moodRow}>
+          <Text style={st.moodLabel}>MOOD</Text>
+          <Text style={[st.moodPhrase, mood.axis && st.moodPhraseOn]} numberOfLines={1}>{mood.phrase}</Text>
+          {mapState.playing && <Text style={st.moodTime}>{Math.floor(field.session)}s</Text>}
+        </View>
+        <View style={st.axes}>
+          {MOOD_AXES.map(k => {
+            const v = field.mood[k];
+            return (
+              <View key={k} style={st.axis}>
+                <View style={st.axisTrack}>
+                  <View style={st.axisZero} />
+                  <View style={[st.axisFill, v >= 0 ? { left: '50%', width: `${Math.abs(v) * 50}%` } : { right: '50%', width: `${Math.abs(v) * 50}%` }, Math.abs(v) > 0.04 && st.axisFillOn]} />
+                </View>
+                <Text style={[st.axisName, Math.abs(v) > 0.04 && st.axisNameOn]}>{k}</Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* biofield — 9 Egyptian light bodies along the Djed column; quiet nods as they activate */}
+      <View testID={`${testID}-biofield`} style={st.bioRow}>
+        <Text style={st.bioLabel}>BIOFIELD</Text>
+        <View style={st.bioChips}>
+          {LIGHT_BODIES.map(b => {
+            const s = field.bodies.find(x => x.id === b.id)!;
+            const prog = Math.min(1, s.exposure / ACTIVATION_SECONDS);
+            return (
+              <View key={b.id} testID={`${testID}-body-${b.id}`} style={[st.bioChip, s.active && st.bioChipActive, s.achieved && st.bioChipOn]}>
+                <Text style={[st.bioChipText, s.active && st.bioChipTextActive, s.achieved && st.bioChipTextOn]}>{b.name}</Text>
+                <View style={st.bioBar}><View style={[st.bioBarFill, { width: `${(s.achieved ? 1 : prog) * 100}%` }, s.achieved && st.bioBarFillOn]} /></View>
+              </View>
+            );
+          })}
+        </View>
+        {recentNod && (
+          <Text testID={`${testID}-nod`} style={st.nod} numberOfLines={1}>
+            ✦ {LIGHT_BODIES.find(b => b.id === recentNod.id)!.name} · {LIGHT_BODIES.find(b => b.id === recentNod.id)!.title} · ACTIVE
+          </Text>
         )}
       </View>
 
@@ -231,6 +304,32 @@ const st = skinStyles({
   readoutMeta: { color: '#4fa85c', fontSize: 9, letterSpacing: 0.8, marginTop: 4, lineHeight: 13 },
   stopBtn: { borderWidth: 1, borderColor: '#a9ff8a', paddingVertical: 8, paddingHorizontal: 12, minHeight: 34, justifyContent: 'center' },
   stopText: { color: '#a9ff8a', fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
+  moodRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#0f2e18' },
+  moodLabel: { color: '#4fa85c', fontSize: 8, fontWeight: '800', letterSpacing: 1.5 },
+  moodPhrase: { flex: 1, color: '#4fa85c', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  moodPhraseOn: { color: '#f3ffc4' },
+  moodTime: { color: '#2f7a3c', fontSize: 8, letterSpacing: 1 },
+  axes: { flexDirection: 'row', gap: 6, marginTop: 6 },
+  axis: { flex: 1, alignItems: 'center', gap: 3 },
+  axisTrack: { width: '100%', height: 4, backgroundColor: '#0a2a14', position: 'relative', overflow: 'hidden' },
+  axisZero: { position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, backgroundColor: '#1f5a30' },
+  axisFill: { position: 'absolute', top: 0, bottom: 0, backgroundColor: '#2f7a3c' },
+  axisFillOn: { backgroundColor: '#f3ffc4' },
+  axisName: { color: '#2f7a3c', fontSize: 7, letterSpacing: 1 },
+  axisNameOn: { color: '#a9ff8a' },
+  bioRow: { marginTop: 8, borderWidth: 1, borderColor: '#1f5a30', padding: 8, backgroundColor: '#03140a' },
+  bioLabel: { color: '#4fa85c', fontSize: 8, fontWeight: '800', letterSpacing: 1.5, marginBottom: 6 },
+  bioChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  bioChip: { borderWidth: 1, borderColor: '#0f2e18', paddingHorizontal: 6, paddingTop: 4, paddingBottom: 3, minWidth: 54, backgroundColor: '#020d07' },
+  bioChipActive: { borderColor: '#4fa85c' },
+  bioChipOn: { borderColor: '#f3ffc4', backgroundColor: '#0a2a14' },
+  bioChipText: { color: '#2f7a3c', fontSize: 8, fontWeight: '800', letterSpacing: 1.2, textAlign: 'center' },
+  bioChipTextActive: { color: '#a9ff8a' },
+  bioChipTextOn: { color: '#f3ffc4' },
+  bioBar: { height: 2, backgroundColor: '#0a2a14', marginTop: 3 },
+  bioBarFill: { height: 2, backgroundColor: '#4fa85c' },
+  bioBarFillOn: { backgroundColor: '#f3ffc4' },
+  nod: { color: '#f3ffc4', fontSize: 9, fontWeight: '900', letterSpacing: 1.2, marginTop: 8 },
   nodePanel: { marginTop: 8, borderWidth: 1, borderColor: '#4fa85c', padding: 8, backgroundColor: '#04170c' },
   nodeTitle: { color: '#a9ff8a', fontSize: 11, fontWeight: '900', letterSpacing: 1.5 },
   nodeLatin: { color: '#4fa85c', fontSize: 9, letterSpacing: 1.5, fontStyle: 'italic' },
