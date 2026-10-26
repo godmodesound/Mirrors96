@@ -11,7 +11,7 @@ export default function HomeAnatomyModules() {
     <View testID="home-anatomy" style={st.wrap}>
       <Text style={st.sectionTitle}>&gt; CSF_FLOW // KUNDALINI</Text>
       <CsfSpineFlow />
-      <Text style={[st.sectionTitle, st.gap]}>&gt; DIAGNOSTIC_BODY_MAP</Text>
+      <Text style={[st.sectionTitle, st.gap]}>&gt; BIOMAP</Text>
       <DiagnosticBodyMap testID="home-body-map" />
       <Text style={[st.sectionTitle, st.gap]}>&gt; TIME_MATRIX // 15D</Text>
       <TimeMatrix />

@@ -25,13 +25,11 @@ window.addEventListener('resize',resize);resize();
 var PTS=${JSON.stringify(BODY_POINTS)};
 var LB=${JSON.stringify(LIGHT_BODIES.map(b => ({ id: b.id, num: b.num, name: b.name, y: b.y })))};
 var C={bg:'#03140a',dim:'#1f5a30',mid:'#4fa85c',hi:'#a9ff8a',glow:'#66ff66',gold:'#f3ffc4',goldGlow:'#ffe680',grid:'rgba(120,255,140,0.10)'};
-var MAP={name:'STANDBY',code:'',freqs:[],points:[],playing:false,selected:0,setAt:0,hex:[],sig:[],bodies:[],mood:'RESTING STATE',overlay:''};
+var MAP={name:'STANDBY',code:'',freqs:[],points:[],playing:false,selected:0,setAt:0,hex:[],sig:[],bodies:[],mood:'RESTING STATE'};
 var LIVE={wave:null,peak:0,rms:0,measuredHz:0,peaks:[],ts:0};
 var env=0,envSlow=0,t=0,frame=0;
-var IMG=null,imgOk=false;
-function loadOverlay(url){if(!url||(IMG&&IMG.src===url))return;IMG=new Image();IMG.onload=function(){imgOk=true;};IMG.onerror=function(){imgOk=false;};IMG.src=url;}
 
-window.updateMap=function(m){try{if(typeof m==='string')m=JSON.parse(m);if(m.points!==undefined){MAP.points=m.points||[];}if(m.code!==undefined&&m.code!==MAP.code){MAP.setAt=performance.now();}for(var k in m){if(k!=='points')MAP[k]=m[k];}if(m.overlay)loadOverlay(m.overlay);}catch(e){}};
+window.updateMap=function(m){try{if(typeof m==='string')m=JSON.parse(m);if(m.points!==undefined){MAP.points=m.points||[];}if(m.code!==undefined&&m.code!==MAP.code){MAP.setAt=performance.now();}for(var k in m){if(k!=='points')MAP[k]=m[k];}}catch(e){}};
 window.pushWave=function(w){try{if(typeof w==='string')w=JSON.parse(w);if(w&&w.wave){LIVE.wave=w.wave;LIVE.peak=w.peak||0;LIVE.rms=typeof w.rms==='number'?w.rms:0;LIVE.measuredHz=w.measuredHz||0;LIVE.peaks=Array.isArray(w.peaks)?w.peaks:LIVE.peaks;LIVE.ts=performance.now();}}catch(e){}};
 function onMsg(e){var d=e.data;try{var p=typeof d==='string'?JSON.parse(d):d;if(p&&p.__wave){window.pushWave(p);return;}window.updateMap(p);}catch(_){}}
 window.addEventListener('message',onMsg);document.addEventListener('message',onMsg);
@@ -50,8 +48,6 @@ function box(x,y,w,h,col){ctx.strokeStyle=col;ctx.lineWidth=1;ctx.strokeRect(Mat
 
 function drawBody(g){
   var u=g.u,cx=g.cx,top=g.top;
-  // faint Djed Pillar overlay — the body-map goal image, infused behind the figure
-  if(imgOk&&IMG&&IMG.naturalWidth){var ih=u*1.16,iw=ih*IMG.naturalWidth/IMG.naturalHeight;ctx.save();ctx.globalCompositeOperation='screen';ctx.globalAlpha=0.16+0.10*env;ctx.drawImage(IMG,cx-iw*0.5,top-u*0.07,iw,ih);ctx.restore();}
   // field rings
   var bcx=cx,bcy=top+u*0.5;
   for(var i=0;i<9;i++){var k=i/8;var a=0.05+0.10*env*(1-k)+0.02*Math.sin(t*1.3-i*0.6);ctx.beginPath();ctx.ellipse(bcx,bcy,u*(0.27+i*0.034)+Math.sin(t*2+i)*env*2,u*(0.53+i*0.034),0,0,Math.PI*2);ctx.strokeStyle='rgba(150,255,150,'+a.toFixed(3)+')';ctx.lineWidth=0.8;ctx.stroke();}

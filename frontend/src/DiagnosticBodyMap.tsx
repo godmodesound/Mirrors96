@@ -9,8 +9,6 @@ import { BODY_MAP_HTML } from './bodyMapHtml';
 import { skinStyles, SK, skinHtml } from './skins';
 import { FieldState, LIGHT_BODIES, MOOD_AXES, ACTIVATION_SECONDS, initialFieldState, stepField, moodLabel } from './biofield';
 
-/** Djed Pillar — "The Spine of Osiris" diagram, infused as a faint goal overlay behind the figure. */
-const GOAL_OVERLAY_URL = 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/f7b3f812ca8df9ed_IMG_5877.jpeg';
 const TICK_MS = 500;
 
 const fmtHz = (f: number) => (Number.isInteger(f) ? String(f) : f.toFixed(2).replace(/0+$/, '').replace(/\.$/, ''));
@@ -103,7 +101,6 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
     points: smoothedPoints,
     bodies: field.bodies.map(b => ({ id: b.id, exposure: Math.round(b.exposure * 10) / 10, active: b.active, achieved: b.achieved, achievedAt: b.achievedAt })),
     mood: mood.axis ? `${mood.axis} ${mood.pct >= 0 ? '+' : ''}${mood.pct}` : 'RESTING STATE',
-    overlay: GOAL_OVERLAY_URL,
     selected: selectedPt,
   }), [mapState, settling, smoothedPoints, field.bodies, mood, selectedPt]);
   useEffect(() => { push('updateMap', fullConfig()); }, [fullConfig, push]);
@@ -165,7 +162,7 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
   return (
     <View testID={testID} style={st.wrap} onLayout={e => setBoxW(Math.floor(e.nativeEvent.layout.width - 22))}>
       <View style={st.titleRow}>
-        <Text style={st.title}>◉ DIAGNOSTIC BODY MAP</Text>
+        <Text style={st.title}>◉ BIOMAP</Text>
         <Text style={[st.status, mapState.playing && st.statusOn]}>{mapState.playing ? '● SCAN ACTIVE' : '○ STANDBY'}</Text>
       </View>
       <Text style={st.subtitle}>INFORMATIONAL FIELD · ARCHIVE SYNC · LIVE FFT DRIVE</Text>
