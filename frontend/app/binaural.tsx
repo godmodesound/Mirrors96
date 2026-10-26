@@ -13,7 +13,7 @@ import { WebView } from 'react-native-webview';
 import { AudioEngine } from '../src/AudioEngine';
 import ScopeNodePanel from '../src/ScopeNodePanel';
 import DiagnosticBodyMap from '../src/DiagnosticBodyMap';
-import BrainStructureMap, { BrainRegion, regionForCarrier } from '../src/BrainStructureMap';
+import BrainStructureStrip, { BrainRegion, BRAIN_REGIONS, regionForCarrier } from '../src/BrainStructureMap';
 import { useLayout } from '../src/useLayout';
 
 import { skinStyles, SK, skinHtml } from '../src/skins';
@@ -63,6 +63,30 @@ const cx=S/2,cy=S/2;
 let t=0;
 let carrier=432,beat=10,playing=false;
 
+// ═══ BRAIN STRUCTURE · 432 MUSICAL KEY — hotspots fused into the head model ═══
+const REGIONS=${JSON.stringify(BRAIN_REGIONS.map(r => ({ id: r.id, name: r.name, note: r.note, hz: r.hz, color: r.color, band: r.band, beat: r.beat })))};
+const HOT={cerebrum:[0,-62,10],frontal:[-28,-52,12],parietal:[28,-52,12],temporal:[-36,-10,12],occipital:[36,-10,12],
+  callosum:[0,-45,6],limbic:[0,-32,6],thalamus:[0,-1,6],hypothalamus:[0,12,5.5],pituitary:[0,24,5.5],
+  cerebellum:[-20,46,9],brainstem:[18,44,7],midbrain:[0,40,5],pons:[0,54,5],medulla:[0,68,5],spinal:[0,86,5]};
+let activeRegion=null,regionFlash=0;
+function regionById(id){for(let i=0;i<REGIONS.length;i++)if(REGIONS[i].id===id)return REGIONS[i];return null;}
+function hitRegion(x,y){for(let i=0;i<REGIONS.length;i++){const h=HOT[REGIONS[i].id];if(!h)continue;const d=Math.hypot(x-(cx+h[0]),y-(cy+h[1]));if(d<Math.max(14,h[2]+4))return REGIONS[i].id;}return null;}
+function selectRegion(id){activeRegion=id;regionFlash=1;const r=regionById(id);if(!r)return;carrier=r.hz;beat=r.beat;nodes[0].freq=carrier;nodes[1].freq=carrier+beat;nodes[0].color=r.color;nodes[1].color=r.color;
+  const msg=JSON.stringify({type:'regionSelect',id:id});
+  if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(msg);else if(window.parent)window.parent.postMessage(msg,'*');}
+function drawRegions(){
+  ctx.save();
+  for(let i=0;i<REGIONS.length;i++){const r=REGIONS[i],h=HOT[r.id];if(!h)continue;const x=cx+h[0],y=cy+h[1],on=activeRegion===r.id;
+    const pulse=on?0.5+0.5*Math.sin(t*4):0;
+    if(on){const g=ctx.createRadialGradient(x,y,0,x,y,h[2]*2.6+pulse*6);g.addColorStop(0,r.color+'aa');g.addColorStop(1,r.color+'00');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,h[2]*2.6+pulse*6,0,Math.PI*2);ctx.fill();}
+    ctx.beginPath();ctx.arc(x,y,h[2],0,Math.PI*2);ctx.fillStyle=r.color+(on?'e6':'3a');ctx.fill();ctx.strokeStyle=on?'#ffffff':r.color+'99';ctx.lineWidth=on?1.4:0.7;ctx.stroke();
+    if(on){ctx.beginPath();ctx.arc(x,y,h[2]+5+pulse*3,0,Math.PI*2);ctx.strokeStyle='rgba(255,255,255,'+(0.6-pulse*0.4)+')';ctx.lineWidth=0.8;ctx.stroke();}
+    if(h[2]>=9||on){ctx.font=(on?'bold 7px':'6px')+' monospace';ctx.fillStyle=on?'#000':r.color;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(r.note,x,y);}
+  }
+  ctx.textBaseline='alphabetic';
+  ctx.restore();
+}
+
 // Frequency nodes that users can drag around the head
 let nodes=[
   {x:cx-90,y:cy,freq:432,label:'L',color:'#ff0a0a',dragging:false},
@@ -100,6 +124,9 @@ function draw(){
 
   // ═══ BRAIN ═══
   drawBrain();
+
+  // ═══ BRAIN STRUCTURE HOTSPOTS (432 musical key) ═══
+  drawRegions();
 
   // ═══ PINEAL GLAND (Eye of Horus) ═══
   drawPinealGland();
@@ -427,15 +454,21 @@ function drawInfo(){
   ctx.font='9px monospace';
   ctx.fillStyle='rgba(255,10,10,0.5)';
   ctx.textAlign='center';
-  ctx.fillText('PINEAL SPATIAL FIELD',cx,16);
+  ctx.fillText('PINEAL SPATIAL FIELD · BRAIN STRUCTURE 432',cx,30);
 
   // Bottom status
+  const ar=regionById(activeRegion);
+  if(ar){
+    ctx.font='bold 8px monospace';ctx.fillStyle=ar.color;
+    ctx.fillText(ar.name+' · '+ar.note+' · '+ar.hz.toFixed(2)+' Hz · '+ar.band+' '+ar.beat+' Hz',cx,S-20);
+    ctx.font='9px monospace';
+  }
   if(playing){
     ctx.fillStyle='rgba(255,10,10,0.4)';
-    ctx.fillText('BINAURAL ACTIVE • DRAG NODES TO POSITION',cx,S-8);
+    ctx.fillText('BINAURAL ACTIVE • TAP A STRUCTURE • DRAG NODES',cx,S-8);
   }else{
     ctx.fillStyle='rgba(90,26,26,0.6)';
-    ctx.fillText('TAP TO PLACE • DRAG TO POSITION',cx,S-8);
+    ctx.fillText('TAP A STRUCTURE TO TUNE • DRAG NODES TO POSITION',cx,S-8);
   }
   ctx.restore();
 }
@@ -480,14 +513,19 @@ c.addEventListener('touchend',e=>{
     nodes[activeNode].dragging=false;
     activeNode=-1;
     sendNodeUpdate();
+  }else{
+    const id=hitRegion(touchStartX,touchStartY);
+    if(id)selectRegion(id);
   }
 },{passive:false});
 
 // Mouse events for web
+let mouseDownX=0,mouseDownY=0,mouseMoved=false;
 c.addEventListener('mousedown',e=>{
   const rect=c.getBoundingClientRect();
   const x=e.clientX-rect.left;
   const y=e.clientY-rect.top;
+  mouseDownX=x;mouseDownY=y;mouseMoved=false;
   activeNode=-1;
   nodes.forEach((node,i)=>{
     const d=Math.sqrt((x-node.x)**2+(y-node.y)**2);
@@ -497,6 +535,7 @@ c.addEventListener('mousedown',e=>{
 
 c.addEventListener('mousemove',e=>{
   if(activeNode>=0){
+    mouseMoved=true;
     const rect=c.getBoundingClientRect();
     const x=Math.max(20,Math.min(S-20,e.clientX-rect.left));
     const y=Math.max(20,Math.min(S-20,e.clientY-rect.top));
@@ -511,6 +550,9 @@ c.addEventListener('mouseup',()=>{
     nodes[activeNode].dragging=false;
     activeNode=-1;
     sendNodeUpdate();
+  }else if(!mouseMoved){
+    const id=hitRegion(mouseDownX,mouseDownY);
+    if(id)selectRegion(id);
   }
 });
 
@@ -543,29 +585,22 @@ function sendNodeUpdate(){
   }));
 }
 
-// Receive updates from React Native
+// Receive updates from React Native (native: injectJavaScript → applyState; web: parent calls iframe.contentWindow.applyState)
+window.applyState=function(d){
+  try{
+    if(typeof d==='string')d=JSON.parse(d);
+    if(typeof d.carrier==='number')carrier=d.carrier;
+    if(typeof d.beat==='number')beat=d.beat;
+    if(typeof d.playing==='boolean')playing=d.playing;
+    nodes[0].freq=carrier;nodes[1].freq=carrier+beat;
+    if(d.color){nodes[0].color=d.color;nodes[1].color=d.color;}
+    if(d.region!==undefined){activeRegion=d.region;if(d.region)regionFlash=1;}
+  }catch(e){}
+};
 window.addEventListener('message',e=>{
   try{
     const d=JSON.parse(e.data);
-    if(d.type==='updateFreqs'){
-      carrier=d.carrier;
-      beat=d.beat;
-      nodes[0].freq=carrier;
-      nodes[1].freq=carrier+beat;
-    }
-    if(d.type==='setPlaying'){
-      playing=d.playing;
-    }
-    if(d.type==='setPreset'){
-      carrier=d.carrier;
-      beat=d.beat;
-      nodes[0].freq=carrier;
-      nodes[1].freq=carrier+beat;
-      if(d.color){
-        nodes[0].color=d.color;
-        nodes[1].color=d.color;
-      }
-    }
+    if(d.type==='updateFreqs'||d.type==='setPreset'||d.type==='setPlaying')window.applyState(d);
   }catch(e){}
 });
 
@@ -582,6 +617,9 @@ export default function BinauralScreen() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const webViewRef = useRef<WebView | null>(null);
+  const iframeRef = useRef<any>(null);
+  const playingRef = useRef(false);
+  useEffect(() => { playingRef.current = isPlaying; }, [isPlaying]);
   const insets = useSafeAreaInsets();
   const layout = useLayout();
   const CANVAS_SIZE = layout.canvasSize;
@@ -589,7 +627,9 @@ export default function BinauralScreen() {
 
   // Re-sync head model after a reload (fold/unfold re-renders the canvas at the new size)
   const syncHeadModel = useCallback(() => {
-    webViewRef.current?.injectJavaScript(`try{carrier=${carrierFreq};beat=${beatFreq};nodes[0].freq=${carrierFreq};nodes[1].freq=${carrierFreq + beatFreq};playing=${isPlaying};}catch(e){}true;`);
+    const r = regionForCarrier(carrierFreq);
+    const json = JSON.stringify({ carrier: carrierFreq, beat: beatFreq, playing: isPlaying, region: r?.id ?? null, color: r?.color });
+    webViewRef.current?.injectJavaScript(`try{window.applyState(${JSON.stringify(json)});}catch(e){}true;`);
   }, [carrierFreq, beatFreq, isPlaying]);
   useEffect(() => {
     return () => {
@@ -599,16 +639,19 @@ export default function BinauralScreen() {
     };
   }, []);
 
-  // Sync canvas when freq changes
+  // Sync canvas (iframe on web, WebView on native) whenever state changes
+  const pushCanvas = useCallback((d: object) => {
+    const json = JSON.stringify(d);
+    if (Platform.OS === 'web') {
+      try { iframeRef.current?.contentWindow?.applyState?.(json); } catch {}
+    } else {
+      webViewRef.current?.injectJavaScript(`try{window.applyState(${JSON.stringify(json)});}catch(e){}true;`);
+    }
+  }, []);
+  const activeRegion = regionForCarrier(carrierFreq);
   useEffect(() => {
-    webViewRef.current?.injectJavaScript(`
-      try{
-        carrier=${carrierFreq};beat=${beatFreq};
-        nodes[0].freq=${carrierFreq};nodes[1].freq=${carrierFreq + beatFreq};
-      }catch(e){}
-      true;
-    `);
-  }, [carrierFreq, beatFreq]);
+    pushCanvas({ carrier: carrierFreq, beat: beatFreq, playing: isPlaying, region: activeRegion?.id ?? null, color: activeRegion?.color });
+  }, [carrierFreq, beatFreq, isPlaying, activeRegion, pushCanvas]);
 
   const handlePlay = () => {
     if (isPlaying) {
@@ -616,19 +659,16 @@ export default function BinauralScreen() {
       setIsPlaying(false);
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       setElapsedTime(0);
-      webViewRef.current?.injectJavaScript(`playing=false;true;`);
     } else {
       AudioEngine.startBinaural(carrierFreq, beatFreq);
       setIsPlaying(true);
       setElapsedTime(0);
-      webViewRef.current?.injectJavaScript(`playing=true;true;`);
       timerRef.current = setInterval(() => {
         setElapsedTime(prev => {
           if (prev >= duration * 60) {
             AudioEngine.stopBinaural();
             setIsPlaying(false);
             if (timerRef.current) clearInterval(timerRef.current);
-            webViewRef.current?.injectJavaScript(`playing=false;true;`);
             return 0;
           }
           return prev + 1;
@@ -642,12 +682,7 @@ export default function BinauralScreen() {
     setBeatFreq(preset.beatHz);
     setActivePreset(preset.name);
     if (isPlaying) AudioEngine.updateBinaural(preset.carrier, preset.beatHz);
-    webViewRef.current?.injectJavaScript(`
-      carrier=${preset.carrier};beat=${preset.beatHz};
-      nodes[0].freq=${preset.carrier};nodes[1].freq=${preset.carrier + preset.beatHz};
-      nodes[0].color='${preset.color}';nodes[1].color='${preset.color}';
-      true;
-    `);
+    pushCanvas({ carrier: preset.carrier, beat: preset.beatHz, color: preset.color });
   };
 
   const handleCarrierChange = (v: number) => {
@@ -657,19 +692,12 @@ export default function BinauralScreen() {
   };
 
   // Brain Structure (432 musical key) → carrier on the structure's note + its suggested entrainment beat
-  const handleRegion = (r: BrainRegion) => {
+  const handleRegion = useCallback((r: BrainRegion) => {
     setCarrierFreq(r.hz);
     setBeatFreq(r.beat);
     setActivePreset(null);
-    if (isPlaying) AudioEngine.updateBinaural(r.hz, r.beat);
-    webViewRef.current?.injectJavaScript(`
-      carrier=${r.hz};beat=${r.beat};
-      nodes[0].freq=${r.hz};nodes[1].freq=${r.hz + r.beat};
-      nodes[0].color='${r.color}';nodes[1].color='${r.color}';
-      true;
-    `);
-  };
-  const activeRegion = regionForCarrier(carrierFreq);
+    if (playingRef.current) AudioEngine.updateBinaural(r.hz, r.beat);
+  }, []);
   const fmtHz = (v: number) => (Number.isInteger(v) ? v.toFixed(0) : v.toFixed(2));
 
   const handleBeatChange = (v: number) => {
@@ -678,15 +706,23 @@ export default function BinauralScreen() {
     if (isPlaying) AudioEngine.updateBinaural(carrierFreq, v);
   };
 
-  const handleWebViewMessage = (event: any) => {
+  // Structure taps inside the head canvas → tune carrier/beat
+  const onCanvasMessage = useCallback((raw: string) => {
     try {
-      const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === 'nodeUpdate') {
-        // Nodes were repositioned — spatial data available
-        // Could adjust stereo panning based on node positions
+      const data = JSON.parse(raw);
+      if (data.type === 'regionSelect') {
+        const r = BRAIN_REGIONS.find(x => x.id === data.id);
+        if (r) handleRegion(r);
       }
-    } catch (e) {}
-  };
+    } catch {}
+  }, [handleRegion]);
+  const handleWebViewMessage = (event: any) => onCanvasMessage(event.nativeEvent.data);
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const listener = (e: MessageEvent) => { if (typeof e.data === 'string') onCanvasMessage(e.data); };
+    window.addEventListener('message', listener);
+    return () => window.removeEventListener('message', listener);
+  }, [onCanvasMessage]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -728,7 +764,9 @@ export default function BinauralScreen() {
           <View style={[styles.canvasContainer, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}>
             {Platform.OS === 'web' ? (
               <iframe
+                ref={iframeRef}
                 srcDoc={HEAD_MODEL_HTML}
+                onLoad={() => pushCanvas({ carrier: carrierFreq, beat: beatFreq, playing: isPlaying, region: activeRegion?.id ?? null, color: activeRegion?.color })}
                 style={{
                   width: CANVAS_SIZE,
                   height: CANVAS_SIZE,
@@ -759,6 +797,9 @@ export default function BinauralScreen() {
             </View>
           </View>
 
+          {/* ═══ BRAIN STRUCTURE STRIP — readout + quick selector for the hotspots in the field above ═══ */}
+          <BrainStructureStrip testID="brain-structure" carrierHz={carrierFreq} onSelect={handleRegion} />
+
           {/* ═══ FREQUENCY DISPLAY ═══ */}
           <View style={styles.freqDisplay}>
             <View style={styles.freqChannel}>
@@ -775,12 +816,6 @@ export default function BinauralScreen() {
               <Text style={styles.freqChValue}>{fmtHz(carrierFreq + beatFreq)} Hz</Text>
             </View>
           </View>
-          {activeRegion && (
-            <View testID="binaural-region-tag" style={[styles.regionTag, { borderColor: activeRegion.color }]}>
-              <View style={[styles.regionDot, { backgroundColor: activeRegion.color }]} />
-              <Text style={styles.regionTagText}>{activeRegion.name} · {activeRegion.note} · {activeRegion.band}</Text>
-            </View>
-          )}
 
           {/* Timer */}
           {isPlaying && (
@@ -903,9 +938,6 @@ export default function BinauralScreen() {
             </View>
           </View>
 
-          {/* ═══ BRAIN STRUCTURE · 432 MUSICAL KEY ═══ */}
-          <BrainStructureMap testID="brain-structure" carrierHz={carrierFreq} onSelect={handleRegion} />
-
           {/* ═══ DIAGNOSTIC BODY MAP ═══ */}
           <DiagnosticBodyMap testID="binaural-body-map" />
 
@@ -962,9 +994,6 @@ const styles = skinStyles({
   },
 
   // Freq Display
-  regionTag: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'center', borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5, marginTop: 8, backgroundColor: '#0a0a0a' },
-  regionDot: { width: 6, height: 6, borderRadius: 3 },
-  regionTagText: { color: '#ddd', fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
 
   freqDisplay: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
