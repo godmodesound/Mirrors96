@@ -20,7 +20,7 @@ function getMirrorOfTheDay(): { name: string; frequency: number; category: strin
   }
   const idx = Math.abs(hash) % FREQUENCY_ARCHIVE.length;
   const entry = FREQUENCY_ARCHIVE[idx];
-  return { name: entry.name, frequency: entry.freq, category: entry.category };
+  return { name: entry.name, frequency: entry.frequencies[0], category: entry.category };
 }
 
 function getDateKey() {

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 
 import { skinStyles, SK } from './skins';
+import { formatFrequency } from './codes/spectrum';
 
 // ══════════════════════════════════════════════════════════════
 // LATTICE FRAMEWORK — "The Lattice That Binds All Dimensions"
@@ -205,7 +206,7 @@ export default function LatticeFramework({ baseFreq }: Props) {
                   <View key={row.d} style={[st.row, active && st.rowActive]}>
                     <Text style={[st.rowD, { color: row.color }, active && st.rowDActive]}>{row.d}</Text>
                     <Text style={[st.rowName, active && { color: row.color }]}>{row.name}</Text>
-                    {active && <Text style={st.rowMarker}>◈ {baseFreq.toFixed(1)} Hz</Text>}
+                    {active && <Text testID="lattice-selected-frequency" style={st.rowMarker}>◈ {formatFrequency(baseFreq)}</Text>}
                   </View>
                 );
               })}

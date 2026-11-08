@@ -1,0 +1,63 @@
+{
+  "summary": "Frontend-only full-spectrum review: 9/9 math/bridge contract tests, 8/10 grouped UI workflows pass, tsc --noEmit passes. Real Chromium Web Audio verified: selected 1 THz stays 1e12 Hz, oscillator 465.6613 Hz, FFT peak 468.35 Hz (5.38 Hz bins), 31 octaves, wavelength 299.79 µm; 432 Hz and 26000→406.25 Hz regression pass. Two reproducible audio bugs remain: shared per-node gain and A440 GodMode double tuning. No app source changes, backend/auth/payments/messages not tested or invoked.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Archive shared Codes Lab per-node gain",
+        "issue": "With Node1 selected 1 THz and Node2 600 Hz, set Node1 gain to 0% while playing. Node1 remains audible and both oscillators have gain 0.176806; Node2 also changes despite its own unchanged 50% setting. CodesLabShared.tsx:62-64 averages all gains and supplies one scalar to playMulti, whose web/native implementations assign that same gain/sqrt(count) to every oscillator. Node controls therefore do not independently mix or mute layers.",
+        "affected_testIDs": ["archive-codes-lab-gain-slider-1", "archive-codes-lab-gain-value-1", "archive-codes-lab-execute"],
+        "priority": "MEDIUM"
+      },
+      {
+        "flow": "THz audio at A440 after live GodMode on/off",
+        "issue": "Home: select 1 THz, EXECUTE, switch scope tuning to A440. Readout and oscillator correctly give 474.2846 Hz initially. Toggle GodMode ON: actual carriers become 479.1527/486.9827 Hz, centred at 483.0677 rather than 474.2846. Toggle OFF: oscillator remains 483.0677 while readout represents 474.28. AudioEngine.tsx:1009 reads already-scaled osc.frequency.value and webBuildGod scales it again; native HTML has matching logic at :229. Native equivalent is code-reviewed, not physically reproduced.",
+        "affected_testIDs": ["home-scope-tuning", "home-lab-godmode", "home-lab-output-hz-1", "home-lab-execute"],
+        "priority": "MEDIUM"
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/frontend/tests/spectrum_regression.cjs",
+    "/app/frontend/tests/spectrum_ui.py",
+    "/app/frontend/tests/spectrum_ui_extended.py",
+    "/app/test_reports/spectrum_unit_results.json",
+    "/app/test_reports/artifacts_iter21/ui_results.json",
+    "/app/test_reports/artifacts_iter21/extended_results.json",
+    "/app/test_reports/artifacts_iter21/extended_run.log",
+    "/app/test_reports/tsc_spectrum.log",
+    "/app/test_reports/artifacts_iter21/home_320.jpg",
+    "/app/test_reports/artifacts_iter21/home_390.jpg",
+    "/app/test_reports/artifacts_iter21/home_820.jpg",
+    "/app/test_reports/artifacts_iter21/home_844.jpg",
+    "/app/test_reports/artifacts_iter21/shared_editor_320.jpg"
+  ],
+  "action_items": [
+    "Give shared Lab each node its own gain, using reserved tone IDs or extending playMulti to receive per-node gains; retain source frequencies and clean stop/remove semantics.",
+    "When switching GodMode, use the unscaled o.baseFreq instead of osc.frequency.value in both direct web and native HTML implementations. Verify A440 on/off roundtrip without frequency drift.",
+    "Rerun the saved frontend regressions after fixes; do physical iOS audio/keyboard/device-rotation QA separately."
+  ],
+  "critical_code_review_comments": [
+    "Canonical spectrum helper passes strict invalid/decimal-comma/scientific parsing, 0.01–1e24 bounds, nine SI formats, log endpoints/roundtrips, translation and finite linked ratios at both limits.",
+    "Native bridge/active-registry tests use MOCKED React Native platform and AsyncStorage test stubs, executing transpiled production methods; messages contain translated audio, never raw THz. This is NOT native device verification. Browser oscillator/analyser checks use real Web Audio, instrumented rather than mocked.",
+    "Home: live wave/gain/add/remove/STOP, linked slider and dial, both boundaries, preset source/wave/gain/link preservation across reload and deletion pass. Shared: live add/remove/STOP, source persistence, linked limits and stopped hydration across reload, reset and extended loadFrequencyToLab pass.",
+    "Responsive Home cards and shared editor fit 320/390/820px and 844x390 rotation without horizontal overflow; tested SVG dimensions/radii have no negative values. Zero page exceptions in saved UI runs. SEND CODES shows selected SI values plus translation note; TRANSMIT never clicked. Other requested tabs load; Home Archive loads 432 Hz."
+  ],
+  "updated_files": [
+    "/app/frontend/tests/spectrum_regression.cjs",
+    "/app/frontend/tests/spectrum_ui.py",
+    "/app/frontend/tests/spectrum_ui_extended.py",
+    "/app/test_reports/iteration_21.json",
+    "/app/memory/PRD.md",
+    "/app/test_result.md"
+  ],
+  "success_rate": {"backend": "N/A: intentionally skipped", "frontend": "80% grouped UI (8/10); helpers/contracts 100% (9/9); TypeScript PASS"},
+  "seed_data_creation": "No backend data or accounts created. Isolated browser contexts created local Home presets and deleted only their generated timestamps through UI; shared test state reset through UI. TEST_THz load helper uses MOCKED in-memory storage only.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run from /app/frontend: node tests/spectrum_regression.cjs; python tests/spectrum_ui.py; python tests/spectrum_ui_extended.py; yarn tsc --noEmit. Python Playwright/Chromium installed for QA only. URL read from existing EXPO_PUBLIC_BACKEND_URL (EXPO_BACKEND_URL absent). All steps execute against public preview. Saved runner logs failures but exits zero, so inspect JSON pass flags. Initial browser-tool failures were premature/offscreen clicks; after settling and normal clicks, all Home interactions passed. Two initial Archive selector errors were corrected to archive-tab-lab and home-archive-search-input; they are not app bugs. Earlier failure screenshots may remain; current ui_results.json and extended_results.json are authoritative. Native iOS/Android playback, physical speaker audibility, keyboard and fold hardware remain untested.",
+  "rca_of_issue": "Shared gain: averaging loses per-node gain information before AudioEngine receives frequencies. GodMode A440 drift: already-tuned oscillator frequency is reused as an untuned base and multiplied by 440/432 again. Both issues reproduced repeatedly with real oscillator AudioParam measurements; no app functionality was modified."
+}

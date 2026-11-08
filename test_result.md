@@ -416,6 +416,20 @@ backend:
         comment: "DELETE /api/codes/channels/{channel_id} endpoint tested successfully. Deletes channels and associated messages, returns proper confirmation message."
 
 frontend:
+  - task: "Codes Lab full-spectrum selection and audible octave translation"
+    implemented: true
+    working: false
+    file: "frontend/src/codes/*, frontend/app/index.tsx, frontend/src/CodesLabShared.tsx, frontend/src/AudioEngine.tsx, frontend/src/GodmodeSlider.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "iteration21: helpers/contracts9/9PASS, UI8/10groupsPASS, tscPASS. Realweb1THzosc465.6613Hz/FFT468.35Hz,stored1e12/wavelength299.79µm;432/26000,livecontrols,links/bothbounds,presetsreload/delete,sharedstoppedhydration,layouts320/390/820/rotation,SENDnote,Archive432PASS. Bugs: sharedgain0%stillplaysbecauseallgainsaveraged; A440GodModeon/offdoubletunes474.28to483.07Hz. NativecontractusesMOCKEDplatform/storagestubs;physicaldeviceuntested. Noappsourcefixes/backend/auth/payments/messages. See test_reports/iteration_21.json and savedfrontendtests."
+      - working: "NA"
+        agent: "main"
+        comment: "User requests Codes Lab beyond26000Hz through THz/full spectrum; selected Visualise + hear a translated tone. New range0.01–1e24Hz, Hz/k/M/G/T/P/E/Z/Y chips, strict decimal/scientific input with Apply/Cancel/errors, log sweep and fine dial, selected-source readout/EM vacuum wavelength reference, >20kHz octave division to(256,512]Hz. AudioEngine maps startTone/updateFreq/playMulti before web/native/active registry; scope receives audible reference, no EM-output claims. Home presets/archive/shared-load clamps extended; linked ratios group-limit. Shared state hydration protected, add/remove/gain update live. Extracted reusable node card/dial from Home and shared Lab; slider stale callbacks fixed. Main390px preview PASS1THz=465.66Hz,432THzselection,execute/stop; compile only pre-existing MirrorOfTheDay freq property error then corrected. Request math+UI+actual FFT+native-message tests and320/390/820 responsiveness; no keys/auth needed, no mocked integrations. Physical iOS playback remains device QA."
   - task: "CYMASCOPE default and removal of standalone Hz/level/play panel"
     implemented: true
     working: true
@@ -565,8 +579,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "CODES API endpoints testing"
-    - "Frequency data sync verification"
+    - "Codes Lab full-spectrum selection and audible octave translation"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"

@@ -2,21 +2,17 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Platform,
   Image,
   Linking,
   Modal,
-  TextInput,
-  PanResponder,
   Pressable,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import GodmodeSlider from '../src/GodmodeSlider';
-import Svg, { Path, Circle as SvgCircle, Text as SvgText, G, Line } from 'react-native-svg';
 import { AudioEngine } from '../src/AudioEngine';
 import { ParticleLab } from '../src/GodmodeFeatures';
 import { MirrorsWheel, CAMELOT_KEYS, CamelotKey } from '../src/MirrorsWheel';
@@ -34,7 +30,10 @@ import { Audio, type AudioSound } from '../src/audioCompat';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MirrorsIdBanner from '../src/MirrorsIdBanner';
-import { FullSpectrumMeter, AudioMeterScale } from '../src/SpectrumMeters';
+import CodesLayerCard, { ToneLayer, WaveKey, WAVE_ENGINE } from '../src/codes/CodesLayerCard';
+import { SpectrumNotice } from '../src/codes/SpectrumFrequencyControl';
+import SpectrumAtlas from '../src/codes/SpectrumAtlas';
+import { audioFrequency, clampFrequency, formatFrequency, linkedFrequencies } from '../src/codes/spectrum';
 import ScopeNodePanel from '../src/ScopeNodePanel';
 import LatticeFramework from '../src/LatticeFramework';
 import SendCodesModal from '../src/SendCodesModal';
@@ -66,117 +65,7 @@ const PIANO_KEYS = [
   { key: 1,  note: 'C',  freq: 256,   chakra13: 'Survival', chakra8: 'Survival', major: 1, color: '#E53935', half: true },
 ];
 
-// 7 wavetable types → AudioEngine oscillator/PeriodicWave ids
-export type WaveKey = 'SINE' | 'TRI' | 'SAW' | 'SQR' | 'PLS' | 'ORG' | 'BEL';
-const WAVE_KEYS: WaveKey[] = ['SINE', 'TRI', 'SAW', 'SQR', 'PLS', 'ORG', 'BEL'];
-const WAVE_ENGINE: Record<WaveKey, string> = { SINE: 'sine', TRI: 'triangle', SAW: 'sawtooth', SQR: 'square', PLS: 'pulse', ORG: 'organ', BEL: 'bell' };
-
-interface ToneLayer {
-  id: number;
-  frequency: number;
-  gain: number;
-  isPlaying: boolean;
-  wave?: WaveKey;
-}
-
-// Analog Dial Component — touch-drag to sweep frequency live (log scale, 1 Hz — 26 kHz)
-const AnalogDial = ({
-  frequency,
-  maxFreq = 26000,
-  onChange,
-  onSweepStart,
-  onSweepEnd,
-}: {
-  frequency: number;
-  maxFreq?: number;
-  onChange?: (f: number) => void;
-  onSweepStart?: () => void;
-  onSweepEnd?: () => void;
-}) => {
-  const size = 90;
-  const cx = size / 2;
-  const cy = size / 2;
-  const radius = size / 2 - 8;
-  const innerRadius = radius - 10;
-  const ratio = Math.min(Math.max(frequency, 1) / maxFreq, 1);
-  const angle = -135 + ratio * 270;
-  const radians = (angle * Math.PI) / 180;
-  const needleLen = innerRadius - 4;
-  const nx = cx + needleLen * Math.cos(radians);
-  const ny = cy + needleLen * Math.sin(radians);
-
-  // Touch-sweep: log-scale drag on the dial (horizontal or diagonal)
-  const freqRef = useRef(frequency);
-  freqRef.current = frequency;
-  const startRef = useRef(frequency);
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
-  const onSweepStartRef = useRef(onSweepStart);
-  onSweepStartRef.current = onSweepStart;
-  const onSweepEndRef = useRef(onSweepEnd);
-  onSweepEndRef.current = onSweepEnd;
-  const [sweeping, setSweeping] = useState(false);
-
-  const pan = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => !!onChangeRef.current,
-      onMoveShouldSetPanResponder: (_, g) => !!onChangeRef.current && (Math.abs(g.dx) > 1 || Math.abs(g.dy) > 1),
-      onPanResponderGrant: () => {
-        startRef.current = freqRef.current;
-        setSweeping(true);
-        onSweepStartRef.current && onSweepStartRef.current();
-      },
-      onPanResponderMove: (_, g) => {
-        const cb = onChangeRef.current;
-        if (!cb) return;
-        // Combined horizontal + inverted vertical drag = log sweep
-        const delta = (g.dx - g.dy) / 220; // full travel ≈ 220px per octave-decade
-        const min = 1;
-        const max = maxFreq;
-        const lmin = Math.log(min);
-        const lmax = Math.log(max);
-        const cur = Math.log(Math.max(startRef.current, min));
-        const nv = Math.exp(Math.min(lmax, Math.max(lmin, cur + delta * (lmax - lmin))));
-        cb(Math.round(nv * 10) / 10);
-      },
-      onPanResponderRelease: () => { setSweeping(false); onSweepEndRef.current && onSweepEndRef.current(); },
-      onPanResponderTerminate: () => { setSweeping(false); onSweepEndRef.current && onSweepEndRef.current(); },
-    })
-  ).current;
-
-  return (
-    <View style={dialStyles.container} {...(onChange ? pan.panHandlers : {})}>
-      <Svg width={size} height={size}>
-        {/* Outer chrome ring */}
-        <SvgCircle cx={cx} cy={cy} r={radius} stroke={SK('#9aa4b2')} strokeWidth={sweeping ? 2 : 1.5} fill="none" opacity={sweeping ? 0.95 : 0.6} />
-        {/* Middle ring */}
-        <SvgCircle cx={cx} cy={cy} r={radius - 5} stroke={SK('#5a646f')} strokeWidth={0.5} fill="none" opacity={0.5} />
-        {/* Inner ring */}
-        <SvgCircle cx={cx} cy={cy} r={innerRadius} stroke={SK('#ff0a0a')} strokeWidth={1} fill={SK('#0b0e12')} opacity={0.8} />
-        {/* Glow circle */}
-        <SvgCircle cx={cx} cy={cy} r={sweeping ? 6 : 4} fill={SK('#ff0a0a')} opacity={sweeping ? 0.9 : 0.6} />
-        {/* Needle */}
-        <Line x1={cx} y1={cy} x2={nx} y2={ny} stroke={sweeping ? SK('#ffb0b0') : SK('#ff6060')} strokeWidth={sweeping ? 2.5 : 2} strokeLinecap="round" />
-        {/* Needle tip */}
-        <SvgCircle cx={nx} cy={ny} r={sweeping ? 4 : 3} fill={sweeping ? SK('#ffffff') : SK('#ff8080')} />
-      </Svg>
-      <Text style={[dialStyles.label, sweeping && dialStyles.labelActive]}>{sweeping ? 'SWEEP' : 'ANALOG'}</Text>
-    </View>
-  );
-};
-
-const dialStyles = skinStyles({
-  container: { alignItems: 'center' },
-  label: {
-    color: '#5a1a1a',
-    fontSize: 8,
-    fontFamily: 'TerminatorRealNFI',
-    marginTop: 2,
-  },
-  labelActive: {
-    color: '#ff8080',
-  },
-});
+export type { WaveKey } from '../src/codes/CodesLayerCard';
 
 // CamelotWheel / MirrorsWheel component imported from ../src/MirrorsWheel
 
@@ -204,7 +93,7 @@ export default function TerminalScreen() {
   useEffect(() => {
     if (params.freqs) {
       try {
-        const freqArr = params.freqs.split(',').map(f => parseFloat(f)).filter(f => !isNaN(f) && f > 0);
+        const freqArr = params.freqs.split(',').map(Number).filter(f => Number.isFinite(f) && f > 0).map(clampFrequency);
         if (freqArr.length > 0) {
           const newLayers: ToneLayer[] = freqArr.slice(0, 8).map((f, i) => ({
             id: i + 1,
@@ -401,7 +290,8 @@ export default function TerminalScreen() {
 
   const addLayer = () => {
     const newId = Math.max(...layers.map(l => l.id), 0) + 1;
-    setLayers([...layers, { id: newId, frequency: 324, gain: 0.5, isPlaying: false }]);
+    setLayers([...layers, { id: newId, frequency: 324, gain: 0.5, isPlaying }]);
+    if (isPlaying) AudioEngine.startTone(newId, 324, 0.5);
   };
 
   const removeLayer = (id: number) => {
@@ -505,7 +395,7 @@ export default function TerminalScreen() {
     // stop existing layers
     layers.forEach(l => AudioEngine.stopTone(l.id));
     // rehydrate
-    const nextLayers = p.layers.map(l => ({ ...l, isPlaying: false }));
+    const nextLayers = p.layers.map(l => ({ ...l, frequency: clampFrequency(l.frequency), isPlaying }));
     setLayers(nextLayers);
     setLayersLinked(!!p.linked);
     // restart audio if currently playing
@@ -525,7 +415,7 @@ export default function TerminalScreen() {
   };
 
   const carrierFreqRef = useRef(432);
-  useEffect(() => { carrierFreqRef.current = layers[0]?.frequency || 432; }, [layers]);
+  useEffect(() => { carrierFreqRef.current = audioFrequency(layers[0]?.frequency || 432); }, [layers]);
 
   const toggleScalar = () => {
     if (scalarOn) {
@@ -544,21 +434,19 @@ export default function TerminalScreen() {
   // Track carrier live — when Layer 1's freq OR pulse Hz changes, retune scalar
   useEffect(() => {
     if (!scalarOnRef.current) return;
-    const c = layers[0]?.frequency || 432;
+    const c = audioFrequency(layers[0]?.frequency || 432);
     const p = scalarHz;
     AudioEngine.updateFreq(SCALAR_A_ID, Math.max(1, c - p / 2));
     AudioEngine.updateFreq(SCALAR_B_ID, c + p / 2);
   }, [layers, scalarHz]);
 
   const updateLayerFrequency = (id: number, frequency: number) => {
+    frequency = clampFrequency(frequency);
     if (layersLinked && layers.length > 1) {
       const source = layers.find(l => l.id === id);
       if (!source || source.frequency <= 0) return;
-      const ratio = frequency / source.frequency;
-      const next = layers.map(l => {
-        const nf = Math.min(26000, Math.max(1, Math.round(l.frequency * ratio * 10) / 10));
-        return { ...l, frequency: nf };
-      });
+      const frequencies = linkedFrequencies(layers.map(l => l.frequency), layers.findIndex(l => l.id === id), frequency);
+      const next = layers.map((l, i) => ({ ...l, frequency: frequencies[i] }));
       setLayers(next);
       if (isPlaying) {
         next.forEach(l => AudioEngine.updateFreq(l.id, l.frequency));
@@ -567,20 +455,6 @@ export default function TerminalScreen() {
       setLayers(layers.map(l => l.id === id ? { ...l, frequency } : l));
       if (isPlaying) AudioEngine.updateFreq(id, frequency);
     }
-  };
-
-  // ═══ One-tap frequency editing ═══
-  const [editingFreqId, setEditingFreqId] = useState<number | null>(null);
-  const [freqInput, setFreqInput] = useState('');
-
-  const commitFreqEdit = (id: number) => {
-    const parsed = parseFloat(freqInput.replace(',', '.'));
-    if (!isNaN(parsed)) {
-      const clamped = Math.min(26000, Math.max(0.01, Math.round(parsed * 100) / 100));
-      updateLayerFrequency(id, clamped);
-    }
-    setEditingFreqId(null);
-    setFreqInput('');
   };
 
   // ═══ Pending lab load (shared CODES tapped in CODES I.D.) ═══
@@ -593,7 +467,7 @@ export default function TerminalScreen() {
       if (!Array.isArray(frequencies) || frequencies.length === 0) return;
       const newLayers = frequencies.slice(0, 5).map((f: number, i: number) => ({
         id: i + 1,
-        frequency: Math.min(26000, Math.max(1, f)),
+        frequency: clampFrequency(f),
         gain: 0.5,
         isPlaying: false,
       }));
@@ -622,7 +496,7 @@ export default function TerminalScreen() {
   const shiftSpectrum = useCallback((delta: number) => {
     const next = layersLiveRef.current.map(l => ({
       ...l,
-      frequency: Math.min(26000, Math.max(0.01, Math.round((l.frequency + delta) * 100) / 100)),
+      frequency: clampFrequency(l.frequency + delta),
     }));
     layersLiveRef.current = next; // sync so hold-to-repeat accumulates between renders
     setLayers(next);
@@ -631,7 +505,7 @@ export default function TerminalScreen() {
 
   const setSpectrumTo = useCallback((value: number) => {
     const base = layersLiveRef.current[0]?.frequency || 432;
-    const v = Math.min(26000, Math.max(0.01, value));
+    const v = clampFrequency(value);
     shiftSpectrum(Math.round((v - base) * 100) / 100);
   }, [shiftSpectrum]);
 
@@ -656,14 +530,6 @@ export default function TerminalScreen() {
       setActiveCamelotKey(key.id);
       setCamelotInfo({ note: key.note, freq: key.freq, color: key.color });
     }
-  };
-
-  const getFrequencyBand = (freq: number) => {
-    if (freq < 60) return 'SUB';
-    if (freq < 250) return 'LOW';
-    if (freq < 2000) return 'MID';
-    if (freq < 6000) return 'HIGH';
-    return 'ULTRA';
   };
 
   // ═══ Frequency History (User Memory) ═══
@@ -741,7 +607,7 @@ export default function TerminalScreen() {
   }, [user]);
 
   const handleArchiveLoadFrequency = (entry: FrequencyEntry) => {
-    const freqs = entry.frequencies.slice(0, 5).map(f => Math.min(26000, Math.max(1, f)));
+    const freqs = entry.frequencies.slice(0, 5).map(clampFrequency);
     let nextId = layers.length ? Math.max(...layers.map(l => l.id)) + 1 : 1;
     const next = layers.map((l, i) => (i < freqs.length ? { ...l, frequency: freqs[i] } : l));
     for (let i = layers.length; i < freqs.length; i++) {
@@ -757,23 +623,13 @@ export default function TerminalScreen() {
     setArchiveModalVisible(false);
   };
 
-  const getBandPosition = (freq: number) => {
-    if (freq < 60) return 0;
-    if (freq < 250) return 1;
-    if (freq < 2000) return 2;
-    if (freq < 6000) return 3;
-    return 4;
-  };
-
-  const BANDS = ['SUB', 'LOW', 'MID', 'HIGH', 'ULTRA'];
-
   const insets = useSafeAreaInsets();
   const layout = useLayout();
 
   return (
     <View style={styles.container}>
-      <View style={[styles.safeArea, { paddingTop: insets.top }]}>
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={[{ paddingBottom: insets.bottom + 90 }, layout.frame]}>
+      <KeyboardAvoidingView style={[styles.safeArea, { paddingTop: insets.top }]} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}>
+        <ScrollView style={styles.scrollView} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[{ paddingBottom: insets.bottom + 90 }, layout.frame]}>
           {/* ══════ TOP NAV BAR ══════ */}
           <View style={styles.topNav}>
             {/* LEFT — MIRRORS ID Logo */}
@@ -850,7 +706,7 @@ export default function TerminalScreen() {
           <View style={[styles.section, styles.t800Frame]}>
             {/* Live scope leads CODES LAB; its existing controls follow directly below. */}
             <View testID="home-scope-in-lab" style={styles.scopeInLab}>
-              <ScopeNodePanel testID="home-scope" compact frequencies={layers.map(l => l.frequency)} playing={isPlaying} scalarBeatHz={scalarOn || (godMode && isPlaying) ? scalarHz : 0} />
+              <ScopeNodePanel testID="home-scope" compact frequencies={layers.map(l => audioFrequency(l.frequency))} playing={isPlaying} scalarBeatHz={scalarOn || (godMode && isPlaying) ? scalarHz : 0} />
             </View>
             <View testID="home-lab-header" style={styles.toneLayerHeaderRow}>
               <View>
@@ -876,6 +732,7 @@ export default function TerminalScreen() {
               </View>
             </View>
             <LabMenuBar prefix="home-lab" selected={labMenu} onSelect={setLabMenu} />
+            <SpectrumNotice testID="home-lab-spectrum-notice" />
             {labMenu === 'modes' && <View testID="home-lab-modes-panel">
             {/* Existing mode/preset controls, now grouped in one dropdown. */}
             <View style={styles.headerChipRow}>
@@ -949,13 +806,13 @@ export default function TerminalScreen() {
                 )}
                 {presets.map(p => (
                   <View key={p.ts} style={styles.presetRow}>
-                    <TouchableOpacity style={styles.presetRowMain} onPress={() => applyPresetById(p.ts)} activeOpacity={0.7}>
+                    <TouchableOpacity testID={`home-lab-preset-load-${p.ts}`} style={styles.presetRowMain} onPress={() => applyPresetById(p.ts)} activeOpacity={0.7}>
                       <Text style={styles.presetRowName}>{p.name}</Text>
                       <Text style={styles.presetRowMeta}>
-                        {p.layers.length}× · {p.layers[0]?.frequency.toFixed(1)}Hz{p.scalar ? ' · SCLR' : ''}{p.linked ? ' · LNK' : ''}
+                        {p.layers.length}× · {formatFrequency(p.layers[0]?.frequency || 432)}{p.scalar ? ' · SCLR' : ''}{p.linked ? ' · LNK' : ''}
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.presetDelBtn} onPress={() => deletePreset(p.ts)} activeOpacity={0.7}>
+                    <TouchableOpacity testID={`home-lab-preset-delete-${p.ts}`} style={styles.presetDelBtn} onPress={() => deletePreset(p.ts)} activeOpacity={0.7}>
                       <Text style={styles.presetDelTxt}>×</Text>
                     </TouchableOpacity>
                   </View>
@@ -987,148 +844,14 @@ export default function TerminalScreen() {
             {/* ═══ LATTICE FRAMEWORK — infuses "The Lattice That Binds All Dimensions"
                  into the lab; maps carrier freq to its dimensional/energetic slot. ═══ */}
             <LatticeFramework baseFreq={layers[0]?.frequency || 432} />
+            <SpectrumAtlas prefix="home-lab" frequencies={layers.map(l => l.frequency)}
+              onTune={(i, hz) => { if (layers[i]) updateLayerFrequency(layers[i].id, hz); }} />
 
-            {layers.map((layer, index) => {
-              // XYZ coordinates for this Node — X: log-freq position, Y: gain, Z: depth
-              const xPct = Math.min(1, Math.max(0, (Math.log(Math.max(layer.frequency, 1)) - Math.log(1)) / (Math.log(26000) - Math.log(1))));
-              const yPct = Math.min(1, Math.max(0, layer.gain));
-              const zPct = layers.length > 1 ? index / (layers.length - 1) : 0;
-              return (
-              <View key={layer.id} style={[styles.layerCard, layersLinked && styles.layerCardLinked]}>
-                {/* XYZ NODE header — dedicated coordinate area per Node */}
-                <View style={styles.xyzHeader}>
-                  <View style={styles.xyzLabelBlock}>
-                    <Text style={styles.xyzNodeName}>◈ NODE {index + 1}</Text>
-                    <Text style={styles.xyzOrbTag}>ORB · {layer.frequency.toFixed(1)} Hz</Text>
-                  </View>
-                  <View style={styles.xyzAxes}>
-                    <View style={styles.xyzAxis}>
-                      <Text style={styles.xyzAxisLabel}>X</Text>
-                      <View style={styles.xyzTrack}><View style={[styles.xyzFill, { width: `${xPct * 100}%`, backgroundColor: SK('#ff0a0a') }]} /></View>
-                      <Text style={styles.xyzAxisVal}>{Math.round(xPct * 100)}</Text>
-                    </View>
-                    <View style={styles.xyzAxis}>
-                      <Text style={styles.xyzAxisLabel}>Y</Text>
-                      <View style={styles.xyzTrack}><View style={[styles.xyzFill, { width: `${yPct * 100}%`, backgroundColor: SK('#ffd75e') }]} /></View>
-                      <Text style={styles.xyzAxisVal}>{Math.round(yPct * 100)}</Text>
-                    </View>
-                    <View style={styles.xyzAxis}>
-                      <Text style={styles.xyzAxisLabel}>Z</Text>
-                      <View style={styles.xyzTrack}><View style={[styles.xyzFill, { width: `${zPct * 100}%`, backgroundColor: SK('#5fc9ff') }]} /></View>
-                      <Text style={styles.xyzAxisVal}>{index + 1}/{layers.length}</Text>
-                    </View>
-                  </View>
-                  {layers.length > 1 && (
-                    <TouchableOpacity onPress={() => removeLayer(layer.id)} style={styles.removeBtn}>
-                      <Text style={styles.removeBtnText}>X</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                <View style={styles.layerTopRow}>
-                  {/* Analog Dial — touch-drag to sweep this layer's frequency live */}
-                  <AnalogDial
-                    frequency={layer.frequency}
-                    maxFreq={26000}
-                    onChange={(f) => updateLayerFrequency(layer.id, f)}
-                  />
-                  {/* Controls */}
-                  <View style={styles.layerControls}>
-                    {/* Full EM Spectrum Meter (future plug-in bandwidths) */}
-                    <FullSpectrumMeter frequency={layer.frequency} />
-                    {/* Frequency Slider — 0Hz-26kHz audio meter */}
-                    <GodmodeSlider
-                      style={styles.slider}
-                      minimumValue={1}
-                      maximumValue={26000}
-                      value={layer.frequency}
-                      onValueChange={(val) => updateLayerFrequency(layer.id, Math.round(val * 10) / 10)}
-                      minimumTrackTintColor={SK('#ff0a0a')}
-                      maximumTrackTintColor={SK('#333333')}
-                      thumbTintColor={SK('#ff6060')}
-                    />
-                    <AudioMeterScale />
-                    {/* Band Labels */}
-                    <View style={styles.bandRow}>
-                      {BANDS.map((band, i) => (
-                        <Text
-                          key={band}
-                          style={[
-                            styles.bandLabel,
-                            getBandPosition(layer.frequency) === i && styles.bandLabelActive,
-                          ]}
-                        >
-                          {band}
-                        </Text>
-                      ))}
-                    </View>
-                    {/* Gain slider */}
-                    <View style={styles.gainRow}>
-                      <Text style={styles.gainLabel}>Gain:</Text>
-                      <GodmodeSlider
-                        style={styles.gainSlider}
-                        minimumValue={0}
-                        maximumValue={1}
-                        value={layer.gain}
-                        onValueChange={(val) => updateLayerGain(layer.id, val)}
-                        minimumTrackTintColor={SK('#ff3040')}
-                        maximumTrackTintColor={SK('#333333')}
-                        thumbTintColor={SK('#ff6060')}
-                      />
-                    </View>
-                  </View>
-                </View>
-                {/* Digital Readout — tap to edit */}
-                <View style={styles.digitalReadout}>
-                  {editingFreqId === layer.id ? (
-                    <TextInput
-                      testID={`home-lab-frequency-input-${index + 1}`}
-                      style={styles.digitalHzInput}
-                      value={freqInput}
-                      onChangeText={setFreqInput}
-                      keyboardType="decimal-pad"
-                      autoFocus
-                      selectTextOnFocus
-                      maxLength={8}
-                      onBlur={() => commitFreqEdit(layer.id)}
-                      onSubmitEditing={() => commitFreqEdit(layer.id)}
-                      returnKeyType="done"
-                    />
-                  ) : (
-                    <TouchableOpacity
-                      testID={`home-lab-frequency-${index + 1}`}
-                      onPress={() => { setEditingFreqId(layer.id); setFreqInput(layer.frequency.toFixed(2)); }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.digitalHz}>{layer.frequency.toFixed(2)} Hz</Text>
-                      <Text style={styles.digitalTapHint}>TAP TO EDIT · ±0.01</Text>
-                    </TouchableOpacity>
-                  )}
-                  <Text style={styles.digitalLabel}>Digital</Text>
-                </View>
-                {/* WAVE TABLE — 7 oscillator types, live-switchable */}
-                <View style={styles.waveRow}>
-                  {WAVE_KEYS.map(w => {
-                    const active = (layer.wave || 'SINE') === w;
-                    return (
-                      <TouchableOpacity
-                        key={w}
-                        testID={`home-lab-wave-${index + 1}-${w.toLowerCase()}`}
-                        style={[styles.waveChip, active && styles.waveChipActive]}
-                        onPress={() => updateLayerWave(layer.id, w)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.waveChipTxt, active && styles.waveChipTxtActive]}>{w}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                {layer.isPlaying && (
-                  <Text style={styles.transmitting}>■ TRANSMITTING</Text>
-                )}
-              </View>
-              );
-            })}
+            {layersLinked && <Text testID="home-lab-linked-boundary-note" style={styles.presetEmpty}>Linked ratios are preserved; nodes stop together at spectrum limits.</Text>}
+            {layers.map((layer, index) => <CodesLayerCard key={layer.id} layer={layer} index={index}
+              count={layers.length} prefix="home-lab" linked={layersLinked}
+              onFrequency={f => updateLayerFrequency(layer.id, f)} onGain={gain => updateLayerGain(layer.id, gain)}
+              onRemove={() => removeLayer(layer.id)} onWave={wave => updateLayerWave(layer.id, wave)} />)}
 
             <TouchableOpacity testID="home-lab-add-layer" style={styles.addLayerBtn} onPress={addLayer}>
               <Text style={styles.addLayerText}>[+] ADD_LAYER</Text>
@@ -1312,7 +1035,7 @@ export default function TerminalScreen() {
 
           <View style={{ height: 20 }} />
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
 
       {/* ═══════ CODES ARCHIVE MODAL ═══════ */}
       {archiveModalVisible && <Modal

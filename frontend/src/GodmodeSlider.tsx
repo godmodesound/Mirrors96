@@ -4,6 +4,8 @@ import { View, StyleSheet, PanResponder, Dimensions, Text } from 'react-native';
 import { skinStyles, SK } from './skins';
 
 interface GodmodeSliderProps {
+  testID?: string;
+  accessibilityLabel?: string;
   value: number;
   minimumValue: number;
   maximumValue: number;
@@ -17,6 +19,8 @@ interface GodmodeSliderProps {
 }
 
 export default function GodmodeSlider({
+  testID,
+  accessibilityLabel,
   value,
   minimumValue,
   maximumValue,
@@ -32,19 +36,23 @@ export default function GodmodeSlider({
   const trackWidth = useRef(0);
   const trackLeft = useRef(0);
   const [dragging, setDragging] = useState(false);
+  const generatedId = React.useId();
+  const live = useRef({ minimumValue, maximumValue, onValueChange, step });
+  live.current = { minimumValue, maximumValue, onValueChange, step };
 
   const clamp = useCallback((val: number, min: number, max: number) => {
     return Math.max(min, Math.min(max, val));
   }, []);
 
   const posToValue = useCallback((pageX: number) => {
-    const ratio = clamp((pageX - trackLeft.current) / trackWidth.current, 0, 1);
-    let val = minimumValue + ratio * (maximumValue - minimumValue);
-    if (step) {
-      val = Math.round(val / step) * step;
+    const { minimumValue: min, maximumValue: max, step: increment } = live.current;
+    const ratio = clamp((pageX - trackLeft.current) / Math.max(1, trackWidth.current), 0, 1);
+    let val = min + ratio * (max - min);
+    if (increment) {
+      val = Math.round(val / increment) * increment;
     }
-    return clamp(val, minimumValue, maximumValue);
-  }, [minimumValue, maximumValue, step, clamp]);
+    return clamp(val, min, max);
+  }, [clamp]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -58,13 +66,13 @@ export default function GodmodeSlider({
             trackLeft.current = x;
             trackWidth.current = w;
             const newVal = posToValue(evt.nativeEvent.pageX);
-            onValueChange(newVal);
+            live.current.onValueChange(newVal);
           });
         }
       },
       onPanResponderMove: (evt) => {
         const newVal = posToValue(evt.nativeEvent.pageX);
-        onValueChange(newVal);
+        live.current.onValueChange(newVal);
       },
       onPanResponderRelease: () => {
         setDragging(false);
@@ -75,12 +83,18 @@ export default function GodmodeSlider({
     })
   ).current;
 
-  const ratio = clamp((value - minimumValue) / (maximumValue - minimumValue), 0, 1);
+  const ratio = maximumValue > minimumValue ? clamp((value - minimumValue) / (maximumValue - minimumValue), 0, 1) : 0;
   const fillWidth = `${ratio * 100}%` as `${number}%`;
 
   return (
     <View style={[styles.container, style]}>
       <View
+        testID={testID || `slider-${generatedId}`}
+        accessibilityRole="adjustable"
+        accessibilityLabel={accessibilityLabel || 'Adjust value'}
+        accessibilityValue={{ min: minimumValue, max: maximumValue, now: value }}
+        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+        onAccessibilityAction={event => onValueChange(clamp(value + (event.nativeEvent.actionName === 'increment' ? 1 : -1) * (step || (maximumValue - minimumValue) / 100), minimumValue, maximumValue))}
         ref={trackRef}
         style={styles.track}
         onLayout={(e) => {
@@ -123,11 +137,11 @@ export default function GodmodeSlider({
 
 const styles = skinStyles({
   container: {
-    height: 40,
+    height: 44,
     justifyContent: 'center',
   },
   track: {
-    height: 40,
+    height: 44,
     justifyContent: 'center',
     position: 'relative',
   },
@@ -149,7 +163,7 @@ const styles = skinStyles({
     height: 16,
     borderRadius: 8,
     position: 'absolute',
-    top: 12,
+    top: 14,
     elevation: 3,
   },
   thumbGlow: {
@@ -157,7 +171,7 @@ const styles = skinStyles({
     height: 28,
     borderRadius: 14,
     position: 'absolute',
-    top: 6,
+    top: 8,
     opacity: 0.2,
   },
 });

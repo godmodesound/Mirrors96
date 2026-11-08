@@ -1,0 +1,38 @@
+[
+  {
+    "name": "bounds and finite clamp",
+    "pass": true
+  },
+  {
+    "name": "strict invalid parsing",
+    "pass": true
+  },
+  {
+    "name": "decimal comma and scientific parsing",
+    "pass": true
+  },
+  {
+    "name": "nine SI formats",
+    "pass": true
+  },
+  {
+    "name": "log sweep endpoints and round trips",
+    "pass": true
+  },
+  {
+    "name": "octave translation and wavelength",
+    "pass": true
+  },
+  {
+    "name": "linked ratios both boundaries finite",
+    "pass": true
+  },
+  {
+    "name": "native start/update/multi translated before bridge and registry",
+    "pass": true
+  },
+  {
+    "name": "loadFrequencyToLab stores source beyond26k",
+    "pass": true
+  }
+]

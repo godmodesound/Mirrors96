@@ -1,0 +1,45 @@
+[
+  {
+    "name": "shared link limits live and stopped hydration",
+    "pass": true
+  },
+  {
+    "shared_gain_evidence": [
+      {
+        "hz": 465.6612854003906,
+        "gain": 0.17680607736110687
+      },
+      {
+        "hz": 600,
+        "gain": 0.17680607736110687
+      }
+    ]
+  },
+  {
+    "name": "shared individual node gain0 mutes only node1",
+    "pass": false,
+    "error": "Node1 UI gain0% still sounds at gain 0.17680607736110687; Node2 gain 0.17680607736110687",
+    "trace": "Traceback (most recent call last):\n  File \"/app/frontend/tests/spectrum_ui_extended.py\", line 20, in run\n    try:await fn();results.append({'name':name,'pass':True});print('PASS',name,flush=True)\n        ^^^^^^^^^^\n  File \"/app/frontend/tests/spectrum_ui_extended.py\", line 55, in gain\n    assert abs(gains[0]['gain'])<.001, f'Node1 UI gain0% still sounds at gain {gains[0][\"gain\"]}; Node2 gain {gains[1][\"gain\"]}'\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: Node1 UI gain0% still sounds at gain 0.17680607736110687; Node2 gain 0.17680607736110687\n"
+  },
+  {
+    "name": "shared editor responsive and reset",
+    "pass": true
+  },
+  {
+    "godmode_tuning_evidence": {
+      "expected": 474.2846444801048,
+      "god_carrier": 483.06768798828125,
+      "after_off": 483.06768798828125,
+      "readout": "474.28 Hz"
+    }
+  },
+  {
+    "name": "A440 translated readout and live GodMode",
+    "pass": false,
+    "error": "A440 applied twice: expected 474.2846444801048, GodMode centre 483.06768798828125, after off 483.06768798828125",
+    "trace": "Traceback (most recent call last):\n  File \"/app/frontend/tests/spectrum_ui_extended.py\", line 20, in run\n    try:await fn();results.append({'name':name,'pass':True});print('PASS',name,flush=True)\n        ^^^^^^^^^^\n  File \"/app/frontend/tests/spectrum_ui_extended.py\", line 82, in tune\n    assert abs(god_mid-expected)<.01 and abs(after['oscs'][0]['hz']-expected)<.01, f'A440 applied twice: expected {expected}, GodMode centre {god_mid}, after off {after[\"oscs\"][0][\"hz\"]}'\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: A440 applied twice: expected 474.2846444801048, GodMode centre 483.06768798828125, after off 483.06768798828125\n"
+  },
+  {
+    "page_errors": []
+  }
+]

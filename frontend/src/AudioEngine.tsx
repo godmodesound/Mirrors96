@@ -1,6 +1,7 @@
 import React, { useRef, useCallback, useEffect, useState } from 'react';
 import { Platform, View, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { audioFrequency } from './codes/spectrum';
 
 import { skinStyles, SK } from './skins';
 
@@ -42,7 +43,7 @@ function ensureCtx() {
     scopeBuffer = new Uint8Array(analyser.fftSize);
     masterGain.gain.value = 0.5;
   }
-  if (ctx.state === 'suspended') ctx.resume();
+  if (ctx.state === 'suspended') ctx.resume().catch(function() {});
   return true;
 }
 
@@ -225,7 +226,7 @@ function setGodMode(on, pulse) {
   Object.keys(oscs).forEach(function(id) {
     var o = oscs[id]; if (!o) return;
     if (!!o.god === godMode) { if (o.god) retuneGod(o, o.freq); return; }
-    var f = o.god ? o.freq : o.osc.frequency.value;
+    var f = o.god ? o.freq : o.baseFreq;
     var g = o.god ? o.amp.gain.value : o.gain.gain.value;
     stopTone(id);
     if (godMode) buildGod(id, f, g);
@@ -302,7 +303,8 @@ function playMulti(freqs, gainVal) {
   stopMulti();
   freqs.forEach(function(freq, i) {
     var id = 9000 + i;
-    startTone(id, freq, gainVal / Math.sqrt(freqs.length), 'sine');
+    var layerGain = Array.isArray(gainVal) ? gainVal[i] : gainVal;
+    startTone(id, freq, layerGain / Math.sqrt(freqs.length), 'sine');
     multiIds.push(id);
   });
 }
@@ -571,7 +573,7 @@ function handleMsg(raw) {
 // Also handle touch events on the document to unlock audio on iOS
 document.addEventListener('touchstart', function unlockAudio() {
   ensureCtx();
-  if (ctx && ctx.state === 'suspended') ctx.resume();
+  if (ctx && ctx.state === 'suspended') ctx.resume().catch(function() {});
   document.removeEventListener('touchstart', unlockAudio);
 }, { once: true });
 </script>
@@ -620,7 +622,9 @@ const clearActiveFreqs = (prefix: string) => {
 // Audio Engine API (works on all platforms)
 export const AudioEngine = {
   // Tone layer controls
-  startTone: (id: number, freq: number, gain: number, wave?: string) => {
+  startTone: (id: number, selectedFrequency: number, gain: number, wave?: string) => {
+    // Translate BEFORE either platform bridge or the active-audio registry sees the value.
+    const freq = audioFrequency(selectedFrequency);
     setActiveFreqs(`tone:${id}`, [{ hz: freq, source: 'tone', gain }]);
     if (Platform.OS === 'web') {
       webStartTone(id, freq, gain, wave);
@@ -656,7 +660,8 @@ export const AudioEngine = {
     stopAllSubscribers.add(listener);
     return () => { stopAllSubscribers.delete(listener); };
   },
-  updateFreq: (id: number, freq: number) => {
+  updateFreq: (id: number, selectedFrequency: number) => {
+    const freq = audioFrequency(selectedFrequency);
     const cur = activeFreqMap.get(`tone:${id}`);
     if (cur) setActiveFreqs(`tone:${id}`, [{ ...cur[0], hz: freq }]);
     if (Platform.OS === 'web') {
@@ -686,12 +691,17 @@ export const AudioEngine = {
   },
   getGodMode: () => godModeFlag,
   // Multi-frequency (library/moods)
-  playMulti: (freqs: number[], gain: number = 0.3) => {
-    setActiveFreqs('multi', freqs.map(hz => ({ hz, source: 'multi' as const, gain })));
+  playMulti: (selectedFrequencies: number[], gain: number | number[] = 0.3) => {
+    const freqs = selectedFrequencies.map(audioFrequency);
+    const gains = freqs.map((_, index) => {
+      const value = Array.isArray(gain) ? gain[index] : gain;
+      return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0.3;
+    });
+    setActiveFreqs('multi', freqs.map((hz, index) => ({ hz, source: 'multi' as const, gain: gains[index] / Math.sqrt(freqs.length) })));
     if (Platform.OS === 'web') {
-      webPlayMulti(freqs, gain);
+      webPlayMulti(freqs, gains);
     } else {
-      sendToWebView({ type: 'playMulti', freqs, gain });
+      sendToWebView({ type: 'playMulti', freqs, gain: gains });
     }
   },
   stopMulti: () => {
@@ -924,7 +934,7 @@ const ensureWebCtx = () => {
       });
     }
   }
-  if (audioCtx.state === 'suspended') audioCtx.resume();
+  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
   return true;
 };
 
@@ -1001,7 +1011,7 @@ const webSetGodMode = (on: boolean, pulse?: number) => {
     const o = webOscs[id];
     if (!o) return;
     if (!!o.god === webGodMode) { if (o.god) webRetuneGod(o, o.freq); return; }
-    const f = o.god ? o.freq : o.osc.frequency.value;
+    const f = o.god ? o.freq : o.baseFreq;
     const g = o.god ? o.amp.gain.value : o.gain.gain.value;
     webStopTone(id);
     if (webGodMode) webBuildGod(id, f, g);
@@ -1072,12 +1082,13 @@ const webUpdateGain = (id: number, gain: number) => {
 
 // Routed through webStartTone so $-Codes godMode applies to archive stacks
 let webMultiIds: number[] = [];
-const webPlayMulti = (freqs: number[], gainVal: number) => {
+const webPlayMulti = (freqs: number[], gainVal: number | number[]) => {
   if (!ensureWebCtx() || !audioCtx || !webMasterGain) return;
   webStopMulti();
   freqs.forEach((freq, i) => {
     const id = 9000 + i;
-    webStartTone(id, freq, gainVal / Math.sqrt(freqs.length), 'sine');
+    const layerGain = Array.isArray(gainVal) ? gainVal[i] : gainVal;
+    webStartTone(id, freq, layerGain / Math.sqrt(freqs.length), 'sine');
     webMultiIds.push(id);
   });
 };

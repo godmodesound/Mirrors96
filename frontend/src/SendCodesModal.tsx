@@ -13,6 +13,7 @@ import ViewShot, { type ViewShotRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 
 import { skinStyles, SK } from './skins';
+import { formatFrequency } from './codes/spectrum';
 
 
 interface FrequencyLayer {
@@ -35,7 +36,7 @@ export default function SendCodesModal({ visible, onClose, layers, loadedArchive
   const [isSharing, setIsSharing] = useState(false);
 
   const activeFrequencies = layers.filter(l => l.frequency > 0).map(l => l.frequency);
-  const freqString = activeFrequencies.join(' · ');
+  const freqString = activeFrequencies.map(formatFrequency).join(' · ');
   const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '.');
 
   const handleShare = async () => {
@@ -100,9 +101,10 @@ export default function SendCodesModal({ visible, onClose, layers, loadedArchive
                 {/* Frequencies Display */}
                 <View style={styles.lcdFreqSection}>
                   <Text style={styles.lcdFreqLabel}>ACTIVE CODES</Text>
-                  <Text style={styles.lcdFreqValue} numberOfLines={2} adjustsFontSizeToFit>
-                    {freqString || '432'} Hz
+                  <Text testID="send-codes-frequencies" style={styles.lcdFreqValue} numberOfLines={2} adjustsFontSizeToFit>
+                    {freqString || '432 Hz'}
                   </Text>
+                  {activeFrequencies.some(f => f > 20000) && <Text testID="send-codes-translation-note" style={styles.lcdPresetName}>Selected references · playback is audible octave translation, not EM output</Text>}
                   {loadedArchiveName && (
                     <Text style={styles.lcdPresetName}>{loadedArchiveName}</Text>
                   )}
