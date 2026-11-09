@@ -25,7 +25,7 @@ import { SoundReadout } from '../src/sound/SoundReadout';
 import { ss as soundStyles } from '../src/sound/soundStyles';
 import { Ionicons } from '@expo/vector-icons';
 import LabMenuBar, { LabMenu } from '../src/LabMenuBar';
-import { PLAYABLE_ALBUMS, ALBUMS, Album, Track, MIRRORS_COVER_URL } from '../src/AlbumData';
+import { PLAYABLE_ALBUMS, ALBUMS, Album, Track } from '../src/AlbumData';
 import { Audio, type AudioSound } from '../src/audioCompat';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -657,8 +657,8 @@ export default function TerminalScreen() {
             {/* RIGHT — 96 Logo */}
             <TouchableOpacity onPress={() => Linking.openURL('https://earth.google.com/web/')} activeOpacity={0.8}>
               <Image
-                testID="nav-mirrors-album-cover"
-                source={{ uri: MIRRORS_COVER_URL }}
+                testID="nav-earth-icon"
+                source={{ uri: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/f7fd0766b7f32323_ACA0E32E-1B82-4B14-93B7-37427D0A1E81.webp' }}
                 style={styles.navLogoRight}
                 resizeMode="contain"
               />
@@ -684,7 +684,7 @@ export default function TerminalScreen() {
               testID="hero-logo"
             >
               <Image
-                source={{ uri: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/e01d5a8edeb0da3d_new%20logo%2026.jpeg' }}
+                source={{ uri: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/d986af82ecdf0868_2ADC50E2-21BB-4C13-AE4D-511F9BED0333%202.PNG' }}
                 style={styles.heroImage}
                 resizeMode="contain"
               />
