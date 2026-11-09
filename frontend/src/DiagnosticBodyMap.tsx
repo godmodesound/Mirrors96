@@ -7,6 +7,7 @@ import { useArchiveSession, playArchiveCode, stopArchive } from './archive/archi
 import { BODY_POINTS, ExcitedPoint, pointsForCode, pointsForFrequencies, codesForPoint, signatureFor } from './bodyMapData';
 import { BODY_MAP_HTML } from './bodyMapHtml';
 import { skinStyles, SK, skinHtml } from './skins';
+import { CAL_ZONES, useCalibration, zoneForNode } from './calibration';
 import { FieldState, LIGHT_BODIES, MOOD_AXES, ACTIVATION_SECONDS, initialFieldState, stepField, moodLabel } from './biofield';
 
 const TICK_MS = 500;
@@ -143,6 +144,10 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
   const collection = COLLECTIONS.find(c => c.id === category) || COLLECTIONS[0];
   const point = BODY_POINTS.find(p => p.id === selectedPt);
   const pointCodes = useMemo(() => (selectedPt ? codesForPoint(selectedPt) : []), [selectedPt]);
+  const calibration = useCalibration();
+  const nodeZone = selectedPt ? zoneForNode(selectedPt) : undefined;
+  const nodeCal = nodeZone && calibration[nodeZone.id] ? { zone: nodeZone, hz: calibration[nodeZone.id].hz } : null;
+  const calCount = Object.keys(calibration).length;
   const excitedNames = mapState.points.map(p => BODY_POINTS.find(b => b.id === p.id)?.name).filter(Boolean);
 
   const renderCode = (code: ArchiveCode) => {
@@ -166,6 +171,7 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
         <Text style={[st.status, mapState.playing && st.statusOn]}>{mapState.playing ? '● SCAN ACTIVE' : '○ STANDBY'}</Text>
       </View>
       <Text style={st.subtitle}>INFORMATIONAL FIELD · ARCHIVE SYNC · LIVE FFT DRIVE</Text>
+      {calCount > 0 && <Text testID={`${testID}-calibrated`} style={st.nodeCal}>◎ CALIBRATED {calCount}/{CAL_ZONES.length} ZONES · TAP A NODE FOR YOUR TONE</Text>}
 
       <View testID={`${testID}-canvas`} style={[st.canvas, { width: W, height: H }]}>
         {Platform.OS === 'web' ? (
@@ -260,6 +266,7 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
             <Text style={st.nodeTitle}>PT {point.id} · {point.name}</Text>
             <Text style={st.nodeLatin}>{point.latin}</Text>
           </View>
+          {nodeCal && <Text testID={`${testID}-node-calibration`} style={st.nodeCal}>◎ YOUR RESONANCE · {nodeCal.zone.name} · {nodeCal.hz.toFixed(2)} Hz</Text>}
           <Text style={st.nodeHint}>{pointCodes.length} ARCHIVE CODE{pointCodes.length === 1 ? '' : 'S'} EXCITE THIS NODE</Text>
           <ScrollView style={st.nodeList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
             {pointCodes.slice(0, 40).map(renderCode)}
@@ -330,6 +337,7 @@ const st = skinStyles({
   nodePanel: { marginTop: 8, borderWidth: 1, borderColor: '#4fa85c', padding: 8, backgroundColor: '#04170c' },
   nodeTitle: { color: '#a9ff8a', fontSize: 11, fontWeight: '900', letterSpacing: 1.5 },
   nodeLatin: { color: '#4fa85c', fontSize: 9, letterSpacing: 1.5, fontStyle: 'italic' },
+  nodeCal: { color: '#f3ffc4', fontSize: 9, fontWeight: '900', letterSpacing: 1, marginTop: 4, marginBottom: 6 },
   nodeHint: { color: '#4fa85c', fontSize: 8, letterSpacing: 1.2, marginTop: 4, marginBottom: 6 },
   nodeList: { maxHeight: 200 },
   sectionLabel: { color: '#4fa85c', fontSize: 9, fontWeight: '800', letterSpacing: 1.5, marginTop: 14, marginBottom: 8 },

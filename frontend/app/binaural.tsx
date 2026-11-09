@@ -13,6 +13,7 @@ import { WebView } from 'react-native-webview';
 import { AudioEngine } from '../src/AudioEngine';
 import ScopeNodePanel from '../src/ScopeNodePanel';
 import DiagnosticBodyMap from '../src/DiagnosticBodyMap';
+import ResonanceCalibration from '../src/ResonanceCalibration';
 import BrainStructureStrip, { BrainRegion, BRAIN_REGIONS, regionForCarrier } from '../src/BrainStructureMap';
 import { useLayout } from '../src/useLayout';
 
@@ -939,6 +940,12 @@ export default function BinauralScreen() {
           </View>
 
           {/* ═══ DIAGNOSTIC BODY MAP ═══ */}
+          <ResonanceCalibration testID="binaural-calibration"
+            onStart={() => { if (isPlaying) handlePlay(); }}
+            onApply={(carrier, beat) => {
+              setCarrierFreq(carrier); setBeatFreq(beat); setActivePreset(null);
+              if (playingRef.current) AudioEngine.updateBinaural(carrier, beat);
+            }} />
           <DiagnosticBodyMap testID="binaural-body-map" />
 
           {/* ═══ GUIDE ═══ */}
