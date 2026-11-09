@@ -349,24 +349,10 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           );
         })}
 
-        {/* Center circle with MIRRORS 96 branding */}
-        <SvgCircle pointerEvents="none" cx={CX} cy={CY} r={innerRadius} fill={SK('#000000')} fillOpacity={0.55} />
+        {/* Clear centre — the portal figure shows through, exactly as in the artwork */}
         <SvgCircle pointerEvents="none" cx={CX} cy={CY} r={middleRadius} fill="none" stroke="url(#m96-gold)" strokeWidth={4} />
         <SvgCircle pointerEvents="none" cx={CX} cy={CY} r={innerRadius} fill="none" stroke="url(#m96-gold)" strokeWidth={6} />
         <SvgCircle pointerEvents="none" cx={CX} cy={CY} r={innerRadius - 8} fill="none" stroke={SK('#f3c45f')} strokeWidth={1} opacity={0.7} />
-        
-        {/* Center text - MIRRORS */}
-        <SvgText pointerEvents="none" x={CX} y={CY - 24} fill={SK('#ff1a1a')} stroke={SK('#ffd0c0')} strokeWidth={0.3} fontSize={12} fontWeight="900" textAnchor="middle" letterSpacing={3}>
-          MIRRORS
-        </SvgText>
-        {/* Center text - 96 */}
-        <SvgText pointerEvents="none" x={CX} y={CY + 16} fill="url(#m96-gold)" stroke={SK('#ffe7a0')} strokeWidth={0.4} fontSize={46} fontWeight="900" fontStyle="italic" textAnchor="middle">
-          96
-        </SvgText>
-        {/* Center text - WHEEL */}
-        <SvgText pointerEvents="none" x={CX} y={CY + 35} fill={SK('#d9a845')} fontSize={8} fontWeight="700" textAnchor="middle" letterSpacing={4}>
-          ═ WHEEL ═
-        </SvgText>
 
         {/* Radial lines from center — on new segment boundaries (offset by -15° from top) */}
         {[...Array(12)].map((_, i) => {
