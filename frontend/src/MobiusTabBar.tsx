@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Text, Image } from 'react-native';
+import { PORTAL_ART } from './brandArt';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { skinStyles, SK } from './skins';
@@ -45,7 +46,7 @@ export default function MobiusTabBar({ state, descriptors, navigation }: Props) 
               activeOpacity={0.7}
             >
               {active && <View style={styles.glowDot} />}
-              {route.name === 'sound' ? <SoundLabIcon size={27} testID="nav-sound-lab-icon" /> : <Text
+              {route.name === 'sound' ? <SoundLabIcon size={27} testID="nav-sound-lab-icon" /> : route.name === 'library' ? <Image testID="nav-codes-archive-logo" source={{ uri: PORTAL_ART }} style={[styles.archiveLogo, active && styles.archiveLogoOn]} resizeMode="cover" /> : <Text
                 style={[
                   styles.icon,
                   { color: active ? SK('#ff0a0a') : SK(tab.color) },
@@ -101,6 +102,8 @@ const styles = skinStyles({
     backgroundColor: '#ff0a0a',
     opacity: 0.08,
   },
+  archiveLogo: { width: 20, height: 27, borderWidth: 1, borderColor: '#c8922e', opacity: 0.85 },
+  archiveLogoOn: { borderColor: '#ff0a0a', opacity: 1 },
   icon: {
     fontSize: 18,
     marginBottom: 2,

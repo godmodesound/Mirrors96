@@ -1,8 +1,8 @@
-import React, { useId } from 'react';
+import React, { useState } from 'react';
 import { svgPress } from './svgPress';
-import { View, Text } from 'react-native';
+import { View, Text, Image } from 'react-native';
+import { PORTAL_ART } from './brandArt';
 import { skinStyles, SK } from './skins';
-import { MirrorDefs, MirrorRing, MirrorNode } from './MirrorFinish';
 
 import Svg, {
   Circle as SvgCircle,
@@ -13,7 +13,6 @@ import Svg, {
   LinearGradient,
   Stop,
   Path,
-  Rect,
   Line,
 } from 'react-native-svg';
 
@@ -144,6 +143,13 @@ function describeArc(cx: number, cy: number, innerR: number, outerR: number, sta
   return `M ${x1} ${y1} L ${x2} ${y2} A ${outerR} ${outerR} 0 ${largeArc} 1 ${x3} ${y3} L ${x4} ${y4} A ${innerR} ${innerR} 0 ${largeArc} 0 ${x1} ${y1} Z`;
 }
 
+// Portal artwork (1024×1536): portal hole centre (509, 719), radius ≈ 248 px.
+const PORTAL = { x: 509 / 1024, y: 719 / 1536 };
+const ART_SCALE = 1.75;   // art width relative to stage width
+const PORTAL_Y = 0.66;    // portal centre, in stage widths from top
+const STAGE_RATIO = 1.36; // stage height / width
+const WHEEL_SIZE = (2 * 248 / 1024) * ART_SCALE / 0.96 * 1.06; // wheel rim lands on the portal's gold ring
+
 interface Props {
   activeKey: string | null;
   onKeyPress: (key: CamelotKey) => void;
@@ -151,8 +157,8 @@ interface Props {
 }
 
 export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
-  const chromeId = `wheel-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const activeKeyData = CAMELOT_KEYS.find(k => k.id === activeKey);
+  const [stageW, setStageW] = useState(0);
 
   // ═══════════════════════════════════════════════════════════════
   // MIRRORS 96 WHEEL VIEW (Dark Infrared Design - DEFAULT)
@@ -163,7 +169,6 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
     const innerRadius = MAP_W * 0.22;
     return (
       <Svg testID="mirrors-wheel-camelot" width="100%" height="100%" viewBox={`0 0 ${MAP_W} ${MAP_H}`}>
-        <MirrorDefs id={chromeId} />
         <Defs>
           <RadialGradient id="m96-bg" cx="50%" cy="50%" r="55%">
             <Stop offset="0%" stopColor={SK('#0a0000')} stopOpacity="1" />
@@ -179,13 +184,22 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
             <Stop offset="50%" stopColor={SK('#ffffff')} stopOpacity="0.1" />
             <Stop offset="100%" stopColor={SK('#ff0a0a')} stopOpacity="0.3" />
           </LinearGradient>
+          {/* Portal design: gilded bronze rim + ruby triangle gems */}
+          <LinearGradient id="m96-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor={SK('#ffe7a0')} />
+            <Stop offset="35%" stopColor={SK('#c8922e')} />
+            <Stop offset="65%" stopColor={SK('#6b4512')} />
+            <Stop offset="100%" stopColor={SK('#f3c45f')} />
+          </LinearGradient>
+          <LinearGradient id="m96-ruby" x1="0%" y1="0%" x2="0%" y2="100%">
+            <Stop offset="0%" stopColor={SK('#ff6a5a')} />
+            <Stop offset="55%" stopColor={SK('#e00a0a')} />
+            <Stop offset="100%" stopColor={SK('#6a0000')} />
+          </LinearGradient>
         </Defs>
 
-        {/* Background */}
-        <Rect x="0" y="0" width={MAP_W} height={MAP_H} fill="url(#m96-bg)" />
-
-        {/* Outer decorative ring */}
-        <MirrorRing id={chromeId} cx={CX} cy={CY} r={outerRadius + 2} width={7} />
+        {/* Outer gilded portal rim */}
+        <SvgCircle pointerEvents="none" cx={CX} cy={CY} r={outerRadius + 2} fill="none" stroke="url(#m96-gold)" strokeWidth={7} />
 
         {/* Outer ring segments (B - Major keys) — 12 at 12 o'clock, 6 at 6 o'clock */}
         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => {
@@ -203,7 +217,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           
           return (
             <G key={`outer-${num}`} testID={`mirrors-key-${keyId}`} {...svgPress(() => key && onKeyPress(key))} accessibilityLabel={`${keyId}, ${key?.note}, ${key?.freq} hertz`}>
-              <Path d={describeArc(CX, CY, middleRadius, outerRadius, startAngle, endAngle)} fill={`url(#${chromeId}-panel)`} stroke={`url(#${chromeId}-chrome)`} strokeWidth={2} />
+              <Path d={describeArc(CX, CY, middleRadius, outerRadius, startAngle, endAngle)} fill={SK('#0b0703')} fillOpacity={0.9} stroke="url(#m96-gold)" strokeWidth={1.6} />
               {/* Segment background — chakra-color tinted */}
               <Path
                 d={describeArc(CX, CY, middleRadius, outerRadius, startAngle, endAngle)}
@@ -277,7 +291,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
           
           return (
             <G key={`inner-${num}`} testID={`mirrors-key-${keyId}`} {...svgPress(() => key && onKeyPress(key))} accessibilityLabel={`${keyId}, ${key?.note}, ${key?.freq} hertz`}>
-              <Path d={describeArc(CX, CY, innerRadius, middleRadius, startAngle, endAngle)} fill={`url(#${chromeId}-panel)`} stroke={`url(#${chromeId}-chrome)`} strokeWidth={2} />
+              <Path d={describeArc(CX, CY, innerRadius, middleRadius, startAngle, endAngle)} fill={SK('#0b0703')} fillOpacity={0.9} stroke="url(#m96-gold)" strokeWidth={1.6} />
               {/* Segment background — chakra-tinted */}
               <Path
                 d={describeArc(CX, CY, innerRadius, middleRadius, startAngle, endAngle)}
@@ -336,21 +350,21 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
         })}
 
         {/* Center circle with MIRRORS 96 branding */}
-        <SvgCircle pointerEvents="none" cx={CX} cy={CY} r={innerRadius} fill={`url(#${chromeId}-panel)`} />
-        <MirrorRing id={chromeId} cx={CX} cy={CY} r={middleRadius} width={5} />
-        <MirrorRing id={chromeId} cx={CX} cy={CY} r={innerRadius} width={8} />
-        <MirrorRing id={chromeId} cx={CX} cy={CY} r={innerRadius - 9} width={1.5} />
+        <SvgCircle pointerEvents="none" cx={CX} cy={CY} r={innerRadius} fill={SK('#000000')} fillOpacity={0.55} />
+        <SvgCircle pointerEvents="none" cx={CX} cy={CY} r={middleRadius} fill="none" stroke="url(#m96-gold)" strokeWidth={4} />
+        <SvgCircle pointerEvents="none" cx={CX} cy={CY} r={innerRadius} fill="none" stroke="url(#m96-gold)" strokeWidth={6} />
+        <SvgCircle pointerEvents="none" cx={CX} cy={CY} r={innerRadius - 8} fill="none" stroke={SK('#f3c45f')} strokeWidth={1} opacity={0.7} />
         
         {/* Center text - MIRRORS */}
-        <SvgText pointerEvents="none" x={CX} y={CY - 24} fill="#dce9f2" fontSize={11} fontWeight="900" textAnchor="middle" letterSpacing={3}>
+        <SvgText pointerEvents="none" x={CX} y={CY - 24} fill={SK('#ff1a1a')} stroke={SK('#ffd0c0')} strokeWidth={0.3} fontSize={12} fontWeight="900" textAnchor="middle" letterSpacing={3}>
           MIRRORS
         </SvgText>
         {/* Center text - 96 */}
-        <SvgText pointerEvents="none" x={CX} y={CY + 16} fill={`url(#${chromeId}-chrome)`} stroke="#b8cbd9" strokeWidth={0.3} fontSize={46} fontWeight="900" fontStyle="italic" textAnchor="middle">
+        <SvgText pointerEvents="none" x={CX} y={CY + 16} fill="url(#m96-gold)" stroke={SK('#ffe7a0')} strokeWidth={0.4} fontSize={46} fontWeight="900" fontStyle="italic" textAnchor="middle">
           96
         </SvgText>
         {/* Center text - WHEEL */}
-        <SvgText pointerEvents="none" x={CX} y={CY + 35} fill="#a6becf" fontSize={8} fontWeight="700" textAnchor="middle" letterSpacing={4}>
+        <SvgText pointerEvents="none" x={CX} y={CY + 35} fill={SK('#d9a845')} fontSize={8} fontWeight="700" textAnchor="middle" letterSpacing={4}>
           ═ WHEEL ═
         </SvgText>
 
@@ -365,16 +379,23 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
               y1={CY + Math.sin(angle) * innerRadius}
               x2={CX + Math.cos(angle) * outerRadius}
               y2={CY + Math.sin(angle) * outerRadius}
-              stroke={`url(#${chromeId}-edge)`}
-              strokeWidth={1}
-              opacity={0.8}
+              stroke="url(#m96-gold)"
+              strokeWidth={1.2}
+              opacity={0.9}
             />
           );
         })}
 
-        {/* Corner labels */}
-        <SvgText x={6} y={MAP_H - 6} fill={SK('#ff0a0a')} fontSize={5} opacity={0.3} letterSpacing={1}>96 MIRRORS</SvgText>
-        <SvgText x={MAP_W - 6} y={MAP_H - 6} fill={SK('#ff0a0a')} fontSize={5} opacity={0.3} letterSpacing={1} textAnchor="end">432Hz</SvgText>
+        {/* Ruby triangle gems on the rim at every segment boundary (as on the portal) */}
+        {[...Array(12)].map((_, i) => {
+          const a = (i * 30 - 15 - 90) * Math.PI / 180;
+          const r = outerRadius + 1; const t = a + Math.PI / 2;
+          const tip = [CX + Math.cos(a) * (r + 7), CY + Math.sin(a) * (r + 7)];
+          const b1 = [CX + Math.cos(a) * (r - 5) + Math.cos(t) * 6, CY + Math.sin(a) * (r - 5) + Math.sin(t) * 6];
+          const b2 = [CX + Math.cos(a) * (r - 5) - Math.cos(t) * 6, CY + Math.sin(a) * (r - 5) - Math.sin(t) * 6];
+          return <Path key={`gem-${i}`} pointerEvents="none" d={`M ${tip[0]} ${tip[1]} L ${b1[0]} ${b1[1]} L ${b2[0]} ${b2[1]} Z`} fill="url(#m96-ruby)" stroke="url(#m96-gold)" strokeWidth={1.2} />;
+        })}
+
       </Svg>
     );
   };
@@ -392,8 +413,15 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
         )}
       </View>
 
-      <View style={st.drawing}>
-        {renderMirrors96Wheel()}
+      {/* Stage: MIRRORS 96 portal artwork with the playable wheel seated in the portal ring */}
+      <View testID="mirrors-wheel-stage" style={[st.stage, { height: Math.max(0, stageW * STAGE_RATIO) }]} onLayout={e => setStageW(e.nativeEvent.layout.width)}>
+        {stageW > 0 && <Image testID="mirrors-wheel-art" source={{ uri: PORTAL_ART }} resizeMode="cover" pointerEvents="none"
+          style={{ position: 'absolute', width: stageW * ART_SCALE, height: stageW * ART_SCALE * 1.5,
+            left: stageW * (0.5 - PORTAL.x * ART_SCALE), top: stageW * (PORTAL_Y - PORTAL.y * 1.5 * ART_SCALE) }} />}
+        {stageW > 0 && <View style={{ position: 'absolute', width: stageW * WHEEL_SIZE, height: stageW * WHEEL_SIZE,
+          left: stageW * (0.5 - WHEEL_SIZE / 2), top: stageW * (PORTAL_Y - WHEEL_SIZE / 2) }}>
+          {renderMirrors96Wheel()}
+        </View>}
       </View>
 
       <View style={st.legend}>
@@ -407,7 +435,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
 
 const st = skinStyles({
   toolbar: { minHeight: 64, borderBottomWidth: 1, borderBottomColor: '#657c9040', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10 },
-  drawing: { width: '100%', aspectRatio: 1 },
+  stage: { width: '100%', overflow: 'hidden', backgroundColor: '#000' },
   container: {
     borderWidth: 1,
     borderColor: '#687d90',
