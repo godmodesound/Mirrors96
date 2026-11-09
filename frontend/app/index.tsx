@@ -625,6 +625,11 @@ export default function TerminalScreen() {
 
   const insets = useSafeAreaInsets();
   const layout = useLayout();
+  // Main logo (907×1733 portrait): sized to fit both the folded phone panel and the unfolded Duo panel/landscape.
+  const heroLogoHeight = Math.round(Math.max(0, Math.min(
+    layout.height * (layout.isLandscape ? 0.62 : layout.isWide ? 0.5 : 0.46),
+    ((layout.contentWidth - 32) / (907 / 1733)), 1733 / 2)));
+  const heroLogoSize = { height: heroLogoHeight, width: Math.round(heroLogoHeight * 907 / 1733) };
 
   return (
     <View style={styles.container}>
@@ -685,7 +690,8 @@ export default function TerminalScreen() {
             >
               <Image
                 source={{ uri: 'https://customer-assets-rejwkqb3.emergentagent.net/job_e121e09e-99f3-472d-8697-f5a5be5cce59/artifacts/d986af82ecdf0868_2ADC50E2-21BB-4C13-AE4D-511F9BED0333%202.PNG' }}
-                style={styles.heroImage}
+                testID="hero-logo-image"
+                style={[styles.heroImage, heroLogoSize]}
                 resizeMode="contain"
               />
             </Pressable>
@@ -1132,8 +1138,7 @@ const styles = skinStyles({
     paddingVertical: 10,
   },
   heroImage: {
-    width: '100%',
-    height: 300,
+    alignSelf: 'center',
   },
   heroLogoPress: {
     width: '100%',
