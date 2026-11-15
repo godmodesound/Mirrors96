@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, useWindowDimensions, Image } from 'react-native';
+import { activeLabArt } from './skins/art';
 import { WebView } from 'react-native-webview';
 import { AudioEngine, ScopeFrame } from './AudioEngine';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,7 +8,7 @@ import { chakraForFreq, mapOrbitGeometry, detectBeat } from './OrbitGeometry';
 import { SOLID_SCOPE_JS } from './SolidScope';
 import { CYMATIC_RUNTIME } from './cymatics/cymaticRuntime';
 
-import { skinStyles, SK, skinHtml } from './skins';
+import { skinStyles, SK, skinHtml, getSkin, activeSkinId } from './skins';
 
 // ═══════════════════════════════════════════════════════════
 // SCOPE // NODE — combined T-800 visualizer panel
@@ -1474,6 +1475,7 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0,
       ? GEOMETRY_LABEL[Array.from(geometries)[0]]
       : `${geometries.size}× LAYERED`;
 
+  const labArt = activeLabArt();
   return (
     <View testID={scopeId} style={st.wrap}>
       {/* ── T-800 header: SPIN toggle + readout ── */}
@@ -1671,6 +1673,9 @@ export default function ScopeNodePanel({ frequencies, playing, scalarBeatHz = 0,
             onLoadEnd={() => pushConfig(fullConfig())}
           />
         )}
+        {/* Art skins: scene blended over the live scope — cymatics stay live on top of the artwork */}
+        {labArt && <Image testID={`${scopeId}-skin-art`} source={labArt} resizeMode="cover"
+          style={[StyleSheet.absoluteFill, { opacity: 0.92, pointerEvents: 'none', mixBlendMode: getSkin(activeSkinId()).light ? 'multiply' : 'screen' } as any]} />}
         {compact && <TouchableOpacity testID={`${scopeId}-options`} accessibilityRole="button" accessibilityLabel={optionsOpen ? 'Close scope settings' : 'Open scope settings'} accessibilityState={{ expanded: optionsOpen }} onPress={() => setOptionsOpen(on => !on)} style={st.scopeSettings}><Ionicons name={optionsOpen ? 'close' : 'options-outline'} size={18} color={SK('#a6bac9')} /></TouchableOpacity>}
       </View>
     </View>

@@ -8,6 +8,8 @@ import { BODY_POINTS, ExcitedPoint, pointsForCode, pointsForFrequencies, codesFo
 import { BODY_MAP_HTML } from './bodyMapHtml';
 import { skinStyles, SK, skinHtml } from './skins';
 import { CAL_ZONES, useCalibration, zoneForNode } from './calibration';
+import MeridianFigure from './MeridianFigure';
+import { activeFigure } from './skins/art';
 import { FieldState, LIGHT_BODIES, MOOD_AXES, ACTIVATION_SECONDS, initialFieldState, stepField, moodLabel } from './biofield';
 
 const TICK_MS = 500;
@@ -46,6 +48,7 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
   const webRef = useRef<WebView>(null);
   const iframeRef = useRef<any>(null);
   const html = useMemo(() => skinHtml(BODY_MAP_HTML), []);
+  const figure = activeFigure();
 
   const push = useCallback((fn: 'updateMap' | 'pushWave', payload: object) => {
     const json = JSON.stringify(payload);
@@ -173,7 +176,11 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
       <Text style={st.subtitle}>INFORMATIONAL FIELD · ARCHIVE SYNC · LIVE FFT DRIVE</Text>
       {calCount > 0 && <Text testID={`${testID}-calibrated`} style={st.nodeCal}>◎ CALIBRATED {calCount}/{CAL_ZONES.length} ZONES · TAP A NODE FOR YOUR TONE</Text>}
 
-      <View testID={`${testID}-canvas`} style={[st.canvas, { width: W, height: H }]}>
+      {figure ? (
+        <MeridianFigure testID={testID} figure={figure} width={W} selected={selectedPt}
+          levels={Object.fromEntries(smoothedPoints.map(p => [p.id, p.w]))}
+          onSelect={id => setSelectedPt(prev => (prev === id ? 0 : id))} />
+      ) : <View testID={`${testID}-canvas`} style={[st.canvas, { width: W, height: H }]}>
         {Platform.OS === 'web' ? (
           React.createElement('iframe', {
             ref: iframeRef,
@@ -193,7 +200,7 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
             onMessage={e => onCanvasMessage(e.nativeEvent.data)}
           />
         )}
-      </View>
+      </View>}
 
       {/* readout */}
       <View style={st.readout}>

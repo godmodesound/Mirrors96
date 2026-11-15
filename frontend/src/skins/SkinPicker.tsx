@@ -22,7 +22,7 @@ export default function SkinPicker({ visible, onClose }: Props) {
           <View style={s.head}>
             <View style={s.headText}>
               <Text style={s.title}>&gt; SKIN_SELECT</Text>
-              <Text style={s.sub}>13 IDENTITIES · LOOK ONLY</Text>
+              <Text style={s.sub}>{SKINS.length} IDENTITIES · LOOK ONLY</Text>
             </View>
             <TouchableOpacity onPress={close} style={s.close} testID="skin-close">
               <Text style={s.closeTxt}>✕</Text>

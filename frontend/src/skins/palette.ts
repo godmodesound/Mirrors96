@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// SKINS — 13 visual identities. Pure re-color layer.
+// SKINS — 17 visual identities. Pure re-color layer.
 // Nothing here changes behaviour, layout or audio: every color the
 // UI declares is passed through `mapColor()` and repainted with the
 // active skin's Pantone-referenced palette.
@@ -13,28 +13,34 @@ export interface Skin {
   accent: string;     // primary accent (replaces infrared)
   accent2: string;    // secondary accent (replaces greens/blues)
   light: boolean;     // light-mode skin (inverts the neutral ramp)
+  figure?: 'female' | 'male';            // BODY MAP meridian figure (art skins)
+  labArt?: 'emerald' | 'dream' | 'portal'; // CODES LAB scope backdrop (art skins)
 }
 
 export const SKINS: Skin[] = [
-  { id: 'symbiote', index: '01', name: 'SYMBIOTE',           pantone: 'PANTONE 11-0601 Bright White', accent: '#F2F0EB', accent2: '#6E5CA6', light: false },
-  { id: 't800',     index: '02', name: 'T-800',   pantone: 'PANTONE 199 C',                accent: '#E4002B', accent2: '#A2AAAD', light: false },
-  { id: 't1000',    index: '03', name: 'T-1000',   pantone: 'PANTONE 544 C',                accent: '#A7C6DA', accent2: '#5B7F95', light: false },
-  { id: 'doom',     index: '04', name: 'DOOM',     pantone: 'PANTONE 348 C',                accent: '#00843D', accent2: '#FF6A13', light: false },
-  { id: 'winter',   index: '05', name: 'WINTER',  pantone: 'PANTONE 2925 C',               accent: '#009CDE', accent2: '#4B7A96', light: true  },
-  { id: 'ny96',     index: '06', name: 'NEW YORK 96',     pantone: 'PANTONE 116 C',                accent: '#FFCD00', accent2: '#0057B8', light: false },
-  { id: 'chakra',   index: '07', name: 'CHAKRA',  pantone: 'PANTONE 266 C',                accent: '#753BBD', accent2: '#FFA300', light: false },
-  { id: 'y1950',    index: '08', name: '1950', pantone: 'PANTONE 186 C',                accent: '#C8102E', accent2: '#003087', light: true  },
-  { id: 'y1960',    index: '09', name: '1960',           pantone: 'PANTONE 219 C',                accent: '#E10098', accent2: '#FFDD00', light: false },
-  { id: 'y1970',    index: '10', name: '1970',       pantone: 'PANTONE 1385 C',               accent: '#C05131', accent2: '#84BD00', light: false },
-  { id: 'y1980',    index: '11', name: '1980',        pantone: 'PANTONE 232 C',                accent: '#E0218A', accent2: '#00B5E2', light: false },
-  { id: 'y96',      index: '12', name: '96',         pantone: 'PANTONE 179 C (INFRARED)',     accent: '#FF0A0A', accent2: '#FF0A0A', light: false },
-  { id: 'y2000',    index: '13', name: '2000',            pantone: 'PANTONE 375 C',                accent: '#97D700', accent2: '#A7B1B7', light: false },
+  { id: 'emerald',  index: '01', name: 'EMERALD · FEMALE', pantone: 'PANTONE 802 C + 871 C GOLD', accent: '#3DFF6E', accent2: '#D4A24A', light: false, figure: 'female', labArt: 'emerald' },
+  { id: 'dream',    index: '02', name: 'DREAM · MALE',     pantone: 'PANTONE 806 C + 2665 C',     accent: '#FF3FA8', accent2: '#7A5CFF', light: true,  figure: 'male',   labArt: 'dream' },
+  { id: 'portalF',  index: '03', name: 'PORTAL · FEMALE',  pantone: 'PANTONE 375 C + 871 C GOLD', accent: '#8CFF3C', accent2: '#E0A040', light: false, figure: 'female', labArt: 'portal' },
+  { id: 'portalM',  index: '04', name: 'PORTAL · MALE',    pantone: 'PANTONE 375 C + 871 C GOLD', accent: '#A6FF3C', accent2: '#E0A040', light: false, figure: 'male',   labArt: 'portal' },
+  { id: 'symbiote', index: '05', name: 'SYMBIOTE',           pantone: 'PANTONE 11-0601 Bright White', accent: '#F2F0EB', accent2: '#6E5CA6', light: false },
+  { id: 't800',     index: '06', name: 'T-800',   pantone: 'PANTONE 199 C',                accent: '#E4002B', accent2: '#A2AAAD', light: false },
+  { id: 't1000',    index: '07', name: 'T-1000',   pantone: 'PANTONE 544 C',                accent: '#A7C6DA', accent2: '#5B7F95', light: false },
+  { id: 'doom',     index: '08', name: 'DOOM',     pantone: 'PANTONE 348 C',                accent: '#00843D', accent2: '#FF6A13', light: false },
+  { id: 'winter',   index: '09', name: 'WINTER',  pantone: 'PANTONE 2925 C',               accent: '#009CDE', accent2: '#4B7A96', light: true  },
+  { id: 'ny96',     index: '10', name: 'NEW YORK 96',     pantone: 'PANTONE 116 C',                accent: '#FFCD00', accent2: '#0057B8', light: false },
+  { id: 'chakra',   index: '11', name: 'CHAKRA',  pantone: 'PANTONE 266 C',                accent: '#753BBD', accent2: '#FFA300', light: false },
+  { id: 'y1950',    index: '12', name: '1950', pantone: 'PANTONE 186 C',                accent: '#C8102E', accent2: '#003087', light: true  },
+  { id: 'y1960',    index: '13', name: '1960',           pantone: 'PANTONE 219 C',                accent: '#E10098', accent2: '#FFDD00', light: false },
+  { id: 'y1970',    index: '14', name: '1970',       pantone: 'PANTONE 1385 C',               accent: '#C05131', accent2: '#84BD00', light: false },
+  { id: 'y1980',    index: '15', name: '1980',        pantone: 'PANTONE 232 C',                accent: '#E0218A', accent2: '#00B5E2', light: false },
+  { id: 'y96',      index: '16', name: '96',         pantone: 'PANTONE 179 C (INFRARED)',     accent: '#FF0A0A', accent2: '#FF0A0A', light: false },
+  { id: 'y2000',    index: '17', name: '2000',            pantone: 'PANTONE 375 C',                accent: '#97D700', accent2: '#A7B1B7', light: false },
 ];
 
 export const DEFAULT_SKIN_ID = 'y96';
 
 export const getSkin = (id: string): Skin =>
-  SKINS.find(s => s.id === id) || SKINS[11];
+  SKINS.find(s => s.id === id) || SKINS.find(s => s.id === DEFAULT_SKIN_ID)!;
 
 // ─────────── color math ───────────
 
