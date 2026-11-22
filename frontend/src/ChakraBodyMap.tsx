@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, useWindowDimensions } from 'react-native'
 import Svg, { Circle, Path, Line, G, Text as SvgText } from 'react-native-svg';
 import { AudioEngine } from './AudioEngine';
 import { skinStyles, SK } from './skins';
+import { BinaryBorder } from './BinaryCode';
 
 
 // ═══ 13-KEY CHROMATIC SCALE ⟷ 13 CHAKRA BODY MAP — UNIVERSAL TUNING 432 Hz ═══
@@ -94,6 +95,7 @@ export default function ChakraBodyMap() {
 
   return (
     <View style={st.wrap}>
+      <BinaryBorder values={sel ? [sel.freq] : []} active={playing} />
       <View style={st.header}>
         <Text style={st.title}>◈ 13 CHAKRA BODY MAP</Text>
         <Text style={st.subtitle}>13-KEY CHROMATIC SCALE · UNIVERSAL TUNING 432 Hz · TAP A KEY OR A NODE</Text>
@@ -224,7 +226,7 @@ export default function ChakraBodyMap() {
 }
 
 const st = skinStyles({
-  wrap: { borderWidth: 1, borderColor: '#2a0a0a', backgroundColor: '#050202', marginBottom: 16, padding: 10 },
+  wrap: { borderWidth: 1, borderColor: 'transparent', backgroundColor: '#050202', marginBottom: 16, padding: 10 },
   header: { marginBottom: 10 },
   title: { color: '#ff0a0a', fontSize: 13, fontFamily: 'TerminatorRealNFI', letterSpacing: 1, textAlign: 'center' },
   subtitle: { color: '#5a1a1a', fontSize: 7, fontFamily: 'TerminatorRealNFI', letterSpacing: 1, textAlign: 'center', marginTop: 4 },

@@ -295,3 +295,9 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 - Cymascope (`cymatics/cymaticRuntime.ts`, CYMASCOPE/PLATE/DISC in `ScopeNodePanel.tsx`): colour = frequency octave-shifted into 400-800 THz, nearest Pantone (approximate table), on-canvas Hz -> THz / nm / Pantone readout.
 - Tested: /app/test_reports/iteration_22.json (web preview, all pass). Not tested on a physical device.
 - Open: user note "MIRROR MIRROR" not understood - ask. Skins 01-04 still named FEMALE/MALE though figure is now shared.
+
+## Rainbow chakra binary borders (June 2026)
+- `src/BinaryCode.tsx`: `BinaryBorder` (child overlay of a box whose borderColor is set transparent) and `BinaryRule` (under section titles). Digits = feature frequencies in whole Hz, binary, byte-padded; 7 chakra colours run around the border; flows clockwise while live, still + dim when idle, all zeros when nothing sounds. Values come from explicit props or from the audio engine (`ActiveFreq.id` added for tone ids).
+- Applied: Home CODES LAB frame + title, Mirrors Wheel box + title, Chakra Piano title + legend, Particle Lab title, CSF / BIOMAP / TIME MATRIX titles + boxes, Body Map, Sound Session, Resonance Calibration, shared Codes Lab, BI-NAURAL header / frequency box / presets title, BRAIN tab Chakra Body Map + Musical Spiral.
+- Not applied: Sound Lab music player, Codes Archive lists, CODES I.D., Element Cube, Time Travel Dial, Frequency Map, HOW/About/legal pages, small inner cards and buttons.
+- Tested: /app/test_reports/iteration_23.json (web preview; Particle Lab rule not exercised). Not tested on a device.

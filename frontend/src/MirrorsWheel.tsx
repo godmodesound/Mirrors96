@@ -3,6 +3,7 @@ import { svgPress } from './svgPress';
 import { View, Text, Image } from 'react-native';
 import { PORTAL_ART } from './brandArt';
 import { skinStyles, SK } from './skins';
+import { BinaryBorder } from './BinaryCode';
 
 import Svg, {
   Circle as SvgCircle,
@@ -388,6 +389,7 @@ export function MirrorsWheel({ activeKey, onKeyPress, isEmitting }: Props) {
 
   return (
     <View testID="mirrors-wheel" style={st.container}>
+      <BinaryBorder testID="mirrors-wheel-binary" values={CAMELOT_KEYS.filter(k => k.id === activeKey).map(k => k.freq)} active={isEmitting} />
       {/* Reserved readout space keeps the selection badge off every playable key. */}
       <View style={st.toolbar} pointerEvents="none">
         {activeKeyData && (
@@ -424,7 +426,7 @@ const st = skinStyles({
   stage: { width: '100%', overflow: 'hidden', backgroundColor: '#000' },
   container: {
     borderWidth: 1,
-    borderColor: '#687d90',
+    borderColor: 'transparent',
     borderRadius: 0,
     overflow: 'hidden',
     backgroundColor: '#000',

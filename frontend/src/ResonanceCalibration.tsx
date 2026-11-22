@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { AudioEngine } from './AudioEngine';
 import { skinStyles } from './skins';
+import { BinaryBorder } from './BinaryCode';
 import { CAL_ZONES, CalZone, Calibration, sweepRange, saveCalibration, useCalibration } from './calibration';
 
 const SWEEP_MS = 10000;
@@ -65,6 +66,7 @@ export default function ResonanceCalibration({ testID = 'calibration', onStart, 
   const zone = running ? CAL_ZONES[step!] : null;
   const count = Object.keys(cal).length;
   return <View testID={testID} style={s.wrap}>
+    <BinaryBorder sources={['binaural', 'beat']} />
     <View style={s.head}>
       <Text style={s.title}>◎ RESONANCE CALIBRATION</Text>
       <Text style={s.meta}>{count}/{CAL_ZONES.length} ZONES</Text>
@@ -100,7 +102,7 @@ export default function ResonanceCalibration({ testID = 'calibration', onStart, 
 }
 
 const s = skinStyles({
-  wrap: { marginBottom: 12, borderWidth: 1, borderColor: '#1f5a30', backgroundColor: '#020d07', borderRadius: 6, padding: 10 },
+  wrap: { marginBottom: 12, borderWidth: 1, borderColor: 'transparent', backgroundColor: '#020d07', borderRadius: 6, padding: 10 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { color: '#a9ff8a', fontSize: 12, fontWeight: '900', letterSpacing: 2 },
   meta: { color: '#4fa85c', fontSize: 9, letterSpacing: 1, fontWeight: '800' },

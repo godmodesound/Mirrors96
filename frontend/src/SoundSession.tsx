@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { AudioEngine } from './AudioEngine';
 import { skinStyles } from './skins';
 import { ScopeWave } from './useScopeWave';
+import { BinaryBorder } from './BinaryCode';
 
 // Dedicated session-bus oscillator; clear of Lab layers (0–4), harmonics (200+) and the cymatic signal (960096).
 const SESSION_TONE_ID = 960097;
@@ -34,6 +35,7 @@ export default function SoundSession({ hz, source, scope, testID }: { hz: number
 
   const timed = playing && left > 0;
   return <View testID={testID} style={st.wrap}>
+    <BinaryBorder testID={`${testID}-binary`} values={[hz]} active={playing} />
     <Text style={st.title}>SOUND SESSION</Text>
     <View style={st.row}>
       <View>
@@ -66,7 +68,7 @@ export default function SoundSession({ hz, source, scope, testID }: { hz: number
 }
 
 const st = skinStyles({
-  wrap: { marginTop: 10, borderWidth: 1, borderColor: '#4fa85c', borderRadius: 10, padding: 12, backgroundColor: '#03140a', gap: 12 },
+  wrap: { marginTop: 10, borderWidth: 1, borderColor: 'transparent', borderRadius: 10, padding: 12, backgroundColor: '#03140a', gap: 12 },
   title: { color: '#a9ff8a', fontSize: 11, fontWeight: '900', letterSpacing: 3 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   hz: { color: '#a9ff8a', fontSize: 24, fontWeight: '900' },

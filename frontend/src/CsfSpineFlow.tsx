@@ -4,6 +4,7 @@ import { AudioEngine } from './AudioEngine';
 import CanvasBridge, { CanvasBridgeHandle } from './CanvasBridge';
 import { CHAKRA_7, SPINE_HTML } from './spineHtml';
 import { skinStyles, SK } from './skins';
+import { BinaryBorder } from './BinaryCode';
 
 const TONE_ID = 720;
 const CPM = [6, 8, 10, 12];
@@ -62,6 +63,7 @@ export default function CsfSpineFlow({ testID = 'spine' }: { testID?: string }) 
 
   return (
     <View testID={testID} style={st.wrap}>
+      <BinaryBorder ids={[TONE_ID]} />
       <View style={st.head}>
         <View style={{ flex: 1 }}>
           <Text style={st.title}>CSF FLOW · KUNDALINI SPINE</Text>
@@ -118,7 +120,7 @@ export default function CsfSpineFlow({ testID = 'spine' }: { testID?: string }) 
 }
 
 const st = skinStyles({
-  wrap: { borderWidth: 1, borderColor: '#2a1a3a', backgroundColor: '#040208', borderRadius: 8, padding: 12 },
+  wrap: { borderWidth: 1, borderColor: 'transparent', backgroundColor: '#040208', borderRadius: 8, padding: 12 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   title: { color: '#c97bff', fontSize: 14, fontWeight: '900', letterSpacing: 2 },
   sub: { color: '#6a5a8a', fontSize: 8, letterSpacing: 1.2, marginTop: 3 },

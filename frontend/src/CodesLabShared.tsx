@@ -9,6 +9,7 @@ import { SpectrumNotice } from './codes/SpectrumFrequencyControl';
 import SpectrumAtlas from './codes/SpectrumAtlas';
 import { audioFrequency, clampFrequency, linkedFrequencies } from './codes/spectrum';
 import { skinStyles, SK } from './skins';
+import { BinaryBorder, BinaryRule } from './BinaryCode';
 
 const STORAGE_KEY = 'codes_lab_state';
 const initialLayers = (): ToneLayer[] => [{ id: 1, frequency: 432, gain: 0.5, isPlaying: false }];
@@ -93,8 +94,10 @@ export default function CodesLabShared({ onFrequencyChange, onLoadedNameChange, 
   };
 
   return <View testID={labId} style={s.container}>
+    <BinaryBorder values={layers.map(l => audioFrequency(l.frequency))} active={isPlaying} />
     {showScope && <CymaticScope frequencies={layers.map(l => audioFrequency(l.frequency))} playing={isPlaying} />}
     <Text testID={`${labId}-title`} style={s.title}>&gt; CODES_LAB</Text>
+    <BinaryRule values={layers.map(l => audioFrequency(l.frequency))} active={isPlaying} />
     {loadedArchiveName && <View testID={`${labId}-loaded-banner`} style={s.loaded}>
       <Text testID={`${labId}-loaded-name`} style={s.loadedText}>LOADED: {loadedArchiveName}</Text>
       <TouchableOpacity testID={`${labId}-loaded-play`} style={s.chip} onPress={handlePlay}><Text style={s.chipText}>{isPlaying ? 'STOP' : 'PLAY'}</Text></TouchableOpacity>
@@ -130,7 +133,7 @@ export async function loadFrequencyToLab(frequencies: number[], name: string) {
 }
 
 const s = skinStyles({
-  container: { backgroundColor: '#050202', borderWidth: 1, borderColor: '#1a0808', marginHorizontal: 16, marginVertical: 8, padding: 12 },
+  container: { backgroundColor: '#050202', borderWidth: 1, borderColor: 'transparent', marginHorizontal: 16, marginVertical: 8, padding: 12 },
   title: { color: '#ff0a0a', fontSize: 14, fontWeight: '900', letterSpacing: 2, marginBottom: 12 },
   loaded: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 12 },
   loadedText: { flex: 1, color: '#ff8080', fontSize: 11 },

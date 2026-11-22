@@ -4,6 +4,7 @@ import { AudioEngine } from './AudioEngine';
 import CanvasBridge, { CanvasBridgeHandle } from './CanvasBridge';
 import { DIMENSIONS, DENSITY_UNIVERSES, PRIMAL_FIELDS, MATRIX_HTML } from './matrixHtml';
 import { skinStyles, SK } from './skins';
+import { BinaryBorder } from './BinaryCode';
 
 const TONE_ID = 740;
 
@@ -56,6 +57,7 @@ export default function TimeMatrix({ testID = 'matrix' }: { testID?: string }) {
 
   return (
     <View testID={testID} style={st.wrap}>
+      <BinaryBorder ids={[TONE_ID]} />
       <Text style={st.title}>15-DIMENSIONAL TIME MATRIX</Text>
       <Text style={st.subtitle}>GOD&apos;S HOLOGRAM-OF-MATTER · INNER GOD | INNER CHRIST | LAW OF ONE</Text>
       <Text style={st.mantra}>ONE SPIRIT · ONE GOD · ONE SELF · ONE LOVE · ONE HEART · ONE LIGHT</Text>
@@ -109,7 +111,7 @@ export default function TimeMatrix({ testID = 'matrix' }: { testID?: string }) {
 }
 
 const st = skinStyles({
-  wrap: { borderWidth: 1, borderColor: '#3a2a5a', backgroundColor: '#050308', borderRadius: 10, padding: 14 },
+  wrap: { borderWidth: 1, borderColor: 'transparent', backgroundColor: '#050308', borderRadius: 10, padding: 14 },
   title: { color: '#fff', fontSize: 15, fontWeight: '900', letterSpacing: 1.5, textAlign: 'center' },
   subtitle: { color: '#9c6bff', fontSize: 9, letterSpacing: 1.5, textAlign: 'center', marginTop: 4, fontWeight: '800' },
   mantra: { color: '#7a7a8a', fontSize: 8, letterSpacing: 1.2, textAlign: 'center', marginTop: 4, marginBottom: 10 },

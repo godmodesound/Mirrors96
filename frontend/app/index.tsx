@@ -35,6 +35,7 @@ import { SpectrumNotice } from '../src/codes/SpectrumFrequencyControl';
 import SpectrumAtlas from '../src/codes/SpectrumAtlas';
 import { audioFrequency, clampFrequency, formatFrequency, linkedFrequencies } from '../src/codes/spectrum';
 import ScopeNodePanel from '../src/ScopeNodePanel';
+import { BinaryBorder, BinaryRule } from '../src/BinaryCode';
 import LatticeFramework from '../src/LatticeFramework';
 import SendCodesModal from '../src/SendCodesModal';
 import HomeAnatomyModules from '../src/HomeAnatomyModules';
@@ -710,6 +711,7 @@ export default function TerminalScreen() {
 
           {/* Tone Layers - Analog Style */}
           <View style={[styles.section, styles.t800Frame]}>
+            <BinaryBorder testID="home-lab-binary" values={layers.map(l => audioFrequency(l.frequency))} active={isPlaying} />
             {/* Live scope leads CODES LAB; its existing controls follow directly below. */}
             <View testID="home-scope-in-lab" style={styles.scopeInLab}>
               <ScopeNodePanel testID="home-scope" compact frequencies={layers.map(l => audioFrequency(l.frequency))} playing={isPlaying} scalarBeatHz={scalarOn || (godMode && isPlaying) ? scalarHz : 0} />
@@ -717,6 +719,7 @@ export default function TerminalScreen() {
             <View testID="home-lab-header" style={styles.toneLayerHeaderRow}>
               <View>
                 <Text testID="home-lab-title" style={styles.sectionTitle}>&gt; CODES_LAB</Text>
+                <BinaryRule values={layers.map(l => audioFrequency(l.frequency))} active={isPlaying} />
                 <Text style={styles.t800Tag}>T-800 // CSM-101 HUD</Text>
               </View>
               <View style={styles.headerBtnRow}>
@@ -893,6 +896,7 @@ export default function TerminalScreen() {
           {/* ══════ MIRRORS WHEEL ══════ */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>&gt; MIRRORS_WHEEL</Text>
+            <BinaryRule testID="home-wheel-binary" values={camelotInfo ? [camelotInfo.freq] : []} active={!!activeCamelotKey} />
             <Text style={styles.sectionSub}>HARMONIC RESONANCE MIRROR SYSTEM — 432Hz — Tap to emit</Text>
 
             <MirrorsWheel
@@ -914,6 +918,7 @@ export default function TerminalScreen() {
           {/* ══════ CHAKRA PIANO SCALE — "13" ══════ */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>&gt; CHAKRA_PIANO_SCALE</Text>
+            <BinaryRule testID="home-piano-binary" values={PIANO_KEYS.filter(k => k.key === activePianoKey).map(k => k.freq)} active={activePianoKey !== null} />
             <Text style={styles.sectionSub}>Tap keys to play — 13 chromatic + 8 major scale</Text>
 
             {/* Mode Toggle */}
@@ -983,6 +988,7 @@ export default function TerminalScreen() {
 
             {/* Piano Legend */}
             <View style={styles.pianoLegendBox}>
+              <BinaryBorder values={PIANO_KEYS.filter(k => k.key === activePianoKey).map(k => k.freq)} active={activePianoKey !== null} />
               <Text style={styles.pianoLegendTitle}>PINEAL ACCESS</Text>
               <Text style={styles.pianoLegendText}>Crown + 45° + 3rd Eye — upper triad gateway</Text>
               <View style={styles.pianoLegendDivider} />
@@ -1004,6 +1010,7 @@ export default function TerminalScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+            <BinaryRule testID="home-particle-binary" values={activeFrequency ? [activeFrequency] : []} active={!!activeFrequency} />
 
             <ParticleLab
               height={350}
@@ -1453,9 +1460,7 @@ const styles = skinStyles({
   // ═══ T-800 HUD SKIN — gunmetal chrome + infrared ═══
   t800Frame: {
     borderWidth: 1,
-    borderColor: '#232b36',
-    borderTopWidth: 2,
-    borderTopColor: '#ff0a0a',
+    borderColor: 'transparent',
     borderRadius: 4,
     marginHorizontal: 12,
     paddingHorizontal: 12,
@@ -1876,7 +1881,7 @@ const styles = skinStyles({
   },
   pianoLegendBox: {
     borderWidth: 1,
-    borderColor: '#2a0a0a',
+    borderColor: 'transparent',
     padding: 10,
     marginTop: 8,
     backgroundColor: '#050202',

@@ -601,7 +601,7 @@ const stopAllSubscribers = new Set<() => void>();
 // ═══ ACTIVE FREQUENCY REGISTRY — the exact Hz the engine is sounding right now,
 //     by source. Drives realtime body-map excitation without FFT guesswork
 //     (sub-20 Hz beats, binaural offsets and chords are reported exactly). ═══
-export type ActiveFreq = { hz: number; source: 'tone' | 'multi' | 'binaural' | 'beat' | 'soundscape' | 'camelot'; gain?: number };
+export type ActiveFreq = { hz: number; source: 'tone' | 'multi' | 'binaural' | 'beat' | 'soundscape' | 'camelot'; gain?: number; id?: number };
 const activeFreqMap = new Map<string, ActiveFreq[]>();
 let activeFreqSubs: ((list: ActiveFreq[]) => void)[] = [];
 const activeFreqSnapshot = (): ActiveFreq[] => {
@@ -625,7 +625,7 @@ export const AudioEngine = {
   startTone: (id: number, selectedFrequency: number, gain: number, wave?: string) => {
     // Translate BEFORE either platform bridge or the active-audio registry sees the value.
     const freq = audioFrequency(selectedFrequency);
-    setActiveFreqs(`tone:${id}`, [{ hz: freq, source: 'tone', gain }]);
+    setActiveFreqs(`tone:${id}`, [{ hz: freq, source: 'tone', gain, id }]);
     if (Platform.OS === 'web') {
       webStartTone(id, freq, gain, wave);
     } else {

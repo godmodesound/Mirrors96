@@ -5,6 +5,7 @@ import Svg, { Circle, Path, Line, G, Text as SvgText } from 'react-native-svg';
 import { AudioEngine } from './AudioEngine';
 import ScopeNodePanel from './ScopeNodePanel';
 import { skinStyles } from './skins';
+import { BinaryBorder } from './BinaryCode';
 
 
 // ═══ THE MUSICAL SPIRAL OF FREQUENCY COLOR AND LIGHT — UNIVERSAL TUNING 432 Hz ═══
@@ -110,6 +111,7 @@ export default function MusicalSpiral() {
 
   return (
     <View style={st.wrap}>
+      <BinaryBorder values={active === null ? [] : [active]} active={active !== null} />
       {/* ── TITLE ── */}
       <Text style={st.title}>THE MUSICAL SPIRAL</Text>
       <Text style={st.titleSub}>OF FREQUENCY COLOR AND LIGHT</Text>
@@ -313,7 +315,7 @@ export default function MusicalSpiral() {
 }
 
 const st = skinStyles({
-  wrap: { borderWidth: 1, borderColor: '#2a0a0a', backgroundColor: '#050202', marginBottom: 16, padding: 10 },
+  wrap: { borderWidth: 1, borderColor: 'transparent', backgroundColor: '#050202', marginBottom: 16, padding: 10 },
   title: { color: '#ff0a0a', fontSize: 15, fontFamily: 'TerminatorRealNFI', letterSpacing: 2, textAlign: 'center' },
   titleSub: { color: '#ffffff', fontSize: 9, fontFamily: 'TerminatorRealNFI', letterSpacing: 2, textAlign: 'center', marginTop: 3 },
   tuning: { color: '#5a1a1a', fontSize: 7, fontFamily: 'TerminatorRealNFI', letterSpacing: 1, textAlign: 'center', marginTop: 4, marginBottom: 6 },

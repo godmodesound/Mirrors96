@@ -7,6 +7,7 @@ import { BODY_POINTS, ExcitedPoint, pointsForCode, pointsForFrequencies, codesFo
 import { skinStyles } from './skins';
 import { CAL_ZONES, useCalibration, zoneForNode } from './calibration';
 import PortalFigure from './PortalFigure';
+import { BinaryBorder } from './BinaryCode';
 import SoundSession from './SoundSession';
 import { useScopeWave } from './useScopeWave';
 import { FieldState, LIGHT_BODIES, MOOD_AXES, ACTIVATION_SECONDS, initialFieldState, stepField, moodLabel } from './biofield';
@@ -127,6 +128,7 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
 
   return (
     <View testID={testID} style={st.wrap} onLayout={e => setBoxW(Math.floor(e.nativeEvent.layout.width - 22))}>
+      <BinaryBorder testID={`${testID}-binary`} />
       <View style={st.titleRow}>
         <Text style={st.title}>◉ BIOMAP</Text>
         <View testID={`${testID}-audio-reactive`} style={[st.pill, scope.active && st.pillOn]}>
@@ -248,7 +250,7 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
 }
 
 const st = skinStyles({
-  wrap: { marginBottom: 24, borderWidth: 1, borderColor: '#1f5a30', backgroundColor: '#020d07', borderRadius: 6, padding: 10 },
+  wrap: { marginBottom: 24, borderWidth: 1, borderColor: 'transparent', backgroundColor: '#020d07', borderRadius: 6, padding: 10 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { color: '#a9ff8a', fontSize: 12, fontWeight: '900', letterSpacing: 2 },
   status: { color: '#4fa85c', fontSize: 9, fontWeight: '800', letterSpacing: 1.5 },

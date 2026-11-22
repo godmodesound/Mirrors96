@@ -12,6 +12,7 @@ import MirrorsIdBanner from '../src/MirrorsIdBanner';
 import { WebView } from 'react-native-webview';
 import { AudioEngine } from '../src/AudioEngine';
 import ScopeNodePanel from '../src/ScopeNodePanel';
+import { BinaryBorder, BinaryRule } from '../src/BinaryCode';
 import DiagnosticBodyMap from '../src/DiagnosticBodyMap';
 import ResonanceCalibration from '../src/ResonanceCalibration';
 import BrainStructureStrip, { BrainRegion, BRAIN_REGIONS, regionForCarrier } from '../src/BrainStructureMap';
@@ -755,6 +756,7 @@ export default function BinauralScreen() {
           <View style={styles.header}>
             <Text style={styles.headerTitle}>BI-NAURAL FIELD</Text>
             <Text style={styles.headerSub}>PINEAL SPATIAL ENTRAINMENT</Text>
+            <BinaryRule testID="binaural-title-binary" values={[carrierFreq, carrierFreq + beatFreq, beatFreq]} active={isPlaying} />
           </View>
 
           <View style={styles.warningBox}>
@@ -803,6 +805,7 @@ export default function BinauralScreen() {
 
           {/* ═══ FREQUENCY DISPLAY ═══ */}
           <View style={styles.freqDisplay}>
+            <BinaryBorder testID="binaural-freq-binary" values={[carrierFreq, carrierFreq + beatFreq, beatFreq]} active={isPlaying} />
             <View style={styles.freqChannel}>
               <Text style={styles.freqChLabel}>L CHANNEL</Text>
               <Text style={styles.freqChValue}>{fmtHz(carrierFreq)} Hz</Text>
@@ -915,6 +918,7 @@ export default function BinauralScreen() {
           {/* ═══ PRESETS ═══ */}
           <View style={styles.presetsSection}>
             <Text style={styles.sectionTitle}>◈ PRESET PROTOCOLS</Text>
+            <BinaryRule values={[carrierFreq, carrierFreq + beatFreq, beatFreq]} active={isPlaying} />
             <View style={styles.presetGrid}>
               {BINAURAL_PRESETS.map(preset => (
                 <TouchableOpacity
@@ -1005,7 +1009,7 @@ const styles = skinStyles({
   freqDisplay: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginTop: 12, padding: 12, borderWidth: 1,
-    borderColor: '#2a0a0a', backgroundColor: '#0a0505',
+    borderColor: 'transparent', backgroundColor: '#0a0505',
   },
   freqChannel: { alignItems: 'center', flex: 1 },
   freqChLabel: { color: '#5a1a1a', fontSize: 8, letterSpacing: 1 },

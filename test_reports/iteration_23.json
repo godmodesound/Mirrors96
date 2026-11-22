@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend-only review of 'rainbow chakra binary code' feature (BinaryBorder / BinaryRule in /app/frontend/src/BinaryCode.tsx). All 8 requested checks pass on the live preview. (1) home-lab-binary contains only 0/1 characters (382 chars at 390w), includes the 432 Hz pattern 0000000110110000, is static when idle (identical 700ms snapshots) at opacity 0.38, changes while home-lab-execute is active (opacity 1.0), and returns to static after STOP. (2) Border digits reach all four edges — measured top-row width/box-width ratio = 1.0 at both 390px and 720px widths and document.scrollWidth equals viewport width (no horizontal overflow). (3) Overlays never block touches — SEND CODES, home-body-map-session-duration-13, and home-body-map-session-play all tappable (pointerEvents:'none' on BinaryBorder's absolute fill confirmed in code). (4) home-body-map-session-binary idle text is only zeros, flows while session tone plays, static after stop; home-body-map-binary (whole-body border) is all-zero/still at rest and flows when any tone plays. (5) Mirrors Wheel: tapping a mirrors-key starts both home-wheel-binary and mirrors-wheel-binary flowing (sample 11110010100000... = 432 Hz = 0x01B0), STOP FREQUENCY returns both to static. (6) Chakra piano: tapping the 432 Hz key starts home-piano-binary flowing (sample 01100000000000110110...), static after toggle-off. (7) BI-NAURAL tab: binaural-title-binary + binaural-freq-binary present and idle-static; freq box flows after INITIATE and returns to static after TERMINATE. (8) BRAIN tab (/moods) loads with 10 pure-01 binary blocks (ChakraBodyMap + MusicalSpiral BinaryBorders), no crash. Codes Archive tab loads without errors. Regression/perf: zero page errors, zero console errors on home, no 'Maximum update depth exceeded' warnings while scrolling with 432 Hz tone playing. No source files modified.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/artifacts_iter23/home_390_binary.jpg",
+    "/app/test_reports/artifacts_iter23/session_390.jpg",
+    "/app/test_reports/artifacts_iter23/mixed_390.jpg",
+    "/app/test_reports/artifacts_iter23/moods_390.jpg",
+    "/app/test_reports/artifacts_iter23/binaural_390.jpg"
+  ],
+  "action_items": [
+    "Non-blocking: the review request mentions testID 'home-particle-binary' for the particle lab, but index.tsx line ~1014 (ParticleLab) has no BinaryBorder with that testID. The nearby pianoLegendBox BinaryBorder at index.tsx:991 is also unlabelled. Either (a) add testID='home-particle-binary' to a BinaryBorder in/around <ParticleLab />, or (b) retitle the acceptance line so it only tracks home-piano-binary. Current piano acceptance still passes via home-piano-binary.",
+    "Non-blocking: /moods still logs a handful of SVG 'A negative value is not valid' warnings (e.g. width='-206'); these come from pre-existing SVG components, not from BinaryCode.tsx, and should be tracked separately."
+  ],
+  "critical_code_review_comments": [
+    "BinaryCode.tsx:134 — BinaryBorder uses position:'absolute', left/top/right/bottom:0 and pointerEvents:'none' on the fill wrapper, so the overlay correctly never intercepts touches. Verified empirically (SEND CODES, session duration 13, session play all tap through).",
+    "BinaryCode.tsx:106 — nh = Math.max(0, Math.floor((size.h - ROW_H*2)/COL_LINE)) prevents negative row counts on very short boxes; OK.",
+    "BinaryCode.tsx:50 — useFlow runs a 160ms setInterval only while live; cleared on effect teardown. No runaway re-render warnings observed during 16 scroll ticks with a playing tone.",
+    "BinaryCode.tsx:74-83 — single global charW measurement via hidden probe + charSubs set is efficient but relies on the first probe mounting; confirmed digits render on all mounts at 390 and 720 widths.",
+    "BinaryCode.tsx:11-13 — toBits pads each Hz value to a full byte, so 432→0000000110110000 (16 bits). Verified in home-lab-binary and mirrors-wheel-binary samples."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_23.json",
+    "/app/test_reports/artifacts_iter23/* (screenshots only; no app source modified)"
+  ],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% (8/8 requested checks)"},
+  "seed_data_creation": "None. No accounts, backend writes, or storage keys created.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Live preview: https://binaural-preview.preview.emergentagent.com. BinaryBorder is absolutely positioned with pointerEvents:'none' inside /app/frontend/src/BinaryCode.tsx; the parent box must have a transparent borderColor for the rainbow digits to replace the line. Verified testIDs: home-lab-binary (index.tsx:714), home-wheel-binary (index.tsx:899), home-piano-binary (index.tsx:921), home-body-map-binary + home-body-map-session-binary (via DiagnosticBodyMap + SoundSession prefix), mirrors-wheel-binary (MirrorsWheel.tsx:392), binaural-title-binary (binaural.tsx:759), binaural-freq-binary (binaural.tsx:808). 'home-particle-binary' is referenced in the task but NOT present in the codebase. Mirrors wheel keys have testIDs mirrors-key-<keyId> (both outer/inner rings share the same id). Piano keys have no testIDs — target them by frequency text (e.g. page.get_by_text('432 Hz', exact=True)). Audio needs a user gesture on web; Playwright clicks satisfy that.",
+  "rca_of_issue": "No defect. One minor documentation discrepancy: the review request's acceptance line for piano references 'home-particle-binary', but that testID is not present (ParticleLab in index.tsx is rendered without a BinaryBorder, and the pianoLegendBox BinaryBorder at index.tsx:991 has no testID). The piano behaviour itself is verified correct via home-piano-binary."
+}
