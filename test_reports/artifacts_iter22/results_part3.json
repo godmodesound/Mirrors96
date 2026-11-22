@@ -1,0 +1,23 @@
+{
+  "medium_initial_count": 0,
+  "medium_btn_count": 0,
+  "home_scope_testids": [
+    "home-scope-in-lab",
+    "home-scope",
+    "home-scope-scope-face",
+    "home-scope-flip",
+    "home-scope-node-face",
+    "home-scope-tuning",
+    "home-scope-layer-darkFx",
+    "home-scope-layer-threeField",
+    "home-scope-layer-orbit",
+    "home-scope-layer-labels",
+    "home-scope-layer-waveRing",
+    "home-scope-signal-readout",
+    "home-scope-canvas",
+    "home-scope-options"
+  ],
+  "lab_execute_during": "[ \u25a0 STOP ]",
+  "lab_execute_after": "[ \u25b6 EXECUTE ]",
+  "js_errors": []
+}

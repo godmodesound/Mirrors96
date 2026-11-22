@@ -288,3 +288,10 @@ Mobile version of godmodesound.com: 432Hz frequency generator, interactive frequ
 ## App Store icon update (June 2026)
 - `frontend/assets/images/icon.png` replaced with user-supplied MIRRORS 96 checkerboard artwork (1024x1024 RGB PNG, no alpha). `app.json` `expo.icon` already points to it.
 - Android adaptive icon, splash icon and favicon left unchanged (not requested).
+
+## Body Map portal layout + full-spectrum cymascope (June 2026)
+- BIOMAP (Home + BI-NAURAL) uses `assets/skins/body-portal.jpg` on every skin via `src/PortalFigure.tsx` (24 tappable nodes, meridians, live AUDIO INPUT monitor, signal-lit rings). Old CRT canvas (`bodyMapHtml`), `MeridianFigure` and male/female body art removed.
+- `src/SoundSession.tsx`: 432 Hz tone (or the selected node calibrated tone), free-run play + timed 13/33/96 s session. FRONT only; BACK shown as SOON (no back artwork yet).
+- Cymascope (`cymatics/cymaticRuntime.ts`, CYMASCOPE/PLATE/DISC in `ScopeNodePanel.tsx`): colour = frequency octave-shifted into 400-800 THz, nearest Pantone (approximate table), on-canvas Hz -> THz / nm / Pantone readout.
+- Tested: /app/test_reports/iteration_22.json (web preview, all pass). Not tested on a physical device.
+- Open: user note "MIRROR MIRROR" not understood - ask. Skins 01-04 still named FEMALE/MALE though figure is now shared.

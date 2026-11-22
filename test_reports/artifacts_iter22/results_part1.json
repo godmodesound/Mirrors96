@@ -1,0 +1,22 @@
+{
+  "body_map_found": true,
+  "portal_count": 1,
+  "portal_img_count": 1,
+  "portal_img_box": {
+    "x": 31,
+    "y": -169.734375,
+    "width": 328,
+    "height": 408
+  },
+  "node10_panel": 1,
+  "node10_selected_text": 1,
+  "node1_panel": 1,
+  "deselect_panel": 0,
+  "session_hz": "432 Hz",
+  "start_label_after": "STOP \u00b7 12s",
+  "audio_reactive": "\u25cf AUDIO REACTIVE",
+  "start_label_end": "START SESSION",
+  "mid_stop_label": "START SESSION",
+  "free_play_label": "START SESSION",
+  "reactive_during_play": "\u25cf AUDIO REACTIVE"
+}

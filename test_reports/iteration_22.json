@@ -1,0 +1,48 @@
+{
+  "summary": "Frontend-only review of BIOMAP portal body map + Sound Session + cymascope medium regression. All 7 requested checks pass on the live preview. Portal artwork renders (328x408 at 390w; 520x646 at 720w with no horizontal overflow, doc.scrollWidth=720). Node 10 (HEART) and Node 1 (CROWN) select/deselect correctly and the SVG 'SELECTED' tag appears. Sound Session: 432 Hz label, 13s countdown ('STOP · 12s' -> auto-stop in ~13s), AUDIO REACTIVE pill goes active while tone plays, mid-session stop returns to 'START SESSION', and the free-running play/pause toggle works without a countdown. BI-NAURAL tab mounts the same portal and node tap panel. Switching to the DREAM skin (non-default) keeps the portal rendering with no red-screen. Regression: home-lab-execute plays/stops the 432 Hz generator (EXECUTE<->STOP), and the compact home scope medium cycler (opened via home-scope-options) advances through CYMASCOPE -> PLATE -> DISC, each drawing a red-toned pattern with the on-canvas readout '432.x Hz +40 OCT -> 475.x THz . 631 nm' and '= PANTONE WARM RED C' with zero JS console errors. No business-logic or integration fixes were applied; no source files modified.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/artifacts_iter22/results_part1.json",
+    "/app/test_reports/artifacts_iter22/results_part2.json",
+    "/app/test_reports/artifacts_iter22/results_part3.json",
+    "/app/test_reports/artifacts_iter22/results_part4.json",
+    "/app/test_reports/artifacts_iter22/results_part5.json",
+    "/app/test_reports/artifacts_iter22/home_390_bodymap.jpg",
+    "/app/test_reports/artifacts_iter22/home_720_bodymap.jpg",
+    "/app/test_reports/artifacts_iter22/home_session_running.jpg",
+    "/app/test_reports/artifacts_iter22/home_scope_session.jpg",
+    "/app/test_reports/artifacts_iter22/binaural_bodymap.jpg",
+    "/app/test_reports/artifacts_iter22/skin_picker.jpg",
+    "/app/test_reports/artifacts_iter22/home_non_default_skin.jpg",
+    "/app/test_reports/artifacts_iter22/scope_CYMASCOPE.jpg",
+    "/app/test_reports/artifacts_iter22/scope_PLATE.jpg",
+    "/app/test_reports/artifacts_iter22/scope_DISC.jpg",
+    "/app/test_reports/artifacts_iter22/scope_while_tone.jpg"
+  ],
+  "action_items": [
+    "No action required for this iteration; all seven requested behaviours verified and no new JS errors observed.",
+    "Note (not a bug): on compact home-scope, the medium cycler is only mounted after tapping testID 'home-scope-options'. If future task text wants direct access, consider documenting this expand step or exposing the cycler at the top level."
+  ],
+  "critical_code_review_comments": [
+    "PortalFigure.tsx caps the figure at min(measured boxW, 520) via DiagnosticBodyMap.tsx:40 (W clamp), so at 720px foldable the portal centers at 520x646 with no horizontal overflow; confirmed doc.scrollWidth==720.",
+    "SoundSession.tsx cleanly separates free-running (start(0)) and timed (setLeft(seconds)) states; subscribeStopAll resets both flags, so a global stop will not leave the start label stuck at 'STOP . Ns'.",
+    "DiagnosticBodyMap.tsx reuses the engineMapState mapping so any sounding frequency (including the session's SESSION_TONE_ID=960097) drives excitedNames via pointsForFrequencies; verified during free-running play that AUDIO REACTIVE flips to '. AUDIO REACTIVE'.",
+    "ScopeNodePanel.tsx cycleMedium traverses 16 mediums; CYMASCOPE/CHLADNI(rendered as 'PLATE')/DISC each paint the Pantone/THz on-canvas text at 432 Hz with no console errors."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_22.json",
+    "/app/test_reports/artifacts_iter22/* (screenshots and JSON logs only; no app source modified)"
+  ],
+  "success_rate": {"backend": "N/A: skipped per request", "frontend": "100% (7/7 requested checks, including PLATE/DISC regression and zero JS errors)"},
+  "seed_data_creation": "None. No accounts, backend writes, or storage keys created; interactions were in-session only.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Live preview: https://binaural-preview.preview.emergentagent.com. Home scope is compact; tap testID 'home-scope-options' before 'home-scope-medium' to access the cycler. Session tone uses the SESSION_TONE_ID bus (960097), independent of Lab layers. Skin picker opens by long-pressing testID 'hero-logo'; 'skin-close' and 'skin-<id>' rows exist. BI-NAURAL body map lives at /binaural with testID prefix 'binaural-body-map'. BACK view is intentionally disabled and should remain so. Audio requires a user gesture; Playwright clicks satisfy that on web. Ignore shadow*/pointerEvents web-only deprecation warnings.",
+  "rca_of_issue": "No defect found. Earlier assumption that 'home-scope-medium-value' is always mounted failed because ScopeNodePanel compact mode initialises optionsOpen=false (ScopeNodePanel.tsx:1273) and gates the cycler block behind {optionsOpen && view === 'SCOPE' && ...} at line 1550. Expanding via home-scope-options exposes the cycler and PLATE/DISC render correctly with the frequency-tinted canvas and Pantone/THz readout."
+}

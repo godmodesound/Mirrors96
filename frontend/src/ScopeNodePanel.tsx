@@ -78,7 +78,7 @@ resize();window.addEventListener('resize',resize);
 var cfg={freqs:[432],playing:false,medium:'CYMASCOPE',geometries:[],wobble:false,view:'SCOPE',orbs:[],resonating:false,baseFreq:432,pattern:'SEED',orbit:null,beat:0,layers:{darkFx:false,threeField:false,orbit:false,labels:false,waveRing:false}};
 var LIVE={wave:new Array(128).fill(128),peak:0,rms:0,measuredHz:0,ts:0,peaks:[]};
 /*__CYMATIC_RUNTIME__*/
-var cymaticPlateMain=MirrorsCymatics.renderer(200),cymaticDiscMain=MirrorsCymatics.renderer(200);
+var cymaticPlateMain=MirrorsCymatics.renderer(200),cymaticDiscMain=MirrorsCymatics.renderer(200),cymaDrv=[];
 window.getCymaticDiagnostics=function(){return {source:'session-analyser',selected:cfg.medium,plate:cymaticPlateMain.state(),disc:cymaticDiscMain.state()};};
 var PAL={
   SOLID:{main:'#bfd8ea',glow:'#8bafc7',dim:'rgba(139,175,199,0.08)'},
@@ -588,7 +588,9 @@ function drawCymascope(t,env,R){
       drv[q].k=6.2832*4.6*Math.pow(f/432,0.6667);           // capillary Faraday scaling
       drv[q].n=Math.max(3,Math.round(Math.sqrt(f/432)*6));   // angular symmetry
       drv[q].ph=t*0.001*(0.7+(f%7)*0.4);                     // ripple phase
+      drv[q].c=MirrorsCymatics.light(f).lit;                 // Pantone of this partial's visible-light octave
     }
+    cymaDrv=drv;
     var amp=0.32+env*0.90;
     var half=CYS/2;
     for(var y=0;y<CYS;y++){
@@ -598,18 +600,21 @@ function drawCymascope(t,env,R){
         var idx=(y*CYS+x)*4;
         if(r>1){d[idx+3]=0;continue;}
         var th=Math.atan2(dy,dx);
-        var z=0;
+        var z=0,cw=0.0001,cr=0,cg=0,cb=0;
         for(var q2=0;q2<drv.length;q2++){
           var D=drv[q2];
           var radial=Math.cos(D.k*r-D.ph)/Math.sqrt(1+D.k*r*0.30);
           var angular=Math.cos(D.n*th+D.ph*0.25);
-          z+=D.a*radial*angular;
+          var zc=D.a*radial*angular,wz=Math.abs(zc);
+          z+=zc;cw+=wz;cr+=wz*D.c[0];cg+=wz*D.c[1];cb+=wz*D.c[2];
         }
         z*=amp*(1-Math.pow(r,6)); // meniscus rim damping
         var I=Math.min(1,Math.pow(Math.abs(z)*2.2,0.92)); // soft gamma — crisper node/antinode separation
+        // Each partial tints the membrane where it dominates: dark → its Pantone → white-hot antinode.
+        cr/=cw;cg/=cw;cb/=cw;
         var rr,gg,bb;
-        if(I<0.5){var u=I*2;rr=2+u*12;gg=14+u*130;bb=38+u*174;}
-        else{var u2=(I-0.5)*2;rr=14+u2*228;gg=144+u2*111;bb=212+u2*43;}
+        if(I<0.5){var u=0.07+I*1.3;rr=cr*u;gg=cg*u;bb=cb*u;}
+        else{var u2=(I-0.5)*2,k2=0.72+u2*0.28;rr=cr*k2+(255-cr*k2)*u2*0.7;gg=cg*k2+(255-cg*k2)*u2*0.7;bb=cb*k2+(255-cb*k2)*u2*0.7;}
         d[idx]=rr;d[idx+1]=gg;d[idx+2]=bb;d[idx+3]=Math.floor(255*(0.28+I*0.72));
       }
     }
@@ -917,13 +922,16 @@ function drawScopeFace(t,envSmooth){
   var fresh=(performance.now()-LIVE.ts)<700;
   if(isModalCymatic){
     var modalSignal=MirrorsCymatics.signal(LIVE,now2),modalSize=Math.min(W,H)*0.96;
-    (cfg.medium==='DISC'?cymaticDiscMain:cymaticPlateMain).draw(ctx,cfg.medium==='DISC'?'disc':'plate',modalSignal,CX-modalSize/2,CY-modalSize/2,modalSize);
+    var modalRenderer=cfg.medium==='DISC'?cymaticDiscMain:cymaticPlateMain;
+    modalRenderer.draw(ctx,cfg.medium==='DISC'?'disc':'plate',modalSignal,CX-modalSize/2,CY-modalSize/2,modalSize);
+    MirrorsCymatics.readout(ctx,[{f:modalRenderer.state().lightHz,a:1}],CX,H-4);
   } else if(isSolid){
     drawSolidField(R,p,envSmooth);
   } else if(isStars){
     drawStars(t,envSmooth,R);
   } else if(isCyma){
     drawCymascope(t,envSmooth,R);
+    MirrorsCymatics.readout(ctx,cymaDrv,CX,H-4);
   } else if(isLaser){
     drawLaser(t,envSmooth,R);
   } else if(isMirrors){

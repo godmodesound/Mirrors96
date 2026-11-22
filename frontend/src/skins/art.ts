@@ -6,12 +6,9 @@ export const LAB_ART = {
   dream: require('../../assets/skins/lab-dream.jpg'),
   portal: require('../../assets/skins/lab-portal.jpg'),
 };
-export const BODY_ART = {
-  female: require('../../assets/skins/body-female.jpg'),
-  male: require('../../assets/skins/body-male.jpg'),
-};
-/** Body art crop is 853×1050 of the source; figure coordinates below use that space. */
-export const BODY_ART_RATIO = 1050 / 853;
+/** BODY MAP portal figure, shown on every skin. Node coordinates use this 853×1060 space. */
+export const BODY_PORTAL_ART = require('../../assets/skins/body-portal.jpg');
+export const BODY_ART_W = 853;
+export const BODY_ART_H = 1060;
 
 export const activeLabArt = () => { const a = getSkin(activeSkinId()).labArt; return a ? LAB_ART[a] : null; };
-export const activeFigure = () => getSkin(activeSkinId()).figure || null;

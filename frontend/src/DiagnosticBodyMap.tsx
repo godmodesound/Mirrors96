@@ -1,15 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Platform, useWindowDimensions } from 'react-native';
-import { WebView } from 'react-native-webview';
+import { View, Text, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
 import { AudioEngine, ScopeFrame, ActiveFreq } from './AudioEngine';
 import { COLLECTIONS, ArchiveCode } from './archive/archiveData';
 import { useArchiveSession, playArchiveCode, stopArchive } from './archive/archiveSession';
 import { BODY_POINTS, ExcitedPoint, pointsForCode, pointsForFrequencies, codesForPoint, signatureFor } from './bodyMapData';
-import { BODY_MAP_HTML } from './bodyMapHtml';
-import { skinStyles, SK, skinHtml } from './skins';
+import { skinStyles } from './skins';
 import { CAL_ZONES, useCalibration, zoneForNode } from './calibration';
-import MeridianFigure from './MeridianFigure';
-import { activeFigure } from './skins/art';
+import PortalFigure from './PortalFigure';
+import SoundSession from './SoundSession';
+import { useScopeWave } from './useScopeWave';
 import { FieldState, LIGHT_BODIES, MOOD_AXES, ACTIVATION_SECONDS, initialFieldState, stepField, moodLabel } from './biofield';
 
 const TICK_MS = 500;
@@ -29,7 +28,7 @@ function engineMapState(list: ActiveFreq[]) {
 }
 
 /**
- * DIAGNOSTIC BODY MAP — phosphor CRT canvas synced to the Codes Archive.
+ * DIAGNOSTIC BODY MAP — portal figure synced to the Codes Archive.
  * Priority: archive code playing → its mapped regions; else whatever the
  * AudioEngine is sounding right now (generator layers, Mirrors Wheel, bi-naural,
  * soundscapes) → regions resolved per exact Hz; else live FFT peaks (media).
@@ -38,26 +37,13 @@ function engineMapState(list: ActiveFreq[]) {
 export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: string }) {
   const { width } = useWindowDimensions();
   const [boxW, setBoxW] = useState(0); // measured inner width → identical fit in every host (Home / BI-NAURAL / fold states)
-  const W = Math.min(boxW || width - 52, 520);
-  const H = Math.round(W * 1.12);
+  const W = Math.max(0, Math.min(boxW || width - 52, 520));
+  const scope = useScopeWave();
   const session = useArchiveSession();
   const [category, setCategory] = useState(COLLECTIONS[0]?.id || 'schumann');
   const [selectedPt, setSelectedPt] = useState(0);
   const [livePoints, setLivePoints] = useState<{ freqs: number[]; points: ExcitedPoint[] } | null>(null);
   const [engineFreqs, setEngineFreqs] = useState<ActiveFreq[]>([]);
-  const webRef = useRef<WebView>(null);
-  const iframeRef = useRef<any>(null);
-  const html = useMemo(() => skinHtml(BODY_MAP_HTML), []);
-  const figure = activeFigure();
-
-  const push = useCallback((fn: 'updateMap' | 'pushWave', payload: object) => {
-    const json = JSON.stringify(payload);
-    if (Platform.OS === 'web') {
-      try { iframeRef.current?.contentWindow?.[fn]?.(json); } catch {}
-    } else {
-      webRef.current?.injectJavaScript(`window.${fn}(${JSON.stringify(json)}); true;`);
-    }
-  }, []);
 
   // Exact sounding frequencies from the engine registry (deduped by value so slider drags don't thrash)
   useEffect(() => AudioEngine.subscribeActiveFreqs(list => {
@@ -99,24 +85,9 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
   const settling = !mapState.playing && smoothedPoints.some(p => p.w > 0.01);
   const recentNod = field.bodies.find(b => b.achieved && Date.now() - b.achievedAt < 6000);
 
-  const fullConfig = useCallback(() => ({
-    ...mapState,
-    playing: mapState.playing || settling,
-    points: smoothedPoints,
-    bodies: field.bodies.map(b => ({ id: b.id, exposure: Math.round(b.exposure * 10) / 10, active: b.active, achieved: b.achieved, achievedAt: b.achievedAt })),
-    mood: mood.axis ? `${mood.axis} ${mood.pct >= 0 ? '+' : ''}${mood.pct}` : 'RESTING STATE',
-    selected: selectedPt,
-  }), [mapState, settling, smoothedPoints, field.bodies, mood, selectedPt]);
-  useEffect(() => { push('updateMap', fullConfig()); }, [fullConfig, push]);
-
-  const lastPush = useRef(0);
   const lastLive = useRef(0);
   useEffect(() => AudioEngine.subscribeScope((frame: ScopeFrame) => {
     const now = Date.now();
-    if (Platform.OS === 'web' || now - lastPush.current >= 40) {
-      lastPush.current = now;
-      push('pushWave', { __wave: true, wave: Platform.OS === 'web' ? frame.wave : frame.wave.filter((_, i) => i % 2 === 0), peak: frame.peak, rms: frame.rms, measuredHz: frame.measuredHz, peaks: (frame.peaks || []).slice(0, 4) });
-    }
     if (now - lastLive.current < 450) return;
     lastLive.current = now;
     const audible = frame.peak > 1.5;
@@ -129,20 +100,7 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
       if (prev && prev.freqs.join(',') === key) return prev;
       return { freqs, points: pointsForFrequencies(freqs, undefined, top.map(p => 0.5 + 0.5 * ((p.mag || 0) / maxMag))) };
     });
-  }), [push]);
-
-  const onCanvasMessage = useCallback((raw: string) => {
-    try {
-      const msg = JSON.parse(raw);
-      if (msg?.__bodymap && msg.type === 'pt') setSelectedPt(prev => (prev === msg.id ? 0 : msg.id));
-    } catch {}
-  }, []);
-  useEffect(() => {
-    if (Platform.OS !== 'web') return;
-    const handler = (e: MessageEvent) => { if (typeof e.data === 'string' && e.data.includes('__bodymap')) onCanvasMessage(e.data); };
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
-  }, [onCanvasMessage]);
+  }), []);
 
   const collection = COLLECTIONS.find(c => c.id === category) || COLLECTIONS[0];
   const point = BODY_POINTS.find(p => p.id === selectedPt);
@@ -171,36 +129,25 @@ export default function DiagnosticBodyMap({ testID = 'body-map' }: { testID?: st
     <View testID={testID} style={st.wrap} onLayout={e => setBoxW(Math.floor(e.nativeEvent.layout.width - 22))}>
       <View style={st.titleRow}>
         <Text style={st.title}>◉ BIOMAP</Text>
-        <Text style={[st.status, mapState.playing && st.statusOn]}>{mapState.playing ? '● SCAN ACTIVE' : '○ STANDBY'}</Text>
+        <View testID={`${testID}-audio-reactive`} style={[st.pill, scope.active && st.pillOn]}>
+          <Text style={[st.status, scope.active && st.statusOn]}>{scope.active ? '●' : '○'} AUDIO REACTIVE</Text>
+        </View>
       </View>
       <Text style={st.subtitle}>INFORMATIONAL FIELD · ARCHIVE SYNC · LIVE FFT DRIVE</Text>
       {calCount > 0 && <Text testID={`${testID}-calibrated`} style={st.nodeCal}>◎ CALIBRATED {calCount}/{CAL_ZONES.length} ZONES · TAP A NODE FOR YOUR TONE</Text>}
 
-      {figure ? (
-        <MeridianFigure testID={testID} figure={figure} width={W} selected={selectedPt}
-          levels={Object.fromEntries(smoothedPoints.map(p => [p.id, p.w]))}
-          onSelect={id => setSelectedPt(prev => (prev === id ? 0 : id))} />
-      ) : <View testID={`${testID}-canvas`} style={[st.canvas, { width: W, height: H }]}>
-        {Platform.OS === 'web' ? (
-          React.createElement('iframe', {
-            ref: iframeRef,
-            srcDoc: html,
-            style: { width: '100%', height: '100%', border: 'none', backgroundColor: SK('#03140a') },
-            onLoad: () => push('updateMap', fullConfig()),
-          })
-        ) : (
-          <WebView
-            ref={webRef}
-            source={{ html }}
-            style={st.webview}
-            javaScriptEnabled
-            scrollEnabled={false}
-            androidLayerType="hardware"
-            onLoadEnd={() => push('updateMap', fullConfig())}
-            onMessage={e => onCanvasMessage(e.nativeEvent.data)}
-          />
-        )}
-      </View>}
+      <PortalFigure testID={testID} width={W} selected={selectedPt} scope={scope}
+        levels={Object.fromEntries(smoothedPoints.map(p => [p.id, p.w]))}
+        onSelect={id => setSelectedPt(prev => (prev === id ? 0 : id))} />
+
+      <View style={st.viewRow}>
+        <View testID={`${testID}-view-front`} style={[st.viewBtn, st.viewBtnOn]}><Text style={st.viewTextOn}>FRONT</Text></View>
+        <View testID={`${testID}-view-back`} accessibilityState={{ disabled: true }} style={st.viewBtn}><Text style={st.viewText}>BACK · SOON</Text></View>
+      </View>
+      <Text style={st.tapHint}>Tap a region to map sound</Text>
+
+      <SoundSession testID={`${testID}-session`} scope={scope} hz={nodeCal ? nodeCal.hz : 432}
+        source={nodeCal ? `YOUR ${nodeCal.zone.name}` : 'TONE'} />
 
       {/* readout */}
       <View style={st.readout}>
@@ -307,8 +254,14 @@ const st = skinStyles({
   status: { color: '#4fa85c', fontSize: 9, fontWeight: '800', letterSpacing: 1.5 },
   statusOn: { color: '#f3ffc4' },
   subtitle: { color: '#3f8a4c', fontSize: 8, letterSpacing: 1.5, marginTop: 3, marginBottom: 10 },
-  canvas: { alignSelf: 'center', borderWidth: 1, borderColor: '#1f5a30', borderRadius: 4, overflow: 'hidden', backgroundColor: '#03140a' },
-  webview: { flex: 1, backgroundColor: 'transparent' },
+  pill: { borderWidth: 1, borderColor: '#1f5a30', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
+  pillOn: { borderColor: '#a9ff8a' },
+  viewRow: { flexDirection: 'row', alignSelf: 'center', marginTop: 10, borderWidth: 1, borderColor: '#4fa85c', borderRadius: 16, overflow: 'hidden' },
+  viewBtn: { minWidth: 110, paddingVertical: 8, alignItems: 'center' },
+  viewBtnOn: { backgroundColor: '#a9ff8a' },
+  viewTextOn: { color: '#03140a', fontSize: 10, fontWeight: '900', letterSpacing: 2 },
+  viewText: { color: '#2f7a3c', fontSize: 10, fontWeight: '800', letterSpacing: 2 },
+  tapHint: { color: '#c8ffb8', fontSize: 10, fontStyle: 'italic', letterSpacing: 1.5, textAlign: 'center', marginTop: 8 },
   readout: { marginTop: 10, borderWidth: 1, borderColor: '#1f5a30', padding: 8, backgroundColor: '#03140a' },
   readoutRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   readoutName: { flex: 1, color: '#f3ffc4', fontSize: 11, fontWeight: '900', letterSpacing: 1.5 },
